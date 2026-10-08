@@ -426,9 +426,13 @@ const EnrolledStudents = () => {
     );
 
   return (
-    <div className="container mx-auto p-4 bg-gray-50 min-h-screen text-gray-900">
-      <h1 className="text-3xl font-bold mb-6">Enrolled Students</h1>
-
+    <div className="bg-[#F8FAFC] min-h-full">
+      {/* Page header */}
+      <div className="px-6 py-4 border-b border-slate-200 bg-white">
+        <h1 className="text-[20px] font-[600] leading-[28px] tracking-[-0.015em] text-slate-900">Enrolled Students</h1>
+        <p className="text-[13px] text-slate-500 leading-[18px] mt-0.5">Manage and track enrolled students</p>
+      </div>
+      <div className="p-6">
       {/* Filters */}
       <FiltersPanel
         searchQuery={searchQuery}
@@ -527,6 +531,7 @@ const EnrolledStudents = () => {
           }
         />
       )}
+      </div>{/* end p-6 */}
     </div>
   );
 };

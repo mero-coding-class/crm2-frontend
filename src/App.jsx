@@ -7,18 +7,20 @@ import {
 } from "react-router-dom";
 
 
-import { AuthContext, AuthProvider } from "./context/AuthContext.jsx"; // Adjusted path to assume App.js is in src/
-import MainLayout from "./layouts/MainLayout"; // Adjusted path to assume App.js is in src/
-import Dashboard from "./pages/Dashboard"; // Adjusted path to assume App.js is in src/
-import Leads from "./pages/Leads"; // Adjusted path to assume App.js is in src/
-import EnrolledStudents from "./pages/EnrolledStudents"; // Adjusted path to assume App.js is in src/
-import TrashPage from "./pages/TrashPage"; // Adjusted path to assume App.js is in src/
-import Login from "./pages/Login"; // Adjusted path to assume App.js is in src/
-import Reports from "./pages/Reports"; // Adjusted path to assume App.js is in src/
-import Register from "./pages/Register"; // Adjusted path to assume App.js is in src/
-import CreateCourse from "./pages/CreateCourse"; // Adjusted path to assume App.js is in src/
+import { AuthContext, AuthProvider } from "./context/AuthContext.jsx";
+import MainLayout from "./layouts/MainLayout";
+import Dashboard from "./pages/Dashboard";
+import Leads from "./pages/Leads";
+import EnrolledStudents from "./pages/EnrolledStudents";
+import TrashPage from "./pages/TrashPage";
+import Login from "./pages/Login";
+import Reports from "./pages/Reports";
+import Register from "./pages/Register";
+import CreateCourse from "./pages/CreateCourse";
 import Settings from "./pages/Settings";
 import Downloads from "./pages/Downloads";
+import Archive from "./pages/Archive";
+
 function AppContent() {
   const { authToken } = useContext(AuthContext);
 
@@ -39,6 +41,7 @@ function AppContent() {
           <Route path="/leads" element={<Leads />} />
           <Route path="/enrolled-students" element={<EnrolledStudents />} />
           <Route path="/trash" element={<TrashPage />} />
+          <Route path="/archive" element={<Archive />} />
           <Route path="/report" element={<Reports />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/downloads" element={<Downloads />} />

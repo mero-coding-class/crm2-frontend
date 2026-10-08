@@ -14,7 +14,7 @@ import useCourses from "./leads/useCourses";
 import useGlobalLeadEvents from "./leads/useGlobalLeadEvents";
 import useLeadExports from "./leads/useLeadExports";
 import useLeadsHandlers from "./leads/useLeadsHandlers";
-import useLeadsCore from "./leads/useLeadsCore";
+import useLeadsCore, { SAMPLE_PLACEHOLDER_LEAD } from "./leads/useLeadsCore";
 import useLeadFilters from "./leads/useLeadFilters";
 import { deduplicateLeads } from "./leads/utils";
 import {
@@ -280,6 +280,11 @@ const Leads = () => {
     }
   }
 
+  // If there are no leads yet, provide the placeholder sample lead so the table structure is visible
+  if ((!currentLeads || currentLeads.length === 0) && !searchTerm.trim()) {
+    currentLeads = [SAMPLE_PLACEHOLDER_LEAD];
+  }
+
   // removed noisy debug logging
 
   if (loading) {
@@ -303,7 +308,7 @@ const Leads = () => {
   // removed noisy debug logging
 
   return (
-    <div className="container mx-auto p-4 bg-gray-50 min-h-screen text-gray-900">
+    <div className="flex flex-col min-h-full bg-[#F8FAFC] text-slate-900">
       {toast.show && (
         <Toast
           message={toast.message}
@@ -314,7 +319,6 @@ const Leads = () => {
           }
         />
       )}
-      <h1 className="text-3xl font-bold mb-6">Leads Management</h1>
 
       <LeadsHeader
         handleOpenAddModal={handleOpenAddModal}
@@ -355,6 +359,7 @@ const Leads = () => {
         setSearchTerm={setSearchTerm}
         showFilters={showFilters}
         setShowFilters={setShowFilters}
+        totalCount={currentLeads ? currentLeads.length : 0}
       />
 
       {/* Non-blocking export progress indicator */}
@@ -462,6 +467,8 @@ const Leads = () => {
         setFilterPrevCodingExp={setFilterPrevCodingExp}
         filterAssignedTo={filterAssignedTo}
         setFilterAssignedTo={setFilterAssignedTo}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
         onClearFilters={() => {
           setFilterStatus("All");
           setFilterAge("");
@@ -505,7 +512,7 @@ const Leads = () => {
 
       {/* Advanced filters handled by `LeadsFilters` component above. Duplicate block removed. */}
 
-      <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
+      <div className="flex-1 overflow-x-auto bg-white">
         {error ? (
           <div className="text-red-500 text-center">{error}</div>
         ) : (
@@ -537,6 +544,9 @@ const Leads = () => {
             usersLoading={usersLoading}
             currentUserRole={(user?.role || "").toString().toLowerCase()}
             handleFieldChange={handleFieldChange}
+            handleOpenAddModal={handleOpenAddModal}
+            courses={courses}
+            handleRefresh={handleRefresh}
           />
         )}
       </div>

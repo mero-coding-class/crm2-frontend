@@ -1,12 +1,6 @@
 import React from "react";
+import { Plus, RotateCw, ListFilter, FileUp, FileDown } from "lucide-react";
 import ImportCsvButton from "./ImportCsvButton";
-import {
-  PlusIcon,
-  ArrowDownTrayIcon,
-  ArrowPathIcon,
-  MagnifyingGlassIcon,
-  FunnelIcon,
-} from "@heroicons/react/24/outline";
 
 const LeadsHeader = ({
   handleOpenAddModal,
@@ -14,75 +8,89 @@ const LeadsHeader = ({
   courses,
   handleRefresh,
   handleExport,
-  handleExportAll,
   fetchingAll,
-  searchTerm,
-  setSearchTerm,
   showFilters,
   setShowFilters,
+  totalCount = 0,
 }) => {
   return (
-    <>
-      <div className="flex flex-wrap items-center justify-between mb-6 gap-4">
-        <div className="flex items-center gap-3">
+    <div className="px-6 py-5 border-b border-slate-200 bg-white">
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+        {/* Left: Title + Badge + Subtitle */}
+        <div>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-[22px] font-[700] text-slate-900 tracking-[-0.015em]">
+              Leads Management
+            </h1>
+            <span className="px-2.5 py-0.5 rounded-full text-[12px] font-[500] bg-[#EEF2F6] text-slate-600">
+              {totalCount} Total
+            </span>
+          </div>
+          <p className="text-[13px] text-slate-500 mt-1">
+            Manage, filter, import and track student inquiries across all intake channels.
+          </p>
+        </div>
+
+        {/* Right: Actions (all in the same row) */}
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           <button
-            onClick={handleOpenAddModal}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-sm"
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-[8px] text-[13px] font-[500] transition-colors ${
+              showFilters
+                ? "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200"
+                : "bg-[#EEF2F6] hover:bg-slate-200 text-slate-700"
+            }`}
           >
-            <PlusIcon className="h-5 w-5 inline-block mr-2" />
-            Add New Lead
+            <ListFilter className="h-4 w-4" />
+            {showFilters ? "Hide Filters" : "Show Filters"}
+          </button>
+
+          <button
+            onClick={handleRefresh}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-[8px] text-[13px] font-[500] bg-[#EEF2F6] hover:bg-slate-200 text-slate-700 transition-colors"
+          >
+            <RotateCw className="h-4 w-4" />
+            Refresh
           </button>
 
           <ImportCsvButton
             authToken={authToken}
             courses={courses}
             onImported={handleRefresh}
+            id="headerCsvUpload"
+            customButton={
+              <div className="flex items-center gap-2 px-3.5 py-2 rounded-[8px] text-[13px] font-[500] bg-[#EEF2F6] hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors">
+                <FileUp className="h-4 w-4" />
+                Import CSV
+              </div>
+            }
           />
 
           <button
             onClick={handleExport}
-            className="flex items-center px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-[8px] text-[13px] font-[500] bg-[#EEF2F6] hover:bg-slate-200 text-slate-700 transition-colors"
           >
-            <ArrowDownTrayIcon className="h-5 w-5 inline-block mr-2" />
+            <FileDown className="h-4 w-4" />
             Export CSV
           </button>
 
           <button
-            onClick={handleRefresh}
-            className="flex items-center px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
+            onClick={handleOpenAddModal}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-[8px] text-[13px] font-[500] bg-[#4F46E5] hover:bg-indigo-700 text-white shadow-sm transition-colors"
           >
-            <ArrowPathIcon className="h-5 w-5 inline-block mr-2" />
-            Refresh
+            <Plus className="h-4 w-4" />
+            Add New Lead
           </button>
         </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative w-full sm:w-auto">
-            <input
-              type="text"
-              placeholder="Search by Email, Phone, Name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full p-2 pl-10 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-all duration-200"
-            />
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-          </div>
-
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
-          >
-            <FunnelIcon className="h-5 w-5 inline-block mr-2" />
-            {showFilters ? "Hide Filters" : "Show Filters"}
-          </button>
-        </div>
-        {fetchingAll && (
-          <div className="w-full text-sm text-center text-gray-600 mt-2">
-            Fetching full dataset — this may take a moment...
-          </div>
-        )}
       </div>
-    </>
+
+      {fetchingAll && (
+        <div className="mt-3 flex items-center gap-2 text-[12px] text-slate-500">
+          <div className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" />
+          Fetching full dataset — this may take a moment…
+        </div>
+      )}
+    </div>
   );
 };
 

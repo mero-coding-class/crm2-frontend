@@ -1,28 +1,63 @@
 import React from "react";
+import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 const StatCard = ({
   title,
   value,
   icon: Icon,
   description,
-  colorClass = "text-blue-600 bg-blue-100",
+  trend,         // number: positive = up, negative = down, 0/null = neutral
+  trendLabel,    // e.g. "vs last month"
+  colorClass = "text-indigo-600 bg-indigo-50",
+  accentColor = "#4F46E5",
 }) => {
+  const isUp = trend > 0;
+  const isDown = trend < 0;
+  const absT = Math.abs(trend || 0);
+
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md flex items-center justify-between transition-transform transform hover:scale-105 duration-200">
-      <div className="flex-grow">
-        <p className="text-gray-500 text-sm font-medium">{title}</p>
-        <p className="text-3xl font-bold text-gray-900 mt-1">{value}</p>
-        {description && (
-          <p className="text-gray-400 text-xs mt-1">{description}</p>
+    <div className="bg-white rounded-[12px] border border-slate-200 p-5 flex flex-col gap-3 hover:shadow-[0_4px_6px_-1px_rgba(15,23,42,0.07),_0_2px_4px_-2px_rgba(15,23,42,0.05)] hover:border-slate-300 transition-all duration-150">
+      <div className="flex items-start justify-between">
+        <p className="text-[13px] font-[500] text-slate-500 leading-[18px]">
+          {title}
+        </p>
+        {Icon && (
+          <div className={`h-8 w-8 rounded-[8px] flex items-center justify-center shrink-0 ${colorClass}`}>
+            <Icon className="h-4 w-4" />
+          </div>
         )}
       </div>
 
-      {Icon && (
-        <div
-          className={`p-3 rounded-full flex items-center justify-center ${colorClass}`}
-        >
-          <Icon className="h-8 w-8" />
-        </div>
+      <div className="flex items-end gap-3">
+        <p className="text-[28px] font-[700] leading-[32px] tracking-[-0.02em] text-slate-900 tabular-nums">
+          {value ?? "—"}
+        </p>
+        {trend !== null && trend !== undefined && (
+          <div
+            className={`flex items-center gap-0.5 mb-0.5 text-[12px] font-[600] leading-[16px] ${
+              isUp
+                ? "text-emerald-600"
+                : isDown
+                ? "text-rose-500"
+                : "text-slate-400"
+            }`}
+          >
+            {isUp ? (
+              <TrendingUp className="h-3.5 w-3.5" />
+            ) : isDown ? (
+              <TrendingDown className="h-3.5 w-3.5" />
+            ) : (
+              <Minus className="h-3.5 w-3.5" />
+            )}
+            {absT}%
+          </div>
+        )}
+      </div>
+
+      {(description || trendLabel) && (
+        <p className="text-[12px] text-slate-400 leading-[16px]">
+          {description || trendLabel}
+        </p>
       )}
     </div>
   );

@@ -140,6 +140,28 @@ const DraggableRow = ({
 
         const renderCell = () => {
           switch (key) {
+            case "school_college_name":
+              return (
+                <td
+                  key={key}
+                  className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                >
+                  {lead.school_college_name && String(lead.school_college_name).trim() !== ""
+                    ? lead.school_college_name
+                    : lead.student_name || "N/A"}
+                </td>
+              );
+            case "address_line_1":
+              return (
+                <td
+                  key={key}
+                  className="px-3 py-4 whitespace-nowrap text-sm text-gray-700"
+                >
+                  {lead.address_line_1 && String(lead.address_line_1).trim() !== ""
+                    ? lead.address_line_1
+                    : lead.city || "N/A"}
+                </td>
+              );
             case "scheduled_taken": {
               const value =
                 (lead.scheduled_taken || lead.demo_scheduled || "No") === "Yes"

@@ -193,6 +193,15 @@ const LeadEditModal = ({ lead, onClose, onSave, courses }) => {
     setFormData({ ...DEFAULT_FORM, ...normalized });
   }, [lead]);
 
+  // Prevent background scrolling while modal is open
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
+
   // Ensure invoice/installment are loaded from the detail endpoint even if the list omits them
   useEffect(() => {
     const id = (lead && (lead.id || lead._id)) || formData._id || formData.id;

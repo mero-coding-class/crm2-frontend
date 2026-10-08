@@ -1,5 +1,3 @@
-// C:/Users/aryal/Desktop/EDU_CRM/client/src/layouts/MainLayout.jsx
-
 import React, { useContext, useState } from "react";
 import {
   NavLink,
@@ -9,29 +7,30 @@ import {
   Link,
 } from "react-router-dom";
 import {
-  HomeIcon,
-  UserGroupIcon,
-  UsersIcon,
-  ArrowLeftOnRectangleIcon,
-  Bars3Icon,
-  FolderOpenIcon,
-  XMarkIcon,
-  UserMinusIcon,
-  UserPlusIcon,
-  PlusCircleIcon,
-  BookOpenIcon,
-  Cog6ToothIcon,
-  ArrowDownTrayIcon,
-} from "@heroicons/react/24/outline";
-
+  LayoutDashboard,
+  UserPlus,
+  Users,
+  MonitorPlay,
+  Archive,
+  GraduationCap,
+  LogOut,
+  Menu,
+  X,
+  ChevronRight,
+  ChevronUp,
+  Home,
+  Bell,
+  Search,
+  Settings,
+  HelpCircle,
+  User,
+} from "lucide-react";
 import { AuthContext } from "../context/AuthContext.jsx";
+import { cn } from "../lib/utils.js";
 
-/** exact-role check: admin, superadmin, sales_rep */
 const getRole = () => (localStorage.getItem("role") || "").trim().toLowerCase();
 const canManage = (role) => role === "admin" || role === "superadmin";
-
 const getUsername = () => (localStorage.getItem("username") || "").trim();
-
 const getInitials = (name) => {
   const n = (name || "").trim();
   if (!n) return "U";
@@ -40,15 +39,21 @@ const getInitials = (name) => {
   return n[0].toUpperCase();
 };
 
+const navItems = [
+  { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/leads", icon: UserPlus, label: "Leads" },
+  { to: "/clients", icon: Users, label: "Clients" },
+  { to: "/demo", icon: MonitorPlay, label: "Demo" },
+  { to: "/archive", icon: Archive, label: "Archive" },
+];
+
 const MainLayout = () => {
   const { logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  // Allow collapsing the sidebar on desktop via breadcrumb toggle
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const location = useLocation();
 
-  // Derive breadcrumb items from the current path
   const pathSegments = location.pathname.split("/").filter(Boolean);
   const breadcrumbs = [
     { label: "Home", to: "/dashboard" },
@@ -63,7 +68,7 @@ const MainLayout = () => {
   ];
 
   const username = getUsername() || "User";
-  const role = getRole(); // "admin" | "superadmin" | "sales_rep" | ""
+  const role = getRole();
 
   const handleLogout = () => {
     logout();
@@ -71,257 +76,248 @@ const MainLayout = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100 font-sans antialiased">
-      {/* Mobile Sidebar Toggle */}
-      <div className="md:hidden p-4">
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md"
-        >
-          {sidebarOpen ? (
-            <XMarkIcon className="h-6 w-6" />
-          ) : (
-            <Bars3Icon className="h-6 w-6" />
-          )}
-        </button>
-      </div>
+    <div className="flex h-screen bg-[#F8FAFC] font-[Inter,system-ui,sans-serif] antialiased overflow-hidden">
 
-      {/* Sidebar */}
+      {/* ─── Mobile overlay ─── */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-30 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* ─── Sidebar ─── */}
       <aside
-        className={`fixed inset-y-0 left-0 bg-gray-800 text-white w-64 p-4 flex flex-col transition-transform duration-300 ease-in-out z-40
-        ${
-          sidebarOpen && !sidebarCollapsed
-            ? "translate-x-0"
-            : "-translate-x-full"
-        }
-        ${sidebarCollapsed ? "md:-translate-x-full" : "md:translate-x-0"}`}
-        style={{ willChange: "transform" }}
+        className={cn(
+          "fixed inset-y-0 left-0 z-40 flex flex-col bg-white border-r border-slate-200 transition-all duration-300",
+          "w-[260px]",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        )}
       >
-        <div className="text-2xl font-bold mb-8 text-center">EDU CRM</div>
-
-        <nav className="flex-grow space-y-2">
-          <NavLink
-            to="/dashboard"
-            className={({ isActive }) =>
-              `flex items-center p-3 rounded-lg transition-colors duration-200 ${
-                isActive
-                  ? "bg-blue-600 text-white shadow-md"
-                  : "hover:bg-gray-700 text-gray-300"
-              }`
-            }
-            onClick={() => setSidebarOpen(false)}
-          >
-            <HomeIcon className="h-6 w-6 mr-3" />
-            Dashboard
-          </NavLink>
-
-          <NavLink
-            to="/leads"
-            className={({ isActive }) =>
-              `flex items-center p-3 rounded-lg transition-colors duration-200 ${
-                isActive
-                  ? "bg-blue-600 text-white shadow-md"
-                  : "hover:bg-gray-700 text-gray-300"
-              }`
-            }
-            onClick={() => setSidebarOpen(false)}
-          >
-            <UserPlusIcon className="h-6 w-6 mr-3" />
-            Leads
-          </NavLink>
-
-          <NavLink
-            to="/enrolled-students"
-            className={({ isActive }) =>
-              `flex items-center p-3 rounded-lg transition-colors duration-200 ${
-                isActive
-                  ? "bg-blue-600 text-white shadow-md"
-                  : "hover:bg-gray-700 text-gray-300"
-              }`
-            }
-            onClick={() => setSidebarOpen(false)}
-          >
-            <UserGroupIcon className="h-6 w-6 mr-3" />
-            Enrolled Students
-          </NavLink>
-
-          <NavLink
-            to="/trash"
-            className={({ isActive }) =>
-              `flex items-center p-3 rounded-lg transition-colors duration-200 ${
-                isActive
-                  ? "bg-blue-600 text-white shadow-md"
-                  : "hover:bg-gray-700 text-gray-300"
-              }`
-            }
-            onClick={() => setSidebarOpen(false)}
-          >
-            <UserMinusIcon className="h-6 w-6 mr-3" />
-            Trash
-          </NavLink>
-
-          <NavLink
-            to="/report"
-            className={({ isActive }) =>
-              `flex items-center p-3 rounded-lg transition-colors duration-200 ${
-                isActive
-                  ? "bg-blue-600 text-white shadow-md"
-                  : "hover:bg-gray-700 text-gray-300"
-              }`
-            }
-            onClick={() => setSidebarOpen(false)}
-          >
-            <FolderOpenIcon className="h-6 w-6 mr-3" />
-            Reports
-          </NavLink>
-
-          {/* Settings (admin/superadmin only) */}
-          {canManage(role) && (
-            <NavLink
-              to="/settings"
-              className={({ isActive }) =>
-                `flex items-center p-3 rounded-lg transition-colors duration-200 ${
-                  isActive
-                    ? "bg-blue-600 text-white shadow-md"
-                    : "hover:bg-gray-700 text-gray-300"
-                }`
-              }
-              onClick={() => setSidebarOpen(false)}
-            >
-              <Cog6ToothIcon className="h-6 w-6 mr-3" />
-              Settings
-            </NavLink>
-          )}
-
-          {/* Downloads (visible to all roles) */}
-          <NavLink
-            to="/downloads"
-            className={({ isActive }) =>
-              `flex items-center p-3 rounded-lg transition-colors duration-200 ${
-                isActive
-                  ? "bg-blue-600 text-white shadow-md"
-                  : "hover:bg-gray-700 text-gray-300"
-              }`
-            }
-            onClick={() => setSidebarOpen(false)}
-          >
-            <ArrowDownTrayIcon className="h-6 w-6 mr-3" />
-            Downloads
-          </NavLink>
-        </nav>
-
-        {/* User panel + Logout */}
-        <div className="mt-auto pt-4 border-t border-gray-700">
-          <div className="flex items-center p-3 mb-4 rounded-lg bg-gray-700">
-            <div className="h-10 w-10 bg-blue-500 rounded-full flex items-center justify-center text-lg font-bold text-white mr-3">
-              {getInitials(username)}
-            </div>
-            <div className="flex flex-col">
-              <span className="text-gray-200 font-medium">{username}</span>
-              <span className="text-gray-400 text-xs">
-                Role: {role || "unknown"}
-              </span>
-            </div>
+        {/* Logo */}
+        <div className="flex items-center gap-2.5 h-14 px-5 border-b border-slate-100 shrink-0">
+          <div className="h-7 w-7 rounded-[8px] bg-indigo-600 flex items-center justify-center shadow-sm">
+            <GraduationCap className="h-4 w-4 text-white" />
           </div>
-
+          <div>
+            <p className="text-[14px] font-[600] leading-[20px] text-slate-900 tracking-[-0.005em]">
+              EDU CRM
+            </p>
+            <p className="text-[11px] font-[500] text-slate-400 leading-[14px] tracking-[0.02em] uppercase">
+              Global Admissions
+            </p>
+          </div>
           <button
-            onClick={handleLogout}
-            className="flex items-center justify-center w-full p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+            className="ml-auto md:hidden text-slate-400 hover:text-slate-700"
+            onClick={() => setSidebarOpen(false)}
           >
-            <ArrowLeftOnRectangleIcon className="h-5 w-5 mr-2" />
-            Logout
+            <X className="h-4 w-4" />
           </button>
         </div>
-      </aside>
 
-      {/* Mobile overlay (fades in/out) */}
-      <div
-        className={`fixed inset-0 bg-black/30 md:hidden z-30 transition-opacity duration-300 ease-in-out ${
-          sidebarOpen && !sidebarCollapsed
-            ? "opacity-100 pointer-events-auto"
-            : "opacity-0 pointer-events-none"
-        }`}
-        onClick={() => setSidebarOpen(false)}
-      />
-
-      {/* Main content */}
-      <main
-        className={`flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50 transition-all duration-300 ease-in-out ${
-          sidebarCollapsed ? "md:ml-0" : "md:ml-64"
-        }`}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            {/* Toggle Button */}
-            <button
-              type="button"
-              onClick={() => {
-                const isDesktop =
-                  typeof window !== "undefined" &&
-                  window.matchMedia &&
-                  window.matchMedia("(min-width: 768px)").matches;
-                if (isDesktop) {
-                  // Desktop: collapse/expand the sidebar (no leftover whitespace when collapsed)
-                  setSidebarCollapsed((p) => !p);
-                  setSidebarOpen(false);
-                } else {
-                  // Mobile: open/close overlay sidebar
-                  setSidebarOpen((p) => !p);
-                }
-              }}
-              className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-gray-300 bg-white hover:bg-gray-50 text-gray-700"
-              title={
-                sidebarOpen && !sidebarCollapsed
-                  ? "Close sidebar"
-                  : "Open sidebar"
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-0.5">
+          <p className="px-2 pt-1 pb-2 text-[11px] font-[600] text-slate-400 uppercase tracking-[0.04em]">
+            Main
+          </p>
+          {navItems.map(({ to, icon: Icon, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              onClick={() => setSidebarOpen(false)}
+              className={({ isActive }) =>
+                cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-[8px] text-[14px] font-[500] transition-all duration-150 group",
+                  isActive
+                    ? "bg-indigo-50 text-indigo-700 font-[600]"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                )
               }
             >
-              {sidebarOpen && !sidebarCollapsed ? (
-                <XMarkIcon className="h-5 w-5" />
-              ) : (
-                <Bars3Icon className="h-5 w-5" />
-              )}
-            </button>
-
-            {/* Crumbs */}
-            <nav aria-label="Breadcrumb" className="ml-1">
-              <ol className="flex items-center gap-1">
-                {breadcrumbs.map((b, i) => (
-                  <li key={b.to} className="flex items-center">
-                    {i > 0 && <span className="mx-1 text-gray-400">/</span>}
-                    {i < breadcrumbs.length - 1 ? (
-                      <Link
-                        to={b.to}
-                        className="text-gray-600 hover:text-gray-900 hover:underline"
-                      >
-                        {i === 0 ? (
-                          <span className="inline-flex items-center gap-1">
-                            <HomeIcon className="h-4 w-4" /> {b.label}
-                          </span>
-                        ) : (
-                          b.label
-                        )}
-                      </Link>
-                    ) : (
-                      <span className="text-gray-900 font-medium">
-                        {i === 0 ? (
-                          <span className="inline-flex items-center gap-1">
-                            <HomeIcon className="h-4 w-4" /> {b.label}
-                          </span>
-                        ) : (
-                          b.label
-                        )}
-                      </span>
+              {({ isActive }) => (
+                <>
+                  <Icon
+                    className={cn(
+                      "h-4 w-4 shrink-0",
+                      isActive ? "text-indigo-600" : "text-slate-400 group-hover:text-slate-600"
                     )}
-                  </li>
-                ))}
-              </ol>
-            </nav>
-          </div>
+                  />
+                  {label}
+                  {isActive && (
+                    <span className="ml-auto h-1.5 w-1.5 rounded-full bg-indigo-600" />
+                  )}
+                </>
+              )}
+            </NavLink>
+          ))}
+        </nav>
+
+        {/* Bottom links */}
+        <div className="px-3 pb-4 border-t border-slate-100 shrink-0 pt-3 space-y-0.5">
+          <NavLink
+            to="/settings"
+            onClick={() => setSidebarOpen(false)}
+            className={({ isActive }) =>
+              cn(
+                "flex items-center gap-3 px-3 py-2 rounded-[8px] text-[14px] font-[500] transition-all duration-150 group",
+                isActive
+                  ? "bg-indigo-50 text-indigo-700 font-[600]"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              )
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <Settings
+                  className={cn(
+                    "h-4 w-4 shrink-0",
+                    isActive ? "text-indigo-600" : "text-slate-400 group-hover:text-slate-600"
+                  )}
+                />
+                Settings
+              </>
+            )}
+          </NavLink>
+          <NavLink
+            to="/help"
+            onClick={() => setSidebarOpen(false)}
+            className={({ isActive }) =>
+              cn(
+                "flex items-center gap-3 px-3 py-2 rounded-[8px] text-[14px] font-[500] transition-all duration-150 group",
+                isActive
+                  ? "bg-indigo-50 text-indigo-700 font-[600]"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              )
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <HelpCircle
+                  className={cn(
+                    "h-4 w-4 shrink-0",
+                    isActive ? "text-indigo-600" : "text-slate-400 group-hover:text-slate-600"
+                  )}
+                />
+                Help & Support
+              </>
+            )}
+          </NavLink>
         </div>
 
-        <Outlet />
-      </main>
+
+      </aside>
+
+      {/* ─── Main content ─── */}
+      <div className="flex-1 flex flex-col min-w-0 md:ml-[260px]">
+        {/* Top bar */}
+        <header className="h-14 border-b border-slate-200 bg-white flex items-center gap-3 px-4 md:px-6 shrink-0 z-20">
+          <button
+            className="h-8 w-8 rounded-[6px] border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 md:hidden"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <Menu className="h-4 w-4" />
+          </button>
+
+          {/* Breadcrumb */}
+          <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-[13px]">
+            {breadcrumbs.map((b, i) => (
+              <React.Fragment key={b.to}>
+                {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-slate-300" />}
+                {i < breadcrumbs.length - 1 ? (
+                  <Link
+                    to={b.to}
+                    className="flex items-center gap-1 text-slate-500 hover:text-slate-800 transition-colors"
+                  >
+                    {i === 0 && <Home className="h-3.5 w-3.5" />}
+                    {i > 0 && b.label}
+                  </Link>
+                ) : (
+                  <span className="font-[600] text-slate-900">
+                    {i === 0 ? (
+                      <span className="flex items-center gap-1">
+                        <Home className="h-3.5 w-3.5" />
+                        {b.label}
+                      </span>
+                    ) : (
+                      b.label
+                    )}
+                  </span>
+                )}
+              </React.Fragment>
+            ))}
+          </nav>
+
+          {/* Right actions */}
+          <div className="ml-auto flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-2 h-8 px-3 rounded-[8px] border border-slate-200 bg-slate-50 text-slate-400 text-[13px] cursor-pointer hover:border-slate-300 transition-colors min-w-[200px]">
+              <Search className="h-3.5 w-3.5 shrink-0" />
+              <span>Search leads, students…</span>
+              <span className="ml-auto text-[11px] font-[500] px-1.5 py-0.5 rounded bg-slate-200 text-slate-500">⌘K</span>
+            </div>
+            <button className="relative h-8 w-8 rounded-[6px] border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 transition-colors">
+              <Bell className="h-4 w-4" />
+              <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-indigo-500 border border-white" />
+            </button>
+
+            {/* Profile avatar + dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setProfileOpen((o) => !o)}
+                className="h-8 w-8 rounded-full bg-indigo-600 flex items-center justify-center text-[11px] font-[700] text-white cursor-pointer hover:ring-2 hover:ring-indigo-300 transition-all"
+              >
+                {getInitials(username)}
+              </button>
+
+              {profileOpen && (
+                <>
+                  {/* Click-outside overlay */}
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setProfileOpen(false)}
+                  />
+                  {/* Dropdown */}
+                  <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-slate-200 rounded-[10px] shadow-lg overflow-hidden z-50">
+                    <div className="px-4 py-3 border-b border-slate-100">
+                      <p className="text-[13px] font-[600] text-slate-800 truncate">{username}</p>
+                      <p className="text-[11px] text-slate-400 capitalize">{role || "user"}</p>
+                    </div>
+                    <div className="py-1">
+                      <button
+                        onClick={() => { setProfileOpen(false); navigate("/profile"); }}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-[13px] text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        <User className="h-3.5 w-3.5 text-slate-400" />
+                        View Profile
+                      </button>
+                      <button
+                        onClick={() => { setProfileOpen(false); navigate("/settings"); }}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-[13px] text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        <Settings className="h-3.5 w-3.5 text-slate-400" />
+                        Settings
+                      </button>
+                    </div>
+                    <div className="py-1 border-t border-slate-100">
+                      <button
+                        onClick={() => { setProfileOpen(false); handleLogout(); }}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-[13px] text-rose-500 hover:bg-rose-50 transition-colors"
+                      >
+                        <LogOut className="h-3.5 w-3.5" />
+                        Log out
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {/* Page content */}
+        <main className="flex-1 overflow-y-auto">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 };

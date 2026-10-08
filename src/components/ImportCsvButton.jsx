@@ -2,6 +2,7 @@ import React, { useState, useRef } from "react";
 import Papa from "papaparse";
 import { leadService } from "../services/api";
 import { BASE_URL } from "../config";
+import { FileUp } from "lucide-react";
 
 
 const USE_SERVER_IMPORT = false;
@@ -290,7 +291,13 @@ const mapRowToLead = (row, headerMapLower, headerMapNormalized) => {
   return { leadBackend, leadFrontend };
 };
 
-const ImportCsvButton = ({ authToken, onImported }) => {
+const ImportCsvButton = ({
+  authToken,
+  onImported,
+  id = "csvUpload",
+  customButton,
+  className = "",
+}) => {
   const [importing, setImporting] = useState(false);
   // progress percent removed from UI; keep only setter for internal flow
   const [, setProgress] = useState(0);
@@ -595,8 +602,6 @@ const ImportCsvButton = ({ authToken, onImported }) => {
         } catch (e) {
           console.warn("Failed to dispatch crm:imported event", e);
         }
-
-        // removed noisy import summary logs
       },
     });
   };
@@ -613,23 +618,35 @@ const ImportCsvButton = ({ authToken, onImported }) => {
   };
 
   return (
-    <div>
+    <div className="inline-flex flex-col">
       <input
         type="file"
         accept=".csv"
         onChange={handleFileChange}
         className="hidden"
-        id="csvUpload"
+        id={id}
         disabled={importing}
       />
-      <label
-        htmlFor="csvUpload"
-        className={`cursor-pointer px-4 py-2 border rounded-md bg-white text-gray-700 hover:bg-gray-50 shadow-sm ${
-          importing ? "opacity-60 pointer-events-none" : ""
-        }`}
-      >
-        Import CSV
-      </label>
+      {customButton ? (
+        <label
+          htmlFor={id}
+          className={`cursor-pointer ${
+            importing ? "opacity-60 pointer-events-none" : ""
+          } ${className}`}
+        >
+          {customButton}
+        </label>
+      ) : (
+        <label
+          htmlFor={id}
+          className={`cursor-pointer flex items-center gap-2 px-3.5 py-2 rounded-[8px] text-[13px] font-[500] bg-[#EEF2F6] hover:bg-slate-200 text-slate-700 transition-colors ${
+            importing ? "opacity-60 pointer-events-none" : ""
+          } ${className}`}
+        >
+          <FileUp className="h-4 w-4" />
+          Import CSV
+        </label>
+      )}
 
       {fileName && (
         <div className="mt-2 text-sm text-gray-700">File: {fileName}</div>

@@ -3,8 +3,42 @@ import { BASE_URL } from "../../config";
 import { leadService, courseService } from "../../services/api";
 import { deduplicateLeads, ensureLeadIds } from "./utils";
 
+export const SAMPLE_PLACEHOLDER_LEAD = {
+  id: 101,
+  _id: "lead-sample-101",
+  student_name: "Apex Academy International",
+  parents_name: "Dr. Rajan Shrestha",
+  school_college_name: "Apex Academy International",
+  phone_number: "+977 9841234567",
+  whatsapp_number: "+977 9841234567",
+  email: "principal@apexacademy.edu.np",
+  course_name: "Python & AI Curriculum",
+  course_duration: "1 Year",
+  course_type: "Physical",
+  class_type: "Physical",
+  shift: "Morning",
+  age: "16",
+  grade: "Grade 10",
+  status: "Active",
+  substatus: "Follow-up Needed",
+  sub_status: "Follow-up Needed",
+  source: "Institutional Visit",
+  assigned_to: "Aashish",
+  assigned_to_username: "Aashish",
+  scheduled_taken: "Yes",
+  demo_scheduled: "Yes",
+  last_call: "2026-10-06",
+  next_call: "2026-10-12",
+  remarks: "Principal requested demo presentation for academic board on Friday.",
+  city: "Kathmandu",
+  address_line_1: "Kathmandu Metro - Ward 10",
+  add_date: "2026-10-08",
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+};
+
 export default function useLeadsCore(authToken, pageSize) {
-  const [allLeads, setAllLeads] = useState([]);
+  const [allLeads, setAllLeads] = useState([SAMPLE_PLACEHOLDER_LEAD]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -31,11 +65,7 @@ export default function useLeadsCore(authToken, pageSize) {
           .map((lead) => ({
             ...lead,
             sub_status: lead.sub_status || lead.substatus || "New",
-            assigned_to:
-              lead.assigned_to ||
-              lead.assigned_to_username ||
-              lead.assigned_to ||
-              "",
+            assigned_to: lead.assigned_to || lead.assigned_to_username || "",
             assigned_to_username:
               lead.assigned_to_username || lead.assigned_to || "",
             course_name: lead.course_name || "N/A",
@@ -66,7 +96,9 @@ export default function useLeadsCore(authToken, pageSize) {
         try { localStorage.removeItem("crm:restoredLead"); } catch {}
       } catch {}
 
-        setAllLeads(deduplicateLeads(processedLeads));
+        const finalLeads =
+          processedLeads.length > 0 ? processedLeads : [SAMPLE_PLACEHOLDER_LEAD];
+        setAllLeads(deduplicateLeads(finalLeads));
         return pageResp;
     } catch (err) {
       setError(err.message || "Failed to refresh leads");

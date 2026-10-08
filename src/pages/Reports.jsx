@@ -177,9 +177,13 @@ const Reports = () => {
   if (!filteredReportData) return <Loader />;
 
   return (
-    <div className="container mx-auto p-4 bg-gray-50 min-h-screen text-gray-900">
-      <h1 className="text-3xl font-bold mb-6">CRM Reports</h1>
-
+    <div className="bg-[#F8FAFC] min-h-full">
+      {/* Page header */}
+      <div className="px-6 py-4 border-b border-slate-200 bg-white">
+        <h1 className="text-[20px] font-[600] leading-[28px] tracking-[-0.015em] text-slate-900">Reports</h1>
+        <p className="text-[13px] text-slate-500 leading-[18px] mt-0.5">Generate and export CRM analytics reports</p>
+      </div>
+      <div className="p-6">
       {/* Filters */}
       <div className="bg-white p-6 rounded-lg shadow-md mb-8">
         <h2 className="text-2xl font-bold mb-4">Filter Report Data</h2>
@@ -362,16 +366,15 @@ const Reports = () => {
           </table>
         </div>
       </div>
+      </div>{/* end p-6 */}
     </div>
   );
 };
 
 const ReportCard = ({ title, value, color }) => (
-  <div
-    className={`${color} text-white p-6 rounded-lg shadow-md flex flex-col items-center justify-center`}
-  >
-    <h3 className="text-lg font-semibold">{title}</h3>
-    <p className="text-4xl font-bold mt-2">{value}</p>
+  <div className="bg-white rounded-[12px] border border-slate-200 p-5 flex flex-col items-center justify-center hover:border-slate-300 transition-colors">
+    <p className="text-[12px] font-[600] text-slate-500 uppercase tracking-[0.04em] mb-2">{title}</p>
+    <p className={`text-[32px] font-[700] tracking-[-0.02em] tabular-nums ${color || "text-slate-900"}`}>{value}</p>
   </div>
 );
 

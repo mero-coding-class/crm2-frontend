@@ -12,25 +12,31 @@ import {
 import DraggableRow from "./DraggableRow";
 import ColumnToggler from "./ColumnToggler";
 import { leadService } from "../services/api";
+import { Folder, Plus, FileUp } from "lucide-react";
+import ImportCsvButton from "./ImportCsvButton";
 
 const initialColumns = {
   actions: { label: "Actions", visible: true },
-  id: { label: "ID", visible: true },
-  student_name: { label: "Student Name", visible: true },
-  parents_name: { label: "Parents' Name", visible: true },
-  email: { label: "Email", visible: true },
-  phone_number: { label: "Phone", visible: true },
-  whatsapp_number: { label: "WhatsApp Number", visible: true },
-  age: { label: "Age", visible: true },
-  grade: { label: "Grade", visible: true },
-  course_name: { label: "Course", visible: true },
-  course_duration: { label: "Course Duration", visible: true },
-  course_type: { label: "Course Type", visible: true },
-  status: { label: "Status", visible: true },
-  substatus: { label: "Sub Status", visible: true },
-  source: { label: "Source", visible: true },
-  class_type: { label: "Class Type", visible: true },
-  shift: { label: "Shift", visible: true },
+  school_college_name: { label: "School Name", visible: true },
+  address_line_1: { label: "Municipality", visible: true },
+  student_name: { label: "Contact Person", visible: true },
+  phone_number: { label: "Contact Number", visible: true },
+  source: { label: "Activity", visible: true },
+  substatus: { label: "Sub-Status", visible: true },
+  scheduled_taken: { label: "Demo Schedule", visible: true },
+  // Hidden columns — visible only via Edit modal
+  id: { label: "ID", visible: false },
+  parents_name: { label: "Parents' Name", visible: false },
+  email: { label: "Email", visible: false },
+  whatsapp_number: { label: "WhatsApp Number", visible: false },
+  age: { label: "Age", visible: false },
+  grade: { label: "Grade", visible: false },
+  course_name: { label: "Course", visible: false },
+  course_duration: { label: "Course Duration", visible: false },
+  course_type: { label: "Course Type", visible: false },
+  status: { label: "Status", visible: false },
+  class_type: { label: "Class Type", visible: false },
+  shift: { label: "Shift", visible: false },
   previous_coding_experience: { label: "Previous Coding", visible: false },
   lead_type: { label: "Lead Type", visible: false },
   value: { label: "Value", visible: false },
@@ -39,21 +45,18 @@ const initialColumns = {
   first_installment: { label: "First Installment", visible: false },
   first_invoice: { label: "First Invoice", visible: false },
   device: { label: "Device", visible: false },
-  school_college_name: { label: "School/College", visible: false },
-  scheduled_taken: { label: "Scheduled Taken", visible: true },
-  last_call: { label: "Last Call", visible: true },
-  next_call: { label: "Next Call", visible: true },
+  last_call: { label: "Last Call", visible: false },
+  next_call: { label: "Next Call", visible: false },
   created_at: { label: "Created At", visible: false },
   updated_at: { label: "Updated At", visible: false },
-  remarks: { label: "Remarks", visible: true },
-  address_line_1: { label: "Address Line 1", visible: false },
+  remarks: { label: "Remarks", visible: false },
   address_line_2: { label: "Address Line 2", visible: false },
   city: { label: "City", visible: false },
   county: { label: "County", visible: false },
   post_code: { label: "Post Code", visible: false },
-  assigned_to: { label: "Assigned To", visible: true },
+  assigned_to: { label: "Assigned To", visible: false },
   created_by_username: { label: "Created By", visible: false },
-  change_log: { label: "Change Log", visible: true },
+  change_log: { label: "Change Log", visible: false },
 };
 
 const LeadTableDisplay = ({
@@ -83,6 +86,9 @@ const LeadTableDisplay = ({
   leadsPerPage: parentLeadsPerPage,
   // Parent-provided field updater to reflect changes immediately in UI
   handleFieldChange,
+  handleOpenAddModal,
+  courses,
+  handleRefresh,
 }) => {
   const [selectedLeads, setSelectedLeads] = useState(new Set());
   // savedRemarks = server-confirmed text for each row (can contain up to 5 lines)
@@ -408,25 +414,63 @@ const LeadTableDisplay = ({
 
   if (!leads || leads.length === 0) {
     return (
-      <p className="text-center text-gray-600 py-8">
-        No active leads found matching your criteria.
-      </p>
+      <div className="flex flex-col items-center justify-center py-24 px-4 text-center bg-white min-h-[420px]">
+        <div className="w-16 h-16 rounded-[18px] bg-[#EEF2FF] flex items-center justify-center mb-5 text-[#4F46E5]">
+          <Folder className="w-8 h-8 stroke-[1.75]" />
+        </div>
+        <h2 className="text-[18px] font-[600] text-slate-900 mb-2 tracking-[-0.01em]">
+          No active leads found matching your criteria
+        </h2>
+        <p className="text-[14px] text-slate-500 max-w-md mx-auto mb-6 leading-relaxed">
+          No active leads found matching your criteria. Start adding new admissions candidates or import via CSV.
+        </p>
+        <div className="flex items-center justify-center gap-3">
+          {handleOpenAddModal && (
+            <button
+              onClick={handleOpenAddModal}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-[8px] text-[13px] font-[500] bg-[#4F46E5] hover:bg-indigo-700 text-white shadow-sm transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              Add New Lead
+            </button>
+          )}
+          <ImportCsvButton
+            authToken={authToken}
+            courses={courses}
+            onImported={handleRefresh}
+            id="emptyStateCsvUpload"
+            customButton={
+              <div className="flex items-center gap-2 px-4 py-2.5 rounded-[8px] text-[13px] font-[500] bg-[#EEF2F6] hover:bg-slate-200 text-slate-700 transition-colors">
+                <FileUp className="h-4 w-4" />
+                Import CSV
+              </div>
+            }
+          />
+        </div>
+      </div>
     );
   }
 
   return (
     <div>
       {/* Bulk actions & Column toggler */}
-      <div className="flex justify-end items-center mb-4 space-x-2">
-        {selectedLeads.size > 0 && (
-          <button
-            onClick={onBulkDeleteClick}
-            className="inline-flex items-center justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700"
-          >
-            <TrashIcon className="h-5 w-5 mr-2" /> Delete Selected (
-            {selectedLeads.size})
-          </button>
-        )}
+      <div className="flex justify-between items-center px-4 py-2 border-b border-slate-100 bg-slate-50/60">
+        <div className="flex items-center gap-2">
+          {selectedLeads.size > 0 && (
+            <>
+              <span className="text-[13px] text-slate-600">
+                <span className="font-[600] text-indigo-600">{selectedLeads.size}</span> selected
+              </span>
+              <button
+                onClick={onBulkDeleteClick}
+                className="flex items-center gap-1.5 h-7 px-3 text-[12px] font-[500] rounded-[6px] bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-600 hover:text-white transition-colors"
+              >
+                <TrashIcon className="h-3.5 w-3.5" />
+                Delete ({selectedLeads.size})
+              </button>
+            </>
+          )}
+        </div>
         <ColumnToggler columns={columns} setColumns={setColumns} />
       </div>
 
@@ -434,17 +478,17 @@ const LeadTableDisplay = ({
       <div className="relative">
         <button
           onClick={() => smoothScroll(-500)}
-          className="absolute left-2 top-1/2 -translate-y-1/2 z-20 p-2 bg-white rounded-full shadow hover:bg-gray-100"
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-20 h-8 w-8 bg-white border border-slate-200 rounded-full shadow-sm flex items-center justify-center hover:bg-slate-50 hover:shadow-md transition-all"
           aria-label="Scroll left"
         >
-          <ChevronLeftIcon className="h-5 w-5 text-gray-600" />
+          <ChevronLeftIcon className="h-4 w-4 text-slate-500" />
         </button>
         <button
           onClick={() => smoothScroll(500)}
-          className="absolute right-2 top-1/2 -translate-y-1/2 z-20 p-2 bg-white rounded-full shadow hover:bg-gray-100"
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-20 h-8 w-8 bg-white border border-slate-200 rounded-full shadow-sm flex items-center justify-center hover:bg-slate-50 hover:shadow-md transition-all"
           aria-label="Scroll right"
         >
-          <ChevronRightIcon className="h-5 w-5 text-gray-600" />
+          <ChevronRightIcon className="h-4 w-4 text-slate-500" />
         </button>
 
         <div
@@ -456,23 +500,22 @@ const LeadTableDisplay = ({
               items={currentLeads.map((l) => l._id)}
               strategy={verticalListSortingStrategy}
             >
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-3 py-3 w-10">
+              <table className="min-w-full">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50">
+                    <th className="px-3 h-9 w-10">
                       <span className="sr-only">Drag</span>
                     </th>
-                    <th className="px-3 py-3 w-10">
+                    <th className="px-3 h-9 w-10">
                       <input
                         type="checkbox"
                         checked={currentLeads.every((lead) =>
                           selectedLeads.has(lead._id)
                         )}
                         onChange={handleSelectAll}
-                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        className="h-3.5 w-3.5 rounded-[4px] border-slate-300 text-indigo-600 focus:ring-indigo-500"
                       />
                     </th>
-                    {/** Compute visible column keys once so header and rows share the exact same order */}
                     {(() => {
                       const visibleEntries = Object.entries(columns).filter(
                         ([, { visible }]) => visible
@@ -481,7 +524,7 @@ const LeadTableDisplay = ({
                       return visibleEntries.map(([key, { label }]) => (
                         <th
                           key={key}
-                          className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                          className="px-3 h-9 text-left text-[11px] font-[600] text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap"
                         >
                           {label}
                         </th>
@@ -489,7 +532,7 @@ const LeadTableDisplay = ({
                     })()}
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-slate-100">
                   {(() => {
                     // Recompute the visible keys in the exact same order used above
                     return currentLeads.map((lead, index) => (
@@ -543,24 +586,46 @@ const LeadTableDisplay = ({
       </div>
 
       {/* Pagination */}
-      <div className="flex justify-end items-center mt-4">
-        <button
-          onClick={() => handlePageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <ChevronLeftIcon className="h-5 w-5 text-gray-500" />
-        </button>
-        <span className="mx-4 text-sm font-medium text-gray-700">
-          Page {currentPage} of {totalPages}
+      <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-white">
+        <span className="text-[13px] text-slate-500">
+          Page <span className="font-[600] text-slate-800">{currentPage}</span> of <span className="font-[600] text-slate-800">{totalPages}</span>
         </span>
-        <button
-          onClick={() => handlePageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <ChevronRightIcon className="h-5 w-5 text-gray-500" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="h-8 w-8 rounded-[6px] border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronLeftIcon className="h-4 w-4" />
+          </button>
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            let page;
+            if (totalPages <= 5) page = i + 1;
+            else if (currentPage <= 3) page = i + 1;
+            else if (currentPage >= totalPages - 2) page = totalPages - 4 + i;
+            else page = currentPage - 2 + i;
+            return (
+              <button
+                key={page}
+                onClick={() => handlePageChange(page)}
+                className={`h-8 min-w-[32px] px-2 rounded-[6px] text-[13px] font-[500] transition-colors ${
+                  page === currentPage
+                    ? "bg-indigo-600 text-white border border-indigo-600"
+                    : "border border-slate-200 text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                {page}
+              </button>
+            );
+          })}
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="h-8 w-8 rounded-[6px] border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronRightIcon className="h-4 w-4" />
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -42,10 +42,10 @@ import LeadMap from "../components/dashboard/LeadMap";
 import CallReminders from "../components/reminders/CallReminders";
 
 const ChartContainer = ({ title, description, children }) => (
-  <div className="bg-white p-6 rounded-lg shadow-md flex flex-col h-full">
-    <h3 className="text-lg font-semibold text-gray-800 mb-2">{title}</h3>
-    <p className="text-gray-500 text-sm mb-4">{description}</p>
-    <div className="flex-grow min-h-[250px]">{children}</div>
+  <div className="bg-white rounded-[12px] border border-slate-200 p-5 flex flex-col h-full hover:border-slate-300 transition-colors">
+    <h3 className="text-[15px] font-[600] text-slate-900 leading-[20px] tracking-[-0.005em]">{title}</h3>
+    {description && <p className="text-[12px] text-slate-500 mt-0.5 mb-3">{description}</p>}
+    <div className="flex-grow min-h-[250px] mt-2">{children}</div>
   </div>
 );
 
@@ -767,11 +767,15 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-6 bg-gray-50 min-h-screen text-gray-900">
-      <h1 className="text-3xl font-bold mb-8">Education CRM Dashboard</h1>
-
-      {/* Call reminders widget: shows leads with next_call for selected date; per-user by default */}
-      <div className="mb-8">
+    <div className="bg-[#F8FAFC] min-h-full">
+      {/* Page header */}
+      <div className="px-6 py-4 border-b border-slate-200 bg-white">
+        <h1 className="text-[20px] font-[600] leading-[28px] tracking-[-0.015em] text-slate-900">Dashboard</h1>
+        <p className="text-[13px] text-slate-500 leading-[18px] mt-0.5">Global Admission Intelligence — overview and metrics</p>
+      </div>
+      <div className="p-6">
+      {/* Call reminders widget */}
+      <div className="mb-6">
         <CallReminders
           leads={remindersLeads}
           currentUser={user || {}}
@@ -780,27 +784,27 @@ const Dashboard = () => {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
         <StatCard
           title="Total Leads"
           value={dashboardData.stats.totalLeads}
           icon={UsersIcon}
-          description="Overall count of all leads"
-          colorClass="text-blue-600 bg-blue-100"
+          description="Overall count"
+          colorClass="text-indigo-600 bg-indigo-50"
         />
         <StatCard
           title="Enrolled Students"
           value={dashboardData.stats.totalEnrolledStudents}
           icon={AcademicCapIcon}
-          description='Leads with status "Converted"'
-          colorClass="text-purple-600 bg-purple-100"
+          description="Converted leads"
+          colorClass="text-emerald-600 bg-emerald-50"
         />
         <StatCard
           title="Trash Students"
           value={trashCount}
           icon={GlobeAltIcon}
           description="Leads in Trash"
-          colorClass="text-red-600 bg-red-100"
+          colorClass="text-rose-600 bg-rose-50"
         />
         {/* <StatCard
           title="New Leads This Month"
@@ -814,8 +818,8 @@ const Dashboard = () => {
             title="Revenue This Month"
             value={dashboardData.stats.revenueThisMonth}
             icon={CurrencyDollarIcon}
-            description='Sum of "value" for Converted leads'
-            colorClass="text-teal-600 bg-teal-100"
+            description="Converted lead value"
+            colorClass="text-teal-600 bg-teal-50"
           />
         )}
         <StatCard
@@ -823,13 +827,13 @@ const Dashboard = () => {
           value={`${todaysCalls.pending} Pending`}
           icon={CalendarDaysIcon}
           description={`Completed ${todaysCalls.completed}`}
-          colorClass="text-indigo-600 bg-indigo-100"
+          colorClass="text-indigo-600 bg-indigo-50"
         />
         {/* Upcoming Classes/Calls intentionally removed (replaced by Trash Students) */}
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <ChartContainer
           title="Lead Status Distribution"
           description="Current breakdown of leads by their status."
@@ -950,6 +954,7 @@ const Dashboard = () => {
           defaultCity="Kathmandu"
         />
       </ChartContainer>
+      </div>{/* end p-6 */}
     </div>
   );
 };

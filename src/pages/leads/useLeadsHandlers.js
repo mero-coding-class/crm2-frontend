@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { resolveServerId, leadService } from "../../services/api";
 import { deduplicateLeads, matchId } from "./utils";
+import { SAMPLE_PLACEHOLDER_LEAD } from "./useLeadsCore";
 
 export default function useLeadsHandlers(ctx) {
   const { authToken, allLeads, setAllLeads, setToast, setError, courses } = ctx;
@@ -220,6 +221,10 @@ export default function useLeadsHandlers(ctx) {
           } else {
             next = [formattedLead, ...prevLeads];
           }
+          // Remove the sample placeholder now that we have a real lead
+          next = next.filter(
+            (l) => l._id !== SAMPLE_PLACEHOLDER_LEAD._id && l.id !== SAMPLE_PLACEHOLDER_LEAD.id
+          );
           return deduplicateLeads(next);
         });
 

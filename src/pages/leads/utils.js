@@ -30,6 +30,6 @@ export const ensureLeadIds = (arr) =>
     ...lead,
     _id: lead._id || lead.id || lead.email || lead.phone_number || `lead-${i}`,
     sub_status: lead.sub_status || lead.substatus || "New",
-    assigned_to: lead.assigned_to || lead.assigned_to_username || lead.assigned_to || "",
+    assigned_to: lead.assigned_to || lead.assigned_to_username || "",
     assigned_to_username: lead.assigned_to_username || lead.assigned_to || "",
   }));

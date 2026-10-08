@@ -1,22 +1,121 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
+
+/* ─── Design Tokens ─── */
+:root {
+  --canvas: #F8FAFC;
+  --canvas-subtle: #F1F5F9;
+  --surface-card: #FFFFFF;
+  --border-subtle: #E2E8F0;
+  --border-strong: #CBD5E1;
+
+  /* Brand Primary */
+  --primary-base: #4F46E5;
+  --primary-hover: #4338CA;
+  --primary-dark: #3730A3;
+  --primary-light: #EEF2FF;
+
+  /* Status */
+  --success: #10B981;
+  --success-bg: #ECFDF5;
+  --warning: #F59E0B;
+  --warning-bg: #FFFBEB;
+  --danger: #EF4444;
+  --danger-bg: #FEF2F2;
+  --info: #0EA5E9;
+  --info-bg: #F0F9FF;
+
+  /* Text */
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px 0 rgba(15,23,42,0.04), 0 1px 2px -1px rgba(15,23,42,0.03);
+  --shadow-hover: 0 4px 6px -1px rgba(15,23,42,0.07), 0 2px 4px -2px rgba(15,23,42,0.05);
+  --shadow-flyout: 0 10px 15px -3px rgba(15,23,42,0.08), 0 4px 6px -4px rgba(15,23,42,0.04);
+  --shadow-modal: 0 20px 25px -5px rgba(15,23,42,0.1), 0 8px 10px -6px rgba(15,23,42,0.05);
+}
+
+/* ─── Base ─── */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv05' 1;
+}
+
+body {
+  background-color: var(--canvas);
+  color: var(--text-primary);
+}
+
+/* ─── Tabular numerals for data tables ─── */
+.tabular-nums {
+  font-feature-settings: 'tnum' 1, 'cv05' 1;
+}
+
+/* ─── Custom scrollbar ─── */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
 .custom-scrollbar::-webkit-scrollbar {
-    height: 8px;
-    /* Height of the horizontal scrollbar */
+  height: 6px;
 }
-
 .custom-scrollbar::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    /* Color of the scrollbar track */
-    border-radius: 10px;
+  background: #f1f5f9;
+  border-radius: 10px;
 }
-
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #888;
-    /* Color of the scrollbar handle */
-    border-radius: 10px;
+  background: #CBD5E1;
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #555;
-    /* Color of the handle on hover */
+/* ─── Table row hover ─── */
+.crm-table tr:hover td {
+  background-color: #F8FAFC;
+}
+.crm-table tr.selected td {
+  background-color: #F5F3FF;
+  border-left: 2px solid #4F46E5;
+}
+
+/* ─── Transition utilities ─── */
+.transition-shadow-hover {
+  transition: box-shadow 150ms ease, border-color 150ms ease;
+}
+
+/* ─── KPI card pulse animation ─── */
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+.badge-pulse {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+/* ─── Focus ring indigo ─── */
+.focus-ring-indigo:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+  border-color: #4F46E5;
 }

@@ -46,10 +46,15 @@ const LeadEditForm = ({
   const statusOptions = ["Active", "Converted", "Lost"];
   const sourceOptions = [
     "Select",
+    "Phone Call",
+    "Email",
+    "Meeting",
+    "Campus Visit",
+    "Demo",
+    "Institutional Visit",
     "WhatsApp/Viber",
     "Facebook",
     "Website",
-    "Email",
     "Office Visit",
     "Direct call",
     "TikTok",
@@ -120,13 +125,13 @@ const LeadEditForm = ({
         />
       </div>
 
-      {/* Student Name */}
+      {/* Contact Person (stored as studentName internally) */}
       <div className="flex flex-col">
         <label
           htmlFor="studentName"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          Student Name
+          Contact Person
         </label>
         <input
           type="text"
@@ -176,13 +181,13 @@ const LeadEditForm = ({
         />
       </div>
 
-      {/* Phone Number */}
+      {/* Contact Number (stored as phone internally) */}
       <div className="flex flex-col">
         <label
           htmlFor="phone"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          Phone Number
+          Contact Number
         </label>
         <input
           type="tel"
@@ -307,6 +312,7 @@ const LeadEditForm = ({
           className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
         >
           {[
+            "Follow-up Needed",
             "New",
             "Open",
             "Followup",
@@ -413,13 +419,13 @@ const LeadEditForm = ({
         </div>
       )}
 
-      {/* Source */}
+      {/* Activity (stored as source internally) */}
       <div className="flex flex-col">
         <label
           htmlFor="source"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          Source
+          Activity
         </label>
         <select
           id="source"
@@ -653,7 +659,7 @@ const LeadEditForm = ({
           htmlFor="permanentAddress"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          Address Line 1 (Permanent)
+          Municipality
         </label>
         <input
           type="text"
@@ -670,7 +676,7 @@ const LeadEditForm = ({
           htmlFor="temporaryAddress"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          Address Line 2 (Temporary)
+          District
         </label>
         <input
           type="text"
