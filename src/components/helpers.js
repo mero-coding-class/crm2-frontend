@@ -61,21 +61,24 @@ export const getStatusClasses = (status) => {
 };
 
   export const getSubStatusClasses = (subStatus) => {
+    // crm2-backend SUB_STATUS_CHOICES
     switch (subStatus) {
       case "New":
         return "bg-sky-100 text-sky-800 border-sky-200";
-      case "Open":
+      case "Contacted":
         return "bg-amber-100 text-amber-800 border-amber-200";
-      case "Followup":
+      case "Follow-up":
         return "bg-yellow-100 text-yellow-800 border-yellow-200";
-      case "inProgress":
+      case "Visit scheduled":
+        return "bg-violet-100 text-violet-800 border-violet-200";
+      case "Demo scheduled":
         return "bg-purple-100 text-purple-800 border-purple-200";
-      case "Average":
-        return "bg-indigo-100 text-indigo-800 border-indigo-200";
+      case "Proposal sent":
+        return "bg-blue-100 text-blue-800 border-blue-200";
       case "Interested":
         return "bg-emerald-100 text-emerald-800 border-emerald-200";
-      case "Junk":
-        return "bg-red-100 text-red-800 border-red-200";
+      case "On hold":
+        return "bg-slate-100 text-slate-700 border-slate-300";
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
     }

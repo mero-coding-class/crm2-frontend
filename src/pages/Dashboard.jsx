@@ -43,9 +43,11 @@ import CallReminders from "../components/reminders/CallReminders";
 
 const ChartContainer = ({ title, description, children }) => (
   <div className="bg-white rounded-[12px] border border-slate-200 p-5 flex flex-col h-full hover:border-slate-300 transition-colors">
-    <h3 className="text-[15px] font-[600] text-slate-900 leading-[20px] tracking-[-0.005em]">{title}</h3>
-    {description && <p className="text-[12px] text-slate-500 mt-0.5 mb-3">{description}</p>}
-    <div className="flex-grow min-h-[250px] mt-2">{children}</div>
+    <div className="mb-3">
+      <h3 className="text-[14px] font-[600] text-slate-900 leading-[20px] tracking-[-0.005em]">{title}</h3>
+      {description && <p className="text-[12px] text-slate-400 mt-0.5">{description}</p>}
+    </div>
+    <div className="flex-grow min-h-[250px]">{children}</div>
   </div>
 );
 
@@ -116,16 +118,16 @@ const Dashboard = () => {
     [authToken]
   );
 
-  // Pie segment colors
+  // Pie segment colors - using cohesive brand identity palette
   const PIE_COLORS = [
-    "#8884d8",
-    "#82ca9d",
-    "#ffc658",
-    "#ff7300",
-    "#0088FE",
-    "#00C49F",
-    "#FFBB28",
-    "#FF8042",
+    "#294998", // Mero Royal Navy Blue
+    "#E8A026", // Mero Golden Amber
+    "#10B981", // Emerald
+    "#3B82F6", // Blue
+    "#0EA5E9", // Sky
+    "#F97316", // Orange
+    "#8B5CF6", // Violet
+    "#14B8A6", // Teal
   ];
 
   // Load real leads from backend
@@ -410,8 +412,8 @@ const Dashboard = () => {
         const totalPayment =
           Number(e.total_payment) ||
           (Number(e.first_installment) || 0) +
-            (Number(e.second_installment) || 0) +
-            (Number(e.third_installment) || 0) ||
+          (Number(e.second_installment) || 0) +
+          (Number(e.third_installment) || 0) ||
           Number(e.value) ||
           0;
         revenueThisMonth += totalPayment;
@@ -631,9 +633,9 @@ const Dashboard = () => {
       // Prefer explicit add_date (user requested) then enrollment_date then created_at
       const mObj = getMonth(
         enr.add_date ||
-          enr.enrollment_date ||
-          enr.starting_date ||
-          enr.created_at
+        enr.enrollment_date ||
+        enr.starting_date ||
+        enr.created_at
       );
       if (!mObj || !mObj.key) return;
       enrollmentsByMonth[mObj.key] = (enrollmentsByMonth[mObj.key] || 0) + 1;
@@ -690,18 +692,18 @@ const Dashboard = () => {
     () =>
       Array.isArray(allLeads)
         ? allLeads.map((l, i) => ({
-            _id: l._id || l.id || `lead-${i}`,
-            id: l.id,
-            student_name: l.student_name || l.name || "",
-            phone_number: l.phone_number || l.phone || "",
-            whatsapp_number: l.whatsapp_number || l.whatsapp || "",
-            course_name: l.course_name || l.course || "",
-            next_call: l.next_call || l.nextCall || "",
-            assigned_to_username: l.assigned_to_username || l.assigned_to || "",
-            assigned_to: l.assigned_to || l.assigned_to_username || "",
-            status: l.status || "",
-            sub_status: l.sub_status || l.substatus || "",
-          }))
+          _id: l._id || l.id || `lead-${i}`,
+          id: l.id,
+          student_name: l.student_name || l.name || "",
+          phone_number: l.phone_number || l.phone || "",
+          whatsapp_number: l.whatsapp_number || l.whatsapp || "",
+          course_name: l.course_name || l.course || "",
+          next_call: l.next_call || l.nextCall || "",
+          assigned_to_username: l.assigned_to_username || l.assigned_to || "",
+          assigned_to: l.assigned_to || l.assigned_to_username || "",
+          status: l.status || "",
+          sub_status: l.sub_status || l.substatus || "",
+        }))
         : [],
     [allLeads]
   );
@@ -742,7 +744,7 @@ const Dashboard = () => {
     try {
       const raw = localStorage.getItem(`mcc:reminders:${username || "anon"}`);
       map = raw ? JSON.parse(raw) : {};
-    } catch {}
+    } catch { }
     const dateMap = map[today] || {};
 
     let completed = 0;
@@ -760,8 +762,22 @@ const Dashboard = () => {
 
   if (error) {
     return (
-      <div className="text-red-500 p-4 bg-red-100 rounded-md">
-        Error: {error}
+      <div className="flex items-center justify-center min-h-[400px] p-8">
+        <div className="text-center max-w-sm">
+          <div className="w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-6 h-6 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h3 className="text-[16px] font-[600] text-slate-900 mb-1">Failed to load dashboard</h3>
+          <p className="text-[13px] text-slate-500 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#294998] text-white text-[13px] font-[500] rounded-[8px] hover:bg-[#1E3776] transition-colors"
+          >
+            Reload Dashboard
+          </button>
+        </div>
       </div>
     );
   }
@@ -774,186 +790,187 @@ const Dashboard = () => {
         <p className="text-[13px] text-slate-500 leading-[18px] mt-0.5">Global Admission Intelligence — overview and metrics</p>
       </div>
       <div className="p-6">
-      {/* Call reminders widget */}
-      <div className="mb-6">
-        <CallReminders
-          leads={remindersLeads}
-          currentUser={user || {}}
-          isAdminLike={isAdminLike}
-        />
-      </div>
+        {/* Call reminders widget */}
+        <div className="mb-6">
+          <CallReminders
+            leads={remindersLeads}
+            currentUser={user || {}}
+            isAdminLike={isAdminLike}
+          />
+        </div>
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
-        <StatCard
-          title="Total Leads"
-          value={dashboardData.stats.totalLeads}
-          icon={UsersIcon}
-          description="Overall count"
-          colorClass="text-indigo-600 bg-indigo-50"
-        />
-        <StatCard
-          title="Enrolled Students"
-          value={dashboardData.stats.totalEnrolledStudents}
-          icon={AcademicCapIcon}
-          description="Converted leads"
-          colorClass="text-emerald-600 bg-emerald-50"
-        />
-        <StatCard
-          title="Trash Students"
-          value={trashCount}
-          icon={GlobeAltIcon}
-          description="Leads in Trash"
-          colorClass="text-rose-600 bg-rose-50"
-        />
-        {/* <StatCard
+        {/* Stat Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
+          <StatCard
+            title="Total Leads"
+            value={dashboardData.stats.totalLeads}
+            icon={UsersIcon}
+            description="Overall count"
+            colorClass="text-[#294998] bg-[#EDF2FC]"
+          />
+          <StatCard
+            title="Clients"
+            value={dashboardData.stats.totalEnrolledStudents}
+            icon={AcademicCapIcon}
+            description="Converted school clients"
+            colorClass="text-emerald-600 bg-emerald-50"
+          />
+          <StatCard
+            title="Trash Students"
+            value={trashCount}
+            icon={GlobeAltIcon}
+            description="Leads in Trash"
+            colorClass="text-rose-600 bg-rose-50"
+          />
+          {/* <StatCard
           title="New Leads This Month"
           value={dashboardData.stats.newLeadsThisMonth}
           icon={PlusIcon}
           description="Leads added in current month"
           colorClass="text-green-600 bg-green-100"
         /> */}
-        {isAdminLike && (
+          {isAdminLike && (
+            <StatCard
+              title="Revenue This Month"
+              value={dashboardData.stats.revenueThisMonth}
+              icon={CurrencyDollarIcon}
+              description="Converted lead value"
+              colorClass="text-teal-600 bg-teal-50"
+            />
+          )}
           <StatCard
-            title="Revenue This Month"
-            value={dashboardData.stats.revenueThisMonth}
-            icon={CurrencyDollarIcon}
-            description="Converted lead value"
-            colorClass="text-teal-600 bg-teal-50"
+            title="Today's Calls"
+            value={`${todaysCalls.pending} Pending`}
+            icon={CalendarDaysIcon}
+            description={`Completed ${todaysCalls.completed}`}
+            colorClass="text-[#B8740C] bg-[#FEF7EB]"
           />
-        )}
-        <StatCard
-          title="Today's Calls"
-          value={`${todaysCalls.pending} Pending`}
-          icon={CalendarDaysIcon}
-          description={`Completed ${todaysCalls.completed}`}
-          colorClass="text-indigo-600 bg-indigo-50"
-        />
-        {/* Upcoming Classes/Calls intentionally removed (replaced by Trash Students) */}
-      </div>
+          {/* Upcoming Classes/Calls intentionally removed (replaced by Trash Students) */}
+        </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <ChartContainer
-          title="Lead Status Distribution"
-          description="Current breakdown of leads by their status."
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={dashboardData.charts.leadStatusDistribution}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-                nameKey="name"
+        {/* Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          <ChartContainer
+            title="Lead Status Distribution"
+            description="Current breakdown of leads by their status."
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={dashboardData.charts.leadStatusDistribution}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                  nameKey="name"
+                >
+                  {dashboardData.charts.leadStatusDistribution.map(
+                    (entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={PIE_COLORS[index % PIE_COLORS.length]}
+                      />
+                    )
+                  )}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+
+          <ChartContainer
+            title="Student Enrollment Trends"
+            description='Monthly trend of "Converted" leads (by Add Date).'
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={dashboardData.charts.enrollmentTrends}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
               >
-                {dashboardData.charts.leadStatusDistribution.map(
-                  (entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={PIE_COLORS[index % PIE_COLORS.length]}
-                    />
-                  )
-                )}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartContainer>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis allowDecimals={false} />
+                <Tooltip />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="students"
+                  stroke="#294998"
+                  strokeWidth={2.5}
+                  activeDot={{ r: 6, fill: "#294998", stroke: "#EDF2FC", strokeWidth: 2 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </ChartContainer>
 
+          <ChartContainer
+            title="Leads by Source"
+            description="Distribution of leads across various marketing channels."
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={dashboardData.charts.leadsBySource}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="source"
+                  angle={-15}
+                  textAnchor="end"
+                  height={50}
+                />
+                <YAxis allowDecimals={false} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="leads" fill="#294998" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+        </div>
+
+        {/* Monthly totals grouped: total leads, enrollments, trash */}
+        <div className="mb-8">
+          <ChartContainer title="Monthly Leads Breakdown (Total / Enrollments / Trash)">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                data={dashboardData.charts.monthlyDistribution}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                barCategoryGap={30}
+                barGap={0}
+                stackOffset="none"
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis allowDecimals={false} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="totalLeads" fill="#294998" name="Total Leads" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="enrollments" fill="#10B981" name="Enrollments" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="trash" fill="#E8A026" name="Trash" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+        </div>
+
+        {/* Latest Leads table below, full width */}
+        <div className="mb-8">
+          <LatestLeadsTable leads={dashboardData.latestLeads} />
+        </div>
+
+        {/* Map: show leads on map (defaults to Nepal/Kathmandu) */}
         <ChartContainer
-          title="Student Enrollment Trends"
-          description='Monthly trend of "Converted" leads (by Add Date).'
+          title="Geographical Lead Distribution"
+          description="Visualizing where your leads are coming from. Search by city or country."
         >
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={dashboardData.charts.enrollmentTrends}
-              margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="students"
-                stroke="#8884d8"
-                activeDot={{ r: 8 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          <LeadMap
+            leads={dashboardData.latestLeads}
+            defaultCountry="Nepal"
+            defaultCity="Kathmandu"
+          />
         </ChartContainer>
-
-        <ChartContainer
-          title="Leads by Source"
-          description="Distribution of leads across various marketing channels."
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={dashboardData.charts.leadsBySource}
-              margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="source"
-                angle={-15}
-                textAnchor="end"
-                height={50}
-              />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="leads" fill="#82ca9d" />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartContainer>
-      </div>
-
-      {/* Monthly totals grouped: total leads, enrollments, trash */}
-      <div className="mb-8">
-        <ChartContainer title="Monthly Leads Breakdown (Total / Enrollments / Trash)">
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart
-              data={dashboardData.charts.monthlyDistribution}
-              margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-              barCategoryGap={30}
-              barGap={0}
-              stackOffset="none"
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="totalLeads" fill="#1E88E5" name="Total Leads" />
-              <Bar dataKey="enrollments" fill="#34A853" name="Enrollments" />
-              <Bar dataKey="trash" fill="#FB8C00" name="Trash" />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartContainer>
-      </div>
-
-      {/* Latest Leads table below, full width */}
-      <div className="mb-8">
-        <LatestLeadsTable leads={dashboardData.latestLeads} />
-      </div>
-
-      {/* Map: show leads on map (defaults to Nepal/Kathmandu) */}
-      <ChartContainer
-        title="Geographical Lead Distribution"
-        description="Visualizing where your leads are coming from. Search by city or country."
-      >
-        <LeadMap
-          leads={dashboardData.latestLeads}
-          defaultCountry="Nepal"
-          defaultCity="Kathmandu"
-        />
-      </ChartContainer>
       </div>{/* end p-6 */}
     </div>
   );

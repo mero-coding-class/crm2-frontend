@@ -11,15 +11,15 @@ import { AuthContext, AuthProvider } from "./context/AuthContext.jsx";
 import MainLayout from "./layouts/MainLayout";
 import Dashboard from "./pages/Dashboard";
 import Leads from "./pages/Leads";
-import EnrolledStudents from "./pages/EnrolledStudents";
+import Clients from "./pages/Clients";
 import TrashPage from "./pages/TrashPage";
 import Login from "./pages/Login";
 import Reports from "./pages/Reports";
-import Register from "./pages/Register";
-import CreateCourse from "./pages/CreateCourse";
 import Settings from "./pages/Settings";
 import Downloads from "./pages/Downloads";
 import Archive from "./pages/Archive";
+import Demo from "./pages/Demo";
+import HelpPage from "./pages/HelpPage";
 
 function AppContent() {
   const { authToken } = useContext(AuthContext);
@@ -39,12 +39,15 @@ function AppContent() {
         >
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/leads" element={<Leads />} />
-          <Route path="/enrolled-students" element={<EnrolledStudents />} />
+          <Route path="/clients" element={<Clients />} />
+          <Route path="/enrolled-students" element={<Navigate to="/clients" replace />} />
+          <Route path="/demo" element={<Demo />} />
           <Route path="/trash" element={<TrashPage />} />
           <Route path="/archive" element={<Archive />} />
           <Route path="/report" element={<Reports />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/downloads" element={<Downloads />} />
+          <Route path="/help" element={<HelpPage />} />
           {/* Catch-all route within the protected area, redirects to dashboard */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
           {/* Legacy direct routes removed in favor of Settings */}

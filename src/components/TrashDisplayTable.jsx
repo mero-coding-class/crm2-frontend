@@ -66,7 +66,7 @@ const ColumnToggler = ({ columns, setColumns }) => {
   return (
     <Menu as="div" className="relative inline-block text-left">
       <div>
-        <Menu.Button className="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+        <Menu.Button className="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#294998]">
           <Cog6ToothIcon className="h-5 w-5 mr-2" />
           Columns
         </Menu.Button>
@@ -85,7 +85,7 @@ const ColumnToggler = ({ columns, setColumns }) => {
                     type="checkbox"
                     checked={visible}
                     onChange={() => toggleColumn(key)}
-                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 mr-3"
+                    className="h-4 w-4 rounded border-gray-300 text-[#294998] focus:ring-[#294998] mr-3"
                   />
                   {label}
                 </label>
@@ -232,25 +232,13 @@ const TrashTableDisplay = ({
   };
 
   const handleRestoreSelected = () => {
-    if (
-      window.confirm(
-        `Are you sure you want to restore ${selectedLeads.size} leads?`
-      )
-    ) {
-      onBulkRestore([...selectedLeads]);
-      setSelectedLeads(new Set());
-    }
+    onBulkRestore([...selectedLeads]);
+    setSelectedLeads(new Set());
   };
 
   const handleDeleteSelected = () => {
-    if (
-      window.confirm(
-        `Are you sure you want to permanently delete ${selectedLeads.size} leads? This action cannot be undone.`
-      )
-    ) {
-      onBulkPermanentDelete([...selectedLeads]);
-      setSelectedLeads(new Set());
-    }
+    onBulkPermanentDelete([...selectedLeads]);
+    setSelectedLeads(new Set());
   };
 
   /* -------------------------- PAGINATION LOGIC -------------------------- */
@@ -312,23 +300,7 @@ const TrashTableDisplay = ({
         <ColumnToggler columns={columns} setColumns={setColumns} />
       </div>
 
-      <div className="relative">
-        <button
-          onClick={() => smoothScroll(-400)}
-          className="absolute left-2 top-1/2 -translate-y-1/2 z-20 p-2 bg-white rounded-full shadow hover:bg-gray-100"
-          aria-label="Scroll left"
-        >
-          <ChevronLeftIcon className="h-5 w-5 text-gray-600" />
-        </button>
-        <button
-          onClick={() => smoothScroll(400)}
-          className="absolute right-2 top-1/2 -translate-y-1/2 z-20 p-2 bg-white rounded-full shadow hover:bg-gray-100"
-          aria-label="Scroll right"
-        >
-          <ChevronRightIcon className="h-5 w-5 text-gray-600" />
-        </button>
-
-        <div className="overflow-x-auto" ref={tableContainerRef}>
+      <div className="overflow-x-auto" ref={tableContainerRef}>
           <DndContext
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
@@ -358,7 +330,7 @@ const TrashTableDisplay = ({
                           ref={(el) => {
                             if (el) el.indeterminate = isIndeterminate;
                           }}
-                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                          className="h-4 w-4 rounded border-gray-300 text-[#294998] focus:ring-[#294998]"
                         />
                       );
                     })()}
@@ -396,7 +368,6 @@ const TrashTableDisplay = ({
             </table>
           </DndContext>
         </div>
-      </div>
 
       {/* Pagination */}
       <div className="flex justify-end items-center mt-4">
@@ -517,7 +488,7 @@ const SortableTrashRow = ({
           type="checkbox"
           checked={isSelected}
           onChange={() => onSelectRow(lead.id)}
-          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+          className="h-4 w-4 rounded border-gray-300 text-[#294998] focus:ring-[#294998]"
         />
       </td>
       {columns.actions.visible && (

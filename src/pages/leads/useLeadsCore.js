@@ -9,28 +9,34 @@ export const SAMPLE_PLACEHOLDER_LEAD = {
   student_name: "Apex Academy International",
   parents_name: "Dr. Rajan Shrestha",
   school_college_name: "Apex Academy International",
+  school_name: "Apex Academy International",
+  contact_person: "Dr. Rajan Shrestha",
   phone_number: "+977 9841234567",
+  contact_number: "+977 9841234567",
   whatsapp_number: "+977 9841234567",
   email: "principal@apexacademy.edu.np",
+  district: "Kathmandu",
+  municipality: "Kathmandu Metro - Ward 10",
   course_name: "Python & AI Curriculum",
+  course_interest: "Python & AI Curriculum",
   course_duration: "1 Year",
   course_type: "Physical",
   class_type: "Physical",
   shift: "Morning",
   age: "16",
   grade: "Grade 10",
-  status: "Active",
-  substatus: "Follow-up Needed",
-  sub_status: "Follow-up Needed",
+  status: "active",
+  sub_status: "New",
   source: "Institutional Visit",
   assigned_to: "Aashish",
   assigned_to_username: "Aashish",
   scheduled_taken: "Yes",
   demo_scheduled: "Yes",
   last_call: "2026-10-06",
-  next_call: "2026-10-12",
-  remarks: "Principal requested demo presentation for academic board on Friday.",
+  next_call: new Date().toISOString().split("T")[0],
+  remarks: "Your first lead will appear here — click \"Add Lead\" to get started.",
   city: "Kathmandu",
+  address: "Kathmandu Metro - Ward 10",
   address_line_1: "Kathmandu Metro - Ward 10",
   add_date: "2026-10-08",
   created_at: new Date().toISOString(),
@@ -38,7 +44,7 @@ export const SAMPLE_PLACEHOLDER_LEAD = {
 };
 
 export default function useLeadsCore(authToken, pageSize) {
-  const [allLeads, setAllLeads] = useState([SAMPLE_PLACEHOLDER_LEAD]);
+  const [allLeads, setAllLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -46,68 +52,66 @@ export default function useLeadsCore(authToken, pageSize) {
   const [fetchingAll, setFetchingAll] = useState(false);
   const allLeadsFullRef = useRef(false);
 
-  const handleRefresh = useCallback(async () => {
-    // handleRefresh now supports fetching a specific page from backend
-    return async function refreshPage(page = 1) {
+  const handleRefresh = useCallback(
+    async (page = 1) => {
+      const pageNum = typeof page === "number" ? page : 1;
       if (!authToken) return;
       allLeadsFullRef.current = false;
       setLoading(true);
       setError(null);
       try {
-        const [pageResp, coursesData] = await Promise.all([
-          leadService.getLeadsPage(authToken, page, pageSize),
-          courseService.getCourses(authToken),
-        ]);
+        const pageResp = await leadService.getLeadsPage(authToken, pageNum, pageSize);
+        const leadsData = pageResp?.results || [];
 
-        const leadsData = pageResp.results || [];
-
-        let processedLeads = (leadsData || [])
-          .map((lead) => ({
-            ...lead,
-            sub_status: lead.sub_status || lead.substatus || "New",
-            assigned_to: lead.assigned_to || lead.assigned_to_username || "",
-            assigned_to_username:
-              lead.assigned_to_username || lead.assigned_to || "",
-            course_name: lead.course_name || "N/A",
-            course_duration: lead.course_duration || "",
-          }));
+        let processedLeads = (leadsData || []).map((lead) => ({
+          ...lead,
+          sub_status: lead.sub_status || lead.substatus || "New",
+          assigned_to: lead.assigned_to || lead.assigned_to_username || "",
+          assigned_to_username:
+            lead.assigned_to_username || lead.assigned_to || "",
+          course_name: lead.course_name || "N/A",
+          course_duration: lead.course_duration || "",
+        }));
 
         // set pagination metadata
-        setCurrentPage(page);
-        setTotalPages(pageResp.totalPages || 1);
+        setCurrentPage(pageNum);
+        setTotalPages(pageResp?.totalPages || 1);
 
         // If there are any restored leads persisted by TrashPage, prepend them so they appear on top
-      try {
-        const rawList = localStorage.getItem("crm:restoredLeads");
-        const rawOne = localStorage.getItem("crm:restoredLead");
-        let restored = [];
-        if (rawList) {
-          const arr = JSON.parse(rawList);
-          if (Array.isArray(arr) && arr.length) restored = arr;
-        } else if (rawOne) {
-          const obj = JSON.parse(rawOne);
-          if (obj && typeof obj === "object") restored = [obj];
-        }
-        if (restored.length) {
-          processedLeads = [...restored, ...processedLeads];
-        }
-        // Clear persisted flags after merging
-        try { localStorage.removeItem("crm:restoredLeads"); } catch {}
-        try { localStorage.removeItem("crm:restoredLead"); } catch {}
-      } catch {}
+        try {
+          const rawList = localStorage.getItem("crm:restoredLeads");
+          const rawOne = localStorage.getItem("crm:restoredLead");
+          let restored = [];
+          if (rawList) {
+            const arr = JSON.parse(rawList);
+            if (Array.isArray(arr) && arr.length) restored = arr;
+          } else if (rawOne) {
+            const obj = JSON.parse(rawOne);
+            if (obj && typeof obj === "object") restored = [obj];
+          }
+          if (restored.length) {
+            processedLeads = [...restored, ...processedLeads];
+          }
+          // Clear persisted flags after merging
+          try {
+            localStorage.removeItem("crm:restoredLeads");
+          } catch {}
+          try {
+            localStorage.removeItem("crm:restoredLead");
+          } catch {}
+        } catch {}
 
-        const finalLeads =
-          processedLeads.length > 0 ? processedLeads : [SAMPLE_PLACEHOLDER_LEAD];
-        setAllLeads(deduplicateLeads(finalLeads));
+        setAllLeads(deduplicateLeads(processedLeads));
         return pageResp;
-    } catch (err) {
-      setError(err.message || "Failed to refresh leads");
+      } catch (err) {
+        setError(err.message || "Failed to refresh leads");
         throw err;
-    } finally {
-      setLoading(false);
-    }
-    };
-  }, [authToken, pageSize]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [authToken, pageSize]
+  );
 
   const fetchAllLeads = useCallback(async () => {
     if (!authToken) return [];
@@ -151,23 +155,13 @@ export default function useLeadsCore(authToken, pageSize) {
 
   useEffect(() => {
     if (!authToken) return;
-    // initial load first page via handleRefresh (keeps behavior close to existing)
-    // invoke refreshed function to load page 1
-    (async () => {
-      try {
-        const refresh = await handleRefresh();
-        if (typeof refresh === "function") await refresh(1);
-      } catch (e) {
-        // ignore
-      }
-    })();
+    handleRefresh(1).catch(() => {});
   }, [authToken, handleRefresh]);
 
   const goToPage = async (page) => {
     if (!authToken) return;
     try {
-      const refresh = await handleRefresh();
-      if (typeof refresh === "function") await refresh(page);
+      await handleRefresh(page);
     } catch (e) {
       console.warn("goToPage failed", e);
     }

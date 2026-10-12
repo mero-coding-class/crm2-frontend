@@ -1,5 +1,6 @@
 // src/context/AuthContext.jsx
 import React, { createContext, useState, useEffect, useContext } from "react";
+import { BASE_URL } from "../config";
 
 export const AuthContext = createContext(null);
 
@@ -52,6 +53,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    try {
+      fetch(`${BASE_URL}/auth/logout/`, {
+        method: "POST",
+      }).catch(() => {});
+    } catch (_) {}
     localStorage.removeItem("authToken");
     localStorage.removeItem("user");
     localStorage.removeItem("username");

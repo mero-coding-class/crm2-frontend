@@ -12,51 +12,39 @@ import {
 import DraggableRow from "./DraggableRow";
 import ColumnToggler from "./ColumnToggler";
 import { leadService } from "../services/api";
-import { Folder, Plus, FileUp } from "lucide-react";
+import { Folder, Plus, FileUp, ChevronLeft, ChevronRight, Building2 } from "lucide-react";
 import ImportCsvButton from "./ImportCsvButton";
+import ActivityModal from "./ActivityModal";
+import EnrollModal from "./EnrollModal";
 
 const initialColumns = {
+  // Visible by default — matches crm2-backend LeadSummarySerializer fields
   actions: { label: "Actions", visible: true },
-  school_college_name: { label: "School Name", visible: true },
-  address_line_1: { label: "Municipality", visible: true },
-  student_name: { label: "Contact Person", visible: true },
-  phone_number: { label: "Contact Number", visible: true },
-  source: { label: "Activity", visible: true },
-  substatus: { label: "Sub-Status", visible: true },
-  scheduled_taken: { label: "Demo Schedule", visible: true },
-  // Hidden columns — visible only via Edit modal
+  school_name: { label: "School Name", visible: true },
+  municipality: { label: "Municipality", visible: true },
+  contact_person: { label: "Contact Person", visible: true },
+  contact_number: { label: "Contact Number", visible: true },
+  sub_status: { label: "Sub-Status", visible: true },
+  // Hidden columns — available via Edit modal / column toggler
   id: { label: "ID", visible: false },
-  parents_name: { label: "Parents' Name", visible: false },
+  system_id: { label: "System ID", visible: false },
+  district: { label: "District", visible: false },
+  address: { label: "Address", visible: false },
+  alt_contact_person: { label: "Alt. Contact", visible: false },
+  alt_number: { label: "Alt. Number", visible: false },
   email: { label: "Email", visible: false },
-  whatsapp_number: { label: "WhatsApp Number", visible: false },
-  age: { label: "Age", visible: false },
-  grade: { label: "Grade", visible: false },
-  course_name: { label: "Course", visible: false },
-  course_duration: { label: "Course Duration", visible: false },
-  course_type: { label: "Course Type", visible: false },
+  social_media: { label: "Social Media", visible: false },
+  course_interest: { label: "Course Interest", visible: false },
+  source: { label: "Source", visible: false },
   status: { label: "Status", visible: false },
-  class_type: { label: "Class Type", visible: false },
-  shift: { label: "Shift", visible: false },
-  previous_coding_experience: { label: "Previous Coding", visible: false },
-  lead_type: { label: "Lead Type", visible: false },
-  value: { label: "Value", visible: false },
-  adset_name: { label: "Adset Name", visible: false },
-  payment_type: { label: "Payment Type", visible: false },
-  first_installment: { label: "First Installment", visible: false },
-  first_invoice: { label: "First Invoice", visible: false },
-  device: { label: "Device", visible: false },
-  last_call: { label: "Last Call", visible: false },
-  next_call: { label: "Next Call", visible: false },
+  approval: { label: "Approval", visible: false },
+  proposal_status: { label: "Proposal Sent", visible: false },
+  demo_scheduled: { label: "Demo Scheduled", visible: false },
+  owner_username: { label: "Lead Owner", visible: false },
+  call_assignee_username: { label: "Call Assignee", visible: false },
+  created_by_username: { label: "Created By", visible: false },
   created_at: { label: "Created At", visible: false },
   updated_at: { label: "Updated At", visible: false },
-  remarks: { label: "Remarks", visible: false },
-  address_line_2: { label: "Address Line 2", visible: false },
-  city: { label: "City", visible: false },
-  county: { label: "County", visible: false },
-  post_code: { label: "Post Code", visible: false },
-  assigned_to: { label: "Assigned To", visible: false },
-  created_by_username: { label: "Created By", visible: false },
-  change_log: { label: "Change Log", visible: false },
 };
 
 const LeadTableDisplay = ({
@@ -66,6 +54,7 @@ const LeadTableDisplay = ({
   handleBulkDelete,
   onStatusChange,
   onSubStatusChange,
+  onActivitySave,
   onRemarkChange,
   onRecentCallChange: onLastCallChange,
   onNextCallChange,
@@ -97,7 +86,42 @@ const LeadTableDisplay = ({
   const [savedRemarks, setSavedRemarks] = useState({});
   const [columns, setColumns] = useState(initialColumns);
   const [internalPage, setInternalPage] = useState(1);
+  const [activityModalLead, setActivityModalLead] = useState(null);
+  const [enrollModalLead, setEnrollModalLead] = useState(null);
   const pageSize = parentLeadsPerPage || 20;
+
+  const handleSaveActivity = async (activityData) => {
+    if (!activityModalLead) return;
+    const leadId = activityModalLead.id || activityModalLead._id;
+    if (onActivitySave) {
+      await onActivitySave(leadId, activityData);
+    } else {
+      const updates = {
+        source: activityData.source,
+        substatus: activityData.substatus,
+        sub_status: activityData.substatus,
+        last_call: activityData.last_call,
+        next_call: activityData.next_call,
+        remarks: activityData.remarks,
+      };
+      await leadService.updateLead(leadId, updates, authToken);
+      if (onSubStatusChange) onSubStatusChange(leadId, activityData.substatus);
+      if (onRemarkChange && activityData.remarks)
+        onRemarkChange(leadId, activityData.remarks);
+      if (onLastCallChange && activityData.last_call)
+        onLastCallChange(leadId, activityData.last_call);
+      if (onNextCallChange && activityData.next_call)
+        onNextCallChange(leadId, activityData.next_call);
+      if (handleFieldChange) {
+        handleFieldChange(leadId, "source", activityData.source);
+        handleFieldChange(leadId, "substatus", activityData.substatus);
+        handleFieldChange(leadId, "sub_status", activityData.substatus);
+        handleFieldChange(leadId, "last_call", activityData.last_call);
+        handleFieldChange(leadId, "next_call", activityData.next_call);
+        handleFieldChange(leadId, "remarks", activityData.remarks);
+      }
+    }
+  };
 
   const tableContainerRef = useRef(null);
 
@@ -415,7 +439,7 @@ const LeadTableDisplay = ({
   if (!leads || leads.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-24 px-4 text-center bg-white min-h-[420px]">
-        <div className="w-16 h-16 rounded-[18px] bg-[#EEF2FF] flex items-center justify-center mb-5 text-[#4F46E5]">
+        <div className="w-16 h-16 rounded-[18px] bg-[#EDF2FC] flex items-center justify-center mb-5 text-[#294998]">
           <Folder className="w-8 h-8 stroke-[1.75]" />
         </div>
         <h2 className="text-[18px] font-[600] text-slate-900 mb-2 tracking-[-0.01em]">
@@ -428,7 +452,7 @@ const LeadTableDisplay = ({
           {handleOpenAddModal && (
             <button
               onClick={handleOpenAddModal}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-[8px] text-[13px] font-[500] bg-[#4F46E5] hover:bg-indigo-700 text-white shadow-sm transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-[8px] text-[13px] font-[500] bg-[#294998] hover:bg-[#1E3776] text-white shadow-sm transition-colors"
             >
               <Plus className="h-4 w-4" />
               Add New Lead
@@ -459,7 +483,7 @@ const LeadTableDisplay = ({
           {selectedLeads.size > 0 && (
             <>
               <span className="text-[13px] text-slate-600">
-                <span className="font-[600] text-indigo-600">{selectedLeads.size}</span> selected
+                <span className="font-[600] text-[#294998]">{selectedLeads.size}</span> selected
               </span>
               <button
                 onClick={onBulkDeleteClick}
@@ -475,158 +499,190 @@ const LeadTableDisplay = ({
       </div>
 
       {/* Table */}
-      <div className="relative">
-        <button
-          onClick={() => smoothScroll(-500)}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-20 h-8 w-8 bg-white border border-slate-200 rounded-full shadow-sm flex items-center justify-center hover:bg-slate-50 hover:shadow-md transition-all"
-          aria-label="Scroll left"
-        >
-          <ChevronLeftIcon className="h-4 w-4 text-slate-500" />
-        </button>
-        <button
-          onClick={() => smoothScroll(500)}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-20 h-8 w-8 bg-white border border-slate-200 rounded-full shadow-sm flex items-center justify-center hover:bg-slate-50 hover:shadow-md transition-all"
-          aria-label="Scroll right"
-        >
-          <ChevronRightIcon className="h-4 w-4 text-slate-500" />
-        </button>
-
-        <div
-          className="overflow-x-auto custom-scrollbar"
-          ref={tableContainerRef}
-        >
-          <DndContext collisionDetection={closestCenter}>
-            <SortableContext
-              items={currentLeads.map((l) => l._id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <table className="min-w-full">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50">
-                    <th className="px-3 h-9 w-10">
-                      <span className="sr-only">Drag</span>
-                    </th>
-                    <th className="px-3 h-9 w-10">
-                      <input
-                        type="checkbox"
-                        checked={currentLeads.every((lead) =>
+      <div
+        className="overflow-x-auto custom-scrollbar"
+        ref={tableContainerRef}
+      >
+        <DndContext collisionDetection={closestCenter}>
+          <SortableContext
+            items={currentLeads.map((l) => l._id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <table className="min-w-full">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50">
+                  <th className="px-3 h-9 w-10 text-center whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={
+                        currentLeads.length > 0 &&
+                        currentLeads.every((lead) =>
                           selectedLeads.has(lead._id)
-                        )}
-                        onChange={handleSelectAll}
-                        className="h-3.5 w-3.5 rounded-[4px] border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                      />
-                    </th>
-                    {(() => {
-                      const visibleEntries = Object.entries(columns).filter(
-                        ([, { visible }]) => visible
-                      );
-                      const visibleKeys = visibleEntries.map(([k]) => k);
-                      return visibleEntries.map(([key, { label }]) => (
-                        <th
-                          key={key}
-                          className="px-3 h-9 text-left text-[11px] font-[600] text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap"
-                        >
-                          {label}
-                        </th>
-                      ));
-                    })()}
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-slate-100">
+                        )
+                      }
+                      onChange={handleSelectAll}
+                      className="h-3.5 w-3.5 rounded-[4px] border-slate-300 text-[#294998] focus:ring-[#294998] cursor-pointer"
+                    />
+                  </th>
                   {(() => {
-                    // Recompute the visible keys in the exact same order used above
-                    return currentLeads.map((lead, index) => (
-                      <DraggableRow
-                        key={lead._id}
-                        rowIndex={index}
-                        lead={{
-                          ...lead,
-                          _users: users || [],
-                          _usersLoading: usersLoading,
-                          _currentUserRole: currentUserRole,
-                          class_type: lead.class_type || "",
-                          course_type: lead.course_type || "",
-                          scheduled_taken:
-                            lead.scheduled_taken || lead.demo_scheduled || "No",
-                        }}
-                        columns={columns}
-                        columnOrder={visibleKeys}
-                        savedRemarks={savedRemarks}
-                        selected={selectedLeads.has(lead._id)}
-                        onSelect={handleSelectRow}
-                        localRemarks={localRemarks}
-                        setLocalRemarks={setLocalRemarks}
-                        handleEdit={handleEdit}
-                        handleDelete={handleDelete}
-                        onStatusChange={onStatusChange}
-                        onSubStatusChange={onSubStatusChange}
-                        onRemarkChange={onRemarkChange}
-                        onRecentCallChange={onLastCallChange}
-                        onNextCallChange={onNextCallChange}
-                        onAgeChange={onAgeChange}
-                        onGradeChange={onGradeChange}
-                        onCourseDurationChange={onCourseDurationChange}
-                        onShiftChange={onShiftChange}
-                        // onDemoScheduledChange prop name retained for backward compatibility.
-                        // Internally this updates canonical scheduled_taken field.
-                        onDemoScheduledChange={handleScheduledTakenChange}
-                        onAssignedToChange={onAssignedToChange}
-                        authToken={authToken}
-                        changeLogService={changeLogService}
-                        onCourseTypeChange={handleCourseTypeChange}
-                        onClassTypeChange={handleClassTypeChange}
-                      />
+                    const visibleEntries = Object.entries(columns).filter(
+                      ([, { visible }]) => visible
+                    );
+                    const visibleKeys = visibleEntries.map(([k]) => k);
+                    return visibleEntries.map(([key, { label }]) => (
+                      <th
+                        key={key}
+                        className="px-3 h-9 text-left text-[11px] font-[600] text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap"
+                      >
+                        {label}
+                      </th>
                     ));
                   })()}
-                </tbody>
-              </table>
-            </SortableContext>
-          </DndContext>
-        </div>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-slate-100">
+                {(() => {
+                  if (currentLeads.length === 0) {
+                    return (
+                      <tr>
+                        <td
+                          colSpan={visibleKeys.length + 1}
+                          className="py-16 text-center"
+                        >
+                          <div className="flex flex-col items-center justify-center max-w-sm mx-auto text-center px-4">
+                            <div className="w-12 h-12 rounded-2xl bg-[#EDF2FC] flex items-center justify-center mb-3 text-[#294998] shadow-sm border border-[#CDDBF6]">
+                              <Building2 className="w-6 h-6" />
+                            </div>
+                            <h3 className="text-sm font-semibold text-slate-800 mb-1">
+                              No leads found
+                            </h3>
+                            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+                              No leads are available to display. Add your first school lead to start managing interactions.
+                            </p>
+                            {handleOpenAddModal && (
+                              <button
+                                type="button"
+                                onClick={handleOpenAddModal}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#294998] hover:bg-[#1E3776] text-white text-xs font-semibold shadow-sm transition-all cursor-pointer"
+                              >
+                                <Plus className="w-4 h-4" />
+                                <span>Add New Lead</span>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
+                  // Recompute the visible keys in the exact same order used above
+                  return currentLeads.map((lead, index) => (
+                    <DraggableRow
+                      key={lead._id}
+                      rowIndex={index}
+                      lead={{
+                        ...lead,
+                        _users: users || [],
+                        _usersLoading: usersLoading,
+                        _currentUserRole: currentUserRole,
+                        class_type: lead.class_type || "",
+                        course_type: lead.course_type || "",
+                        scheduled_taken:
+                          lead.scheduled_taken || lead.demo_scheduled || "No",
+                      }}
+                      columns={columns}
+                      columnOrder={visibleKeys}
+                      savedRemarks={savedRemarks}
+                      selected={selectedLeads.has(lead._id)}
+                      onSelect={handleSelectRow}
+                      localRemarks={localRemarks}
+                      setLocalRemarks={setLocalRemarks}
+                      handleEdit={handleEdit}
+                      handleDelete={handleDelete}
+                      onStatusChange={onStatusChange}
+                      onSubStatusChange={onSubStatusChange}
+                      onRemarkChange={onRemarkChange}
+                      onRecentCallChange={onLastCallChange}
+                      onNextCallChange={onNextCallChange}
+                      onAgeChange={onAgeChange}
+                      onGradeChange={onGradeChange}
+                      onCourseDurationChange={onCourseDurationChange}
+                      onShiftChange={onShiftChange}
+                      // onDemoScheduledChange prop name retained for backward compatibility.
+                      // Internally this updates canonical scheduled_taken field.
+                      onDemoScheduledChange={handleScheduledTakenChange}
+                      onAssignedToChange={onAssignedToChange}
+                      authToken={authToken}
+                      changeLogService={changeLogService}
+                      onCourseTypeChange={handleCourseTypeChange}
+                      onClassTypeChange={handleClassTypeChange}
+                      onOpenActivityModal={(leadToView) =>
+                        setActivityModalLead(leadToView)
+                      }
+                      onOpenEnrollModal={(leadToEnroll) =>
+                        setEnrollModalLead(leadToEnroll)
+                      }
+                    />
+                  ));
+                })()}
+              </tbody>
+            </table>
+          </SortableContext>
+        </DndContext>
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-white">
-        <span className="text-[13px] text-slate-500">
-          Page <span className="font-[600] text-slate-800">{currentPage}</span> of <span className="font-[600] text-slate-800">{totalPages}</span>
-        </span>
-        <div className="flex items-center gap-1">
+      {/* ─── Pagination Footer: Identical to Archive ─── */}
+      <div className="px-6 py-3 border-t border-slate-200 bg-white flex flex-col sm:flex-row items-center justify-between gap-3 text-[13px] text-slate-500">
+        <div className="whitespace-nowrap">
+          Showing {currentLeads.length} of {normalizedLeads.length} leads
+        </div>
+
+        <div className="flex items-center gap-2 whitespace-nowrap">
           <button
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
-            className="h-8 w-8 rounded-[6px] border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-[8px] text-[12px] font-[500] bg-[#EEF2F6] hover:bg-slate-200 text-slate-700 disabled:opacity-40 disabled:pointer-events-none transition-colors whitespace-nowrap"
           >
-            <ChevronLeftIcon className="h-4 w-4" />
+            <ChevronLeft className="w-3.5 h-3.5" />
+            <span>Previous</span>
           </button>
-          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-            let page;
-            if (totalPages <= 5) page = i + 1;
-            else if (currentPage <= 3) page = i + 1;
-            else if (currentPage >= totalPages - 2) page = totalPages - 4 + i;
-            else page = currentPage - 2 + i;
-            return (
-              <button
-                key={page}
-                onClick={() => handlePageChange(page)}
-                className={`h-8 min-w-[32px] px-2 rounded-[6px] text-[13px] font-[500] transition-colors ${
-                  page === currentPage
-                    ? "bg-indigo-600 text-white border border-indigo-600"
-                    : "border border-slate-200 text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                {page}
-              </button>
-            );
-          })}
+
+          <span className="px-3 py-1 rounded-[6px] bg-slate-50 text-slate-700 text-[12px] font-[600] whitespace-nowrap">
+            Page {currentPage} of {totalPages}
+          </span>
+
           <button
             onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className="h-8 w-8 rounded-[6px] border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            disabled={currentPage >= totalPages}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-[8px] text-[12px] font-[500] bg-[#EEF2F6] hover:bg-slate-200 text-slate-700 disabled:opacity-40 disabled:pointer-events-none transition-colors whitespace-nowrap"
           >
-            <ChevronRightIcon className="h-4 w-4" />
+            <span>Next</span>
+            <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
+
+      {activityModalLead && (
+        <ActivityModal
+          lead={activityModalLead}
+          onClose={() => setActivityModalLead(null)}
+          onSave={handleSaveActivity}
+        />
+      )}
+
+      {enrollModalLead && (
+        <EnrollModal
+          isOpen={!!enrollModalLead}
+          lead={enrollModalLead}
+          authToken={authToken}
+          onClose={() => setEnrollModalLead(null)}
+          onEnrolled={(client, enrolledLead) => {
+            const id = enrolledLead._id || enrolledLead.id;
+            if (onStatusChange) {
+              onStatusChange(id, "enrolled");
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

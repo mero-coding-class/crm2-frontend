@@ -778,7 +778,6 @@ export default function useEnrollmentUpdates({
 
   const handleDelete = useCallback(
     async (studentId) => {
-      if (!window.confirm("Are you sure you want to delete this enrollment?")) return;
       try {
         // Resolve the lead id before deletion (we'll move it to Trash next)
         const current = (allStudents || []).find((s) => String(s.id) === String(studentId));
@@ -806,13 +805,13 @@ export default function useEnrollmentUpdates({
         // After successful enrollment deletion, move the associated lead to Trash (if any)
         if (leadId !== null && leadId !== undefined) {
           try {
-            const trashResp = await fetch(`${BASE_URL}/trash/${leadId}/`, {
-              method: "PATCH",
+            const trashResp = await fetch(`${BASE_URL}/leads/${leadId}/`, {
+              method: "DELETE",
               headers: {
                 "Content-Type": "application/json",
                 Authorization: `Token ${authToken}`,
               },
-              body: JSON.stringify({ status: "Lost" }),
+              body: JSON.stringify({ reason: "Enrollment deleted" }),
               credentials: "include",
             });
             if (trashResp.ok) {
@@ -821,19 +820,13 @@ export default function useEnrollmentUpdates({
                 window.dispatchEvent(
                   new CustomEvent("crm:leadMovedToTrash", { detail: { lead: trashed || undefined, leadId } })
                 );
-              } catch {}
-            } else {
-              // Best-effort logging, keep UX non-blocking
-              try {
-                const t = await trashResp.text();
-                console.warn("Trash PATCH (after enrollment delete) failed:", t);
-              } catch {}
-              try {
-                window.dispatchEvent(new CustomEvent("crm:leadMovedToTrash", { detail: { leadId } }));
+                window.dispatchEvent(
+                  new CustomEvent("crm:leadArchived", { detail: { leadId } })
+                );
               } catch {}
             }
           } catch (e) {
-            console.debug("Failed to move lead to trash after enrollment delete (non-blocking)", e);
+            console.debug("Failed to move lead to archive after enrollment delete (non-blocking)", e);
           }
         }
       } catch (err) {
@@ -847,7 +840,6 @@ export default function useEnrollmentUpdates({
   const handleBulkDelete = useCallback(
     async (ids = []) => {
       if (!ids || ids.length === 0) return;
-      if (!window.confirm(`Permanently delete ${ids.length} enrollments?`)) return;
       try {
         // Delete enrollments first
         const deleteResults = await Promise.all(
@@ -870,13 +862,13 @@ export default function useEnrollmentUpdates({
 
         await Promise.all(
           leadsToTrash.map((lid) =>
-            fetch(`${BASE_URL}/trash/${lid}/`, {
-              method: "PATCH",
+            fetch(`${BASE_URL}/leads/${lid}/`, {
+              method: "DELETE",
               headers: {
                 "Content-Type": "application/json",
                 Authorization: `Token ${authToken}`,
               },
-              body: JSON.stringify({ status: "Lost" }),
+              body: JSON.stringify({ reason: "Bulk enrollment deleted" }),
               credentials: "include",
             }).then(async (r) => {
               try {
@@ -885,13 +877,8 @@ export default function useEnrollmentUpdates({
                   window.dispatchEvent(
                     new CustomEvent("crm:leadMovedToTrash", { detail: { lead: trashed || undefined, leadId: lid } })
                   );
-                } else {
-                  try {
-                    const t = await r.text();
-                    console.warn("Bulk trash PATCH failed:", t);
-                  } catch {}
                   window.dispatchEvent(
-                    new CustomEvent("crm:leadMovedToTrash", { detail: { leadId: lid } })
+                    new CustomEvent("crm:leadArchived", { detail: { leadId: lid } })
                   );
                 }
               } catch {}

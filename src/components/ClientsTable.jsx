@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  PencilIcon,
-  TrashIcon,
-  Bars3Icon,
-  Cog6ToothIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-} from "@heroicons/react/24/outline";
+  Pencil,
+  Trash2,
+  GripVertical,
+  SlidersHorizontal,
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
+  Clock,
+  Building2,
+  Check,
+} from "lucide-react";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -18,9 +22,9 @@ import { CSS } from "@dnd-kit/utilities";
 
 // --- BACKGROUND COLORS FOR FIELDS ---
 const FIELD_BG_CLASSES = {
-  batch_name: "bg-purple-100",
-  assigned_teacher: "bg-blue-100",
-  course_duration: "bg-green-100",
+  batch_name: "bg-purple-50 text-purple-900 border-purple-200",
+  assigned_teacher: "bg-blue-50 text-blue-900 border-blue-200",
+  course_duration: "bg-emerald-50 text-emerald-900 border-emerald-200",
 };
 
 // Format date display
@@ -41,7 +45,7 @@ const resolveField = (student, key) => {
   if (!student) return "";
   const v = student[key];
   if (v !== undefined && v !== null) return v;
-  if (student.lead && (student.lead[key] !== undefined && student.lead[key] !== null))
+  if (student.lead && student.lead[key] !== undefined && student.lead[key] !== null)
     return student.lead[key];
   return "";
 };
@@ -72,33 +76,33 @@ const ColumnToggler = ({ columns, setColumns }) => {
 
   return (
     <div className="relative inline-block text-left" ref={dropdownRef}>
-      <div>
-        <button
-          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-          className="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-        >
-          <Cog6ToothIcon className="h-5 w-5 mr-2" />
-          Columns
-        </button>
-      </div>
+      <button
+        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-slate-200 bg-white text-[13px] font-[500] text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+      >
+        <SlidersHorizontal className="h-3.5 w-3.5 text-slate-500" />
+        <span>Columns</span>
+      </button>
+
       {isDropdownOpen && (
-        <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10 max-h-60 overflow-y-auto">
-          <div className="py-1">
-            {Object.entries(columns).map(([key, { label, visible }]) => (
-              <label
-                key={key}
-                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={visible}
-                  onChange={() => toggleColumn(key)}
-                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 mr-3"
-                />
-                {label}
-              </label>
-            ))}
+        <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-[10px] shadow-lg bg-white border border-slate-200 z-30 max-h-72 overflow-y-auto p-1.5">
+          <div className="text-[11px] font-[600] text-slate-400 uppercase tracking-[0.04em] px-2.5 py-1">
+            Toggle Columns
           </div>
+          {Object.entries(columns).map(([key, { label, visible }]) => (
+            <label
+              key={key}
+              className="flex items-center px-2.5 py-1.5 text-[13px] text-slate-700 hover:bg-slate-50 rounded-[6px] cursor-pointer"
+            >
+              <input
+                type="checkbox"
+                checked={visible}
+                onChange={() => toggleColumn(key)}
+                className="h-3.5 w-3.5 rounded border-slate-300 text-[#294998] focus:ring-[#294998] mr-2.5 cursor-pointer"
+              />
+              {label}
+            </label>
+          ))}
         </div>
       )}
     </div>
@@ -107,7 +111,6 @@ const ColumnToggler = ({ columns, setColumns }) => {
 
 // Editable text cell
 const EditableTextCell = ({ value, field, onSave, cellClass = "" }) => {
-  // Ensure value is always a string to prevent controlled/uncontrolled warning
   const safeValue = value == null ? "" : String(value);
   const [text, setText] = useState(safeValue);
   const [editing, setEditing] = useState(false);
@@ -117,7 +120,6 @@ const EditableTextCell = ({ value, field, onSave, cellClass = "" }) => {
     setText(newSafeValue);
   }, [value]);
 
-  // Only save on blur or Enter
   const handleBlur = () => {
     if (editing) {
       setEditing(false);
@@ -139,14 +141,14 @@ const EditableTextCell = ({ value, field, onSave, cellClass = "" }) => {
   };
 
   return (
-    <td className={`px-3 py-4 whitespace-nowrap text-sm ${cellClass}`}>
+    <td className={`px-3 py-2.5 whitespace-nowrap text-[13px] ${cellClass}`}>
       <input
         type="text"
         value={text}
         onChange={handleChange}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
-        className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-1 ${
+        className={`block w-full rounded-[6px] border border-slate-200 shadow-2xs focus:border-[#294998] focus:ring-2 focus:ring-[#294998]/15 text-[13px] text-slate-800 px-2 py-1 transition-all ${
           FIELD_BG_CLASSES[field] || "bg-white"
         }`}
       />
@@ -154,7 +156,7 @@ const EditableTextCell = ({ value, field, onSave, cellClass = "" }) => {
   );
 };
 
-const EnrolledStudentsTable = ({
+const ClientsTable = ({
   students = [],
   handleEdit,
   handleDelete,
@@ -170,9 +172,8 @@ const EnrolledStudentsTable = ({
   const [orderedStudents, setOrderedStudents] = useState([]);
   const [selectedStudents, setSelectedStudents] = useState(new Set());
   const [columns, setColumns] = useState({
-    student_name: { label: "Student Name", visible: true },
-    parents_name: { label: "Parents' Name", visible: true },
-    // (Lead-related fields removed to hide lead-level columns)
+    student_name: { label: "School Name", visible: true },
+    parents_name: { label: "Principal", visible: true },
     email: { label: "Email", visible: true },
     phone_number: { label: "Phone", visible: true },
     whatsapp_number: { label: "WhatsApp", visible: false },
@@ -182,20 +183,20 @@ const EnrolledStudentsTable = ({
     shift: { label: "Shift", visible: false },
     device: { label: "Device", visible: false },
     previous_coding_experience: { label: "Prev Coding Exp", visible: false },
-    course_name: { label: "Course", visible: true },
-    batchname: { label: "Batch Name", visible: true },
-    assigned_teacher: { label: "Assigned Teacher", visible: true },
-    course_duration: { label: "Course Duration", visible: true },
-    scheduled_taken: { label: "Demo Taken", visible: true },
-    payment_type: { label: "Payment Type", visible: true },
-    starting_date: { label: "Starting Date", visible: true },
-    total_payment: { label: "Total Payment", visible: true },
+    course_name: { label: "Package", visible: true },
+    batchname: { label: "Classes / Week", visible: true },
+    assigned_teacher: { label: "Assigned Rep", visible: true },
+    course_duration: { label: "MOU Period", visible: true },
+    scheduled_taken: { label: "Demo Taken", visible: false },
+    payment_type: { label: "Pricing Basis", visible: true },
+    starting_date: { label: "MOU Start", visible: true },
+    total_payment: { label: "Agreed Price", visible: true },
     first_installment: { label: "1st Installment", visible: false },
     second_installment: { label: "2nd Installment", visible: false },
     third_installment: { label: "3rd Installment", visible: false },
     last_pay_date: { label: "Last Pay Date", visible: true },
     next_pay_date: { label: "Next Pay Date", visible: true },
-    payment_completed: { label: "Payment Completed", visible: true },
+    payment_completed: { label: "Payment Status", visible: true },
     adset_name: { label: "Adset Name", visible: false },
     remarks: { label: "Remarks", visible: false },
     address_line_1: { label: "Address 1", visible: false },
@@ -204,7 +205,6 @@ const EnrolledStudentsTable = ({
     county: { label: "County", visible: false },
     post_code: { label: "Post Code", visible: false },
 
-    // Enrollment-level metadata
     actions: { label: "Actions", visible: true },
     created_at: { label: "Enrollment Created", visible: false },
     updated_at: { label: "Enrollment Updated", visible: false },
@@ -217,13 +217,9 @@ const EnrolledStudentsTable = ({
     setSelectedStudents(new Set());
   }, [students]);
 
-  // (no-op cleanup required here; requestAnimationFrame-based scroll effect handles its own cleanup)
-
-  // Instant field update
-
   const handleDragEnd = (event) => {
     const { active, over } = event;
-    if (active.id !== over.id) {
+    if (active && over && active.id !== over.id) {
       setOrderedStudents((items) => {
         const oldIndex = items.findIndex((item) => item.id === active.id);
         const newIndex = items.findIndex((item) => item.id === over.id);
@@ -251,101 +247,56 @@ const EnrolledStudentsTable = ({
   };
 
   const handleDeleteSelected = () => {
-    if (
-      window.confirm(
-        `Are you sure you want to delete ${selectedStudents.size} selected students?`
-      )
-    ) {
-      handleBulkDelete([...selectedStudents]);
-    }
+    handleBulkDelete([...selectedStudents]);
   };
 
-  // Smooth horizontal scroll on mouse move (requestAnimationFrame)
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    let scrollDirection = 0;
-    let animationFrameId;
-
-    const edgeThreshold = 100; // px from edge
-    const baseSpeed = 20; // scroll speed (increase for faster)
-
-    const handleMouseMove = (e) => {
-      const { left, right } = container.getBoundingClientRect();
-      const mouseX = e.clientX;
-
-      if (mouseX < left + edgeThreshold) {
-        // Left edge → scroll left
-        const distanceFromEdge = mouseX - left;
-        const factor = (edgeThreshold - distanceFromEdge) / edgeThreshold;
-        scrollDirection = -factor; // negative = left
-      } else if (mouseX > right - edgeThreshold) {
-        // Right edge → scroll right
-        const distanceFromEdge = right - mouseX;
-        const factor = (edgeThreshold - distanceFromEdge) / edgeThreshold;
-        scrollDirection = factor; // positive = right
-      } else {
-        scrollDirection = 0;
-      }
-    };
-
-    const handleMouseLeave = () => {
-      scrollDirection = 0;
-    };
-
-    const smoothScroll = () => {
-      if (scrollDirection !== 0) {
-        container.scrollLeft += baseSpeed * scrollDirection;
-      }
-      animationFrameId = requestAnimationFrame(smoothScroll);
-    };
-
-    container.addEventListener("mousemove", handleMouseMove);
-    container.addEventListener("mouseleave", handleMouseLeave);
-
-    animationFrameId = requestAnimationFrame(smoothScroll);
-
-    return () => {
-      container.removeEventListener("mousemove", handleMouseMove);
-      container.removeEventListener("mouseleave", handleMouseLeave);
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, []);
-
-  // Scroll to top when page changes
   useEffect(() => {
     try {
       if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
-    } catch (e) {
-      // ignore errors
-    }
+    } catch (e) {}
   }, [currentPage]);
 
   if (!students || students.length === 0) {
     return (
-      <p className="text-center text-gray-600 py-8">
-        No enrolled students found.
-      </p>
+      <div className="py-16 text-center border border-slate-200 rounded-[12px] bg-white shadow-2xs">
+        <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+          <Building2 className="w-6 h-6" />
+        </div>
+        <h3 className="text-[15px] font-[600] text-slate-900">No clients found</h3>
+        <p className="text-[13px] text-slate-500 mt-1 max-w-sm mx-auto">
+          No clients match the current criteria. Adjust your search keywords or clear filters.
+        </p>
+      </div>
     );
   }
 
+  const visibleKeys = Object.keys(columns).filter((k) => columns[k].visible);
+  const orderedKeys = visibleKeys.includes("actions")
+    ? ["actions", ...visibleKeys.filter((k) => k !== "actions")]
+    : visibleKeys;
+
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4 space-x-2">
-        {selectedStudents.size > 0 && (
-          <button
-            onClick={handleDeleteSelected}
-            className="inline-flex items-center justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700"
-          >
-            <TrashIcon className="h-5 w-5 mr-2" />
-            Delete Selected ({selectedStudents.size})
-          </button>
-        )}
-        <div className="flex-grow"></div>
+    <div className="border border-slate-200 rounded-[12px] bg-white shadow-2xs overflow-hidden">
+      {/* Table Toolbar Header */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200 bg-slate-50/70">
+        <div className="flex items-center gap-3">
+          {selectedStudents.size > 0 && (
+            <button
+              onClick={handleDeleteSelected}
+              className="inline-flex items-center gap-1.5 rounded-[8px] bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 text-[13px] font-[500] shadow-xs transition-colors"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Delete Selected ({selectedStudents.size})</span>
+            </button>
+          )}
+          <span className="text-[12px] font-[500] text-slate-500">
+            {orderedStudents.length} {orderedStudents.length === 1 ? "client" : "clients"} shown
+          </span>
+        </div>
         <ColumnToggler columns={columns} setColumns={setColumns} />
       </div>
 
+      {/* Responsive Table Scroll Container */}
       <div
         ref={scrollContainerRef}
         className="overflow-x-auto custom-scrollbar"
@@ -354,76 +305,61 @@ const EnrolledStudentsTable = ({
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
         >
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-slate-200 text-left">
+            <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
               <tr>
-                <th className="px-3 py-3 w-10">
+                <th className="px-3 py-3 w-8 text-center">
                   <span className="sr-only">Drag</span>
                 </th>
-                <th className="px-3 py-3 w-10">
+                <th className="px-3 py-3 w-8 text-center">
                   <input
                     type="checkbox"
                     onChange={handleSelectAll}
-                    checked={selectedStudents.size === orderedStudents.length}
-                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    checked={
+                      selectedStudents.size === orderedStudents.length &&
+                      orderedStudents.length > 0
+                    }
+                    className="h-3.5 w-3.5 rounded border-slate-300 text-[#294998] focus:ring-[#294998] cursor-pointer"
                   />
                 </th>
-                {/* Render headers in a stable order so cells align correctly. Ensure 'actions' is first among visible columns. */}
-                {(() => {
-                  const visibleKeys = Object.keys(columns).filter(
-                    (k) => columns[k].visible
-                  );
-                  // Place actions first if present
-                  const orderedKeys = visibleKeys.includes("actions")
-                    ? ["actions", ...visibleKeys.filter((k) => k !== "actions")]
-                    : visibleKeys;
-                  return orderedKeys.map((key) => (
-                    <th
-                      key={key}
-                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      {columns[key].label}
-                    </th>
-                  ));
-                })()}
+                {orderedKeys.map((key) => (
+                  <th
+                    key={key}
+                    className={`px-3.5 py-3 text-[12px] font-[600] text-slate-500 uppercase tracking-[0.03em] ${
+                      key === "actions" ? "text-right pr-4" : "text-left"
+                    }`}
+                  >
+                    {columns[key].label}
+                  </th>
+                ))}
               </tr>
             </thead>
             <SortableContext
               items={orderedStudents.map((s) => s.id)}
               strategy={verticalListSortingStrategy}
             >
-              <tbody className="bg-white divide-y divide-gray-200">
-                {orderedStudents.map((student) => {
-                  const visibleKeys = Object.keys(columns).filter(
-                    (k) => columns[k].visible
-                  );
-                  const orderedKeys = visibleKeys.includes("actions")
-                    ? ["actions", ...visibleKeys.filter((k) => k !== "actions")]
-                    : visibleKeys;
-                  return (
-                    <SortableStudentRow
-                      key={student.id}
-                      student={student}
-                      columns={columns}
-                      visibleKeys={orderedKeys}
-                      isSelected={selectedStudents.has(student.id)}
-                      onSelectRow={handleSelectRow}
-                      handleEdit={handleEdit}
-                      handleDelete={handleDelete}
-                      handlePaymentStatusChange={onUpdatePaymentStatus}
-                      onUpdateField={onUpdateField}
-                      courses={courses}
-                      teachers={teachers}
-                    />
-                  );
-                })}
+              <tbody className="bg-white divide-y divide-slate-100">
+                {orderedStudents.map((student) => (
+                  <SortableStudentRow
+                    key={student.id}
+                    student={student}
+                    columns={columns}
+                    visibleKeys={orderedKeys}
+                    isSelected={selectedStudents.has(student.id)}
+                    onSelectRow={handleSelectRow}
+                    handleEdit={handleEdit}
+                    handleDelete={handleDelete}
+                    handlePaymentStatusChange={onUpdatePaymentStatus}
+                    onUpdateField={onUpdateField}
+                    courses={courses}
+                    teachers={teachers}
+                  />
+                ))}
               </tbody>
             </SortableContext>
           </table>
         </DndContext>
       </div>
-
-      {/* pagination is handled at the page level (EnrolledStudents.jsx) */}
     </div>
   );
 };
@@ -450,6 +386,7 @@ const SortableStudentRow = ({
     transition,
     isDragging,
   } = useSortable({ id: student.id });
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -460,35 +397,32 @@ const SortableStudentRow = ({
     <tr
       ref={setNodeRef}
       style={style}
-      className={`hover:bg-gray-50 ${
-        isDragging ? "bg-gray-100 shadow-lg" : ""
-      }`}
+      className={`hover:bg-slate-50/70 border-b border-slate-100 transition-colors group ${
+        isDragging ? "bg-[#EDF2FC]/70 shadow-md" : ""
+      } ${isSelected ? "bg-[#EDF2FC]/40" : ""}`}
     >
-      <td className="px-3 py-4">
+      <td className="px-3 py-3 text-center">
         <button
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing"
+          className="cursor-grab active:cursor-grabbing text-slate-300 group-hover:text-slate-400 p-0.5 rounded hover:bg-slate-100 transition-colors"
         >
-          <Bars3Icon className="h-5 w-5 text-gray-400" />
+          <GripVertical className="h-4 w-4" />
         </button>
       </td>
-      <td className="px-3 py-4">
+      <td className="px-3 py-3 text-center">
         <input
           type="checkbox"
           checked={isSelected}
           onChange={() => onSelectRow(student.id)}
-          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+          className="h-3.5 w-3.5 rounded border-slate-300 text-[#294998] focus:ring-[#294998] cursor-pointer"
         />
       </td>
 
-      {/* Render cells in the same stable order as headers */}
       {visibleKeys.map((key) => {
-        // If this is a nested lead field (we prefix columns with lead_), render editable input for student.lead
         if (key.startsWith("lead_")) {
           const leadKey = key.replace("lead_", "");
           const val = student.lead ? student.lead[leadKey] : "";
-          // Render date picker for date fields
           if (
             [
               "add_date",
@@ -499,34 +433,27 @@ const SortableStudentRow = ({
             ].includes(leadKey)
           ) {
             return (
-              <td
-                key={key}
-                className="px-3 py-4 whitespace-nowrap text-sm text-gray-700"
-              >
+              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700">
                 <input
                   type="date"
                   value={val ? val.split("T")[0] : ""}
                   onChange={(e) =>
                     onUpdateField(student.id, `lead.${leadKey}`, e.target.value)
                   }
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-1"
+                  className="rounded-[6px] border border-slate-200 text-[13px] px-2 py-1 focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998]"
                 />
               </td>
             );
           }
-          // Render select for status/substatus
           if (leadKey === "status") {
             return (
-              <td
-                key={key}
-                className="px-3 py-4 whitespace-nowrap text-sm text-gray-700"
-              >
+              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700">
                 <select
                   value={val || "Active"}
                   onChange={(e) =>
                     onUpdateField(student.id, `lead.${leadKey}`, e.target.value)
                   }
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-1"
+                  className="rounded-[6px] border border-slate-200 text-[13px] px-2 py-1 bg-white focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998]"
                 >
                   {["Active", "Converted", "Lost"].map((opt) => (
                     <option key={opt} value={opt}>
@@ -539,16 +466,13 @@ const SortableStudentRow = ({
           }
           if (leadKey === "substatus") {
             return (
-              <td
-                key={key}
-                className="px-3 py-4 whitespace-nowrap text-sm text-gray-700"
-              >
+              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700">
                 <select
                   value={val || "New"}
                   onChange={(e) =>
                     onUpdateField(student.id, `lead.${leadKey}`, e.target.value)
                   }
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-1"
+                  className="rounded-[6px] border border-slate-200 text-[13px] px-2 py-1 bg-white focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998]"
                 >
                   {[
                     "New",
@@ -567,13 +491,9 @@ const SortableStudentRow = ({
               </td>
             );
           }
-          // Render scheduled_taken (legacy demo_scheduled) as a select (nested lead field)
           if (leadKey === "scheduled_taken" || leadKey === "demo_scheduled") {
             return (
-              <td
-                key={key}
-                className="px-3 py-4 whitespace-nowrap text-sm text-gray-700"
-              >
+              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700">
                 <select
                   value={val || ""}
                   onChange={(e) =>
@@ -587,7 +507,7 @@ const SortableStudentRow = ({
                       e.target.value
                     )
                   }
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-1"
+                  className="rounded-[6px] border border-slate-200 text-[13px] px-2 py-1 bg-white focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998]"
                 >
                   <option value="">Select</option>
                   <option value="Yes">Yes</option>
@@ -596,73 +516,56 @@ const SortableStudentRow = ({
               </td>
             );
           }
-          // Render text input for all other fields
           return (
-            <td
-              key={key}
-              className="px-3 py-4 whitespace-nowrap text-sm text-gray-700"
-            >
+            <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700">
               <input
                 type="text"
                 value={val}
                 onChange={(e) =>
                   onUpdateField(student.id, `lead.${leadKey}`, e.target.value)
                 }
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-1"
+                className="rounded-[6px] border border-slate-200 text-[13px] px-2 py-1 focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998]"
               />
             </td>
           );
         }
+
         switch (key) {
           case "student_name":
             return (
-              <td
-                key={key}
-                className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
-              >
-                {student.student_name ||
-                  (student.lead && student.lead.student_name) ||
-                  "N/A"}
+              <td key={key} className="px-3.5 py-3 whitespace-nowrap">
+                <div className="font-[600] text-[13px] text-slate-900">
+                  {student.student_name ||
+                    (student.lead && student.lead.student_name) ||
+                    "N/A"}
+                </div>
               </td>
             );
           case "parents_name":
             return (
-              <td
-                key={key}
-                className="px-3 py-4 whitespace-nowrap text-sm text-gray-700"
-              >
+              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700">
                 {student.parents_name ||
                   (student.lead && student.lead.parents_name) ||
-                  "N/A"}
+                  "—"}
               </td>
             );
           case "email":
             return (
-              <td
-                key={key}
-                className="px-3 py-4 whitespace-nowrap text-sm text-gray-700"
-              >
-                {student.email || (student.lead && student.lead.email) || ""}
+              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-600">
+                {student.email || (student.lead && student.lead.email) || "—"}
               </td>
             );
           case "phone_number":
             return (
-              <td
-                key={key}
-                className="px-3 py-4 whitespace-nowrap text-sm text-gray-700"
-              >
+              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-600">
                 {student.phone_number ||
                   (student.lead && student.lead.phone_number) ||
-                  ""}
+                  "—"}
               </td>
             );
-          case "course_name":
-            // Prefer explicit course_name on the enrollment, then try to
-            // resolve a course id to a course_name from the fetched courses
-            // list, then fallback to lead.course_name or raw course value.
+          case "course_name": {
             const courseDisplay = (() => {
               if (student.course_name) return student.course_name;
-              // If course is an id, try to find it in the provided courses list
               const c = student.course;
               if (c !== undefined && c !== null) {
                 if (typeof c === "number" || typeof c === "string") {
@@ -671,7 +574,6 @@ const SortableStudentRow = ({
                   );
                   if (found && (found.course_name || found.name))
                     return found.course_name || found.name;
-                  // if student.course is a string and not an id, display it
                   if (typeof c === "string") return c;
                 }
                 if (typeof c === "object") {
@@ -685,13 +587,13 @@ const SortableStudentRow = ({
               return "";
             })();
             return (
-              <td
-                key={key}
-                className="px-3 py-4 whitespace-nowrap text-sm text-gray-700"
-              >
-                {courseDisplay || "N/A"}
+              <td key={key} className="px-3.5 py-3 whitespace-nowrap">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-[6px] text-[12px] font-[500] bg-slate-100 text-slate-800 border border-slate-200">
+                  {courseDisplay || "N/A"}
+                </span>
               </td>
             );
+          }
           case "batchname":
             return (
               <EditableTextCell
@@ -703,15 +605,9 @@ const SortableStudentRow = ({
               />
             );
           case "assigned_teacher": {
-            // Accept either id stored in assigned_teacher or a separate assigned_teacher_name
             const currentId = student.assigned_teacher;
-            const currentName =
-              student.assigned_teacher_name || student.assigned_teacher_label;
             return (
-              <td
-                key={key}
-                className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 min-w-[160px]"
-              >
+              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700 min-w-[160px]">
                 <select
                   value={currentId || ""}
                   onChange={(e) => {
@@ -728,7 +624,7 @@ const SortableStudentRow = ({
                       onUpdateField(student.id, "assigned_teacher", null);
                     }
                   }}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-1 bg-white"
+                  className="block w-full rounded-[6px] border border-slate-200 text-[13px] px-2 py-1 bg-white focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998]"
                 >
                   <option value="">-- None --</option>
                   {teachers.map((t) => (
@@ -751,10 +647,7 @@ const SortableStudentRow = ({
             );
           case "last_pay_date":
             return (
-              <td
-                key={key}
-                className="px-3 py-4 whitespace-nowrap text-sm text-gray-700"
-              >
+              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700">
                 <input
                   type="date"
                   value={
@@ -765,16 +658,13 @@ const SortableStudentRow = ({
                   onChange={(e) =>
                     onUpdateField(student.id, "last_pay_date", e.target.value)
                   }
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-1"
+                  className="rounded-[6px] border border-slate-200 text-[13px] px-2 py-1 focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998]"
                 />
               </td>
             );
           case "next_pay_date":
             return (
-              <td
-                key={key}
-                className="px-3 py-4 whitespace-nowrap text-sm text-gray-700"
-              >
+              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700">
                 <input
                   type="date"
                   value={
@@ -785,22 +675,19 @@ const SortableStudentRow = ({
                   onChange={(e) =>
                     onUpdateField(student.id, "next_pay_date", e.target.value)
                   }
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-1"
+                  className="rounded-[6px] border border-slate-200 text-[13px] px-2 py-1 focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998]"
                 />
               </td>
             );
           case "course":
             return (
-              <td
-                key={key}
-                className="px-3 py-4 whitespace-nowrap text-sm text-gray-700"
-              >
+              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700">
                 <select
                   value={student.course || ""}
                   onChange={(e) =>
                     onUpdateField(student.id, "course", e.target.value)
                   }
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-1"
+                  className="rounded-[6px] border border-slate-200 text-[13px] px-2 py-1 bg-white focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998]"
                 >
                   <option value="">Select Course</option>
                   {courses.map((c) => (
@@ -833,23 +720,20 @@ const SortableStudentRow = ({
             );
           case "starting_date":
             return (
-              <td
-                key={key}
-                className="px-3 py-4 whitespace-nowrap text-sm text-gray-700"
-              >
+              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700">
                 <input
                   type="date"
                   value={student.starting_date || ""}
                   onChange={(e) =>
                     onUpdateField(student.id, "starting_date", e.target.value)
                   }
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-1"
+                  className="rounded-[6px] border border-slate-200 text-[13px] px-2 py-1 focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998]"
                 />
               </td>
             );
           case "payment_completed":
             return (
-              <td key={key} className="px-3 py-4 whitespace-nowrap text-sm">
+              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px]">
                 <select
                   value={student.payment_completed ? "Yes" : "No"}
                   onChange={(e) => {
@@ -857,39 +741,41 @@ const SortableStudentRow = ({
                     handlePaymentStatusChange(student.id, newValue);
                     onUpdateField(student.id, "payment_completed", newValue);
                   }}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-1"
+                  className={`text-[12px] font-[600] rounded-full px-2.5 py-0.5 border cursor-pointer focus:outline-none transition-colors ${
+                    student.payment_completed
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : "bg-amber-50 text-amber-700 border-amber-200"
+                  }`}
                 >
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
+                  <option value="Yes">✓ Completed</option>
+                  <option value="No">⏳ Pending</option>
                 </select>
               </td>
             );
           case "actions":
             return (
-              <td
-                key={key}
-                className="px-3 py-4 whitespace-nowrap text-right text-sm font-medium"
-              >
-                <button
-                  onClick={() => handleEdit(student)}
-                  className="text-indigo-600 hover:text-indigo-900 mr-2 p-1 rounded-md hover:bg-indigo-50 transition-colors"
-                >
-                  <PencilIcon className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={() => handleDelete(student.id)}
-                  className="text-red-600 hover:text-red-900 p-1 rounded-md hover:bg-red-50 transition-colors"
-                >
-                  <TrashIcon className="h-5 w-5" />
-                </button>
+              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-right pr-4">
+                <div className="flex items-center justify-end gap-1">
+                  <button
+                    onClick={() => handleEdit(student)}
+                    title="Edit client details"
+                    className="p-1.5 rounded-[6px] text-slate-400 hover:text-[#294998] hover:bg-[#EDF2FC] transition-colors"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(student.id)}
+                    title="Delete client"
+                    className="p-1.5 rounded-[6px] text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </td>
             );
           case "scheduled_taken":
             return (
-              <td
-                key={key}
-                className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 min-w-[100px]"
-              >
+              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700 min-w-[100px]">
                 <select
                   value={
                     resolveField(student, "scheduled_taken") ||
@@ -897,14 +783,13 @@ const SortableStudentRow = ({
                     ""
                   }
                   onChange={(e) =>
-                    // send nested lead field update so enrollment's lead.demo_scheduled is updated
                     onUpdateField(
                       student.id,
                       `lead.scheduled_taken`,
                       e.target.value
                     )
                   }
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-1"
+                  className="rounded-[6px] border border-slate-200 text-[13px] px-2 py-1 bg-white focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998]"
                 >
                   <option value="">Select</option>
                   <option value="Yes">Yes</option>
@@ -914,16 +799,13 @@ const SortableStudentRow = ({
             );
           case "payment_type":
             return (
-              <td
-                key={key}
-                className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 min-w-[120px]"
-              >
+              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700 min-w-[120px]">
                 <select
                   value={resolveField(student, "payment_type") || ""}
                   onChange={(e) =>
                     onUpdateField(student.id, "payment_type", e.target.value)
                   }
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-1"
+                  className="rounded-[6px] border border-slate-200 text-[13px] px-2 py-1 bg-white focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998]"
                 >
                   <option value="">Select</option>
                   <option value="Cash">Cash</option>
@@ -935,10 +817,7 @@ const SortableStudentRow = ({
             );
           default:
             return (
-              <td
-                key={key}
-                className="px-3 py-4 whitespace-nowrap text-sm text-gray-700"
-              >
+              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700">
                 {String(resolveField(student, key) ?? "")}
               </td>
             );
@@ -948,4 +827,4 @@ const SortableStudentRow = ({
   );
 };
 
-export default EnrolledStudentsTable;
+export default ClientsTable;

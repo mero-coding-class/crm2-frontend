@@ -3,10 +3,10 @@ import { getStatusColor, getSubStatusColor } from '../../utils/statusColors';
 
 const STATUS_CLASSES = {
   Active:     'bg-emerald-50 text-emerald-700 border-emerald-200',
-  Converted:  'bg-indigo-50 text-indigo-700 border-indigo-200',
+  Converted:  'bg-emerald-50 text-emerald-700 border-emerald-200',
   Lost:       'bg-rose-50 text-rose-600 border-rose-200',
-  New:        'bg-sky-50 text-sky-700 border-sky-200',
-  Open:       'bg-blue-50 text-blue-700 border-blue-200',
+  New:        'bg-[#EDF2FC] text-[#294998] border-[#CDDBF6]',
+  Open:       'bg-sky-50 text-sky-700 border-sky-200',
   Followup:   'bg-amber-50 text-amber-700 border-amber-200',
   inProgress: 'bg-violet-50 text-violet-700 border-violet-200',
   Average:    'bg-slate-100 text-slate-600 border-slate-200',
@@ -43,7 +43,7 @@ export const StatusBadge = ({
     <select
       value={status || (type === 'status' ? 'Active' : 'New')}
       onChange={onChange}
-      className={`appearance-none border rounded-[6px] px-2 py-0.5 text-[11px] font-[600] leading-[14px] tracking-[0.04em] uppercase cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors ${cls} ${className}`}
+      className={`appearance-none border rounded-[6px] px-2 py-0.5 text-[11px] font-[600] leading-[14px] tracking-[0.04em] uppercase cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] transition-colors ${cls} ${className}`}
     >
       {options.map(opt => (
         <option key={opt} value={opt}>{opt}</option>

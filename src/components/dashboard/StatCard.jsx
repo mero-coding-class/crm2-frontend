@@ -8,8 +8,8 @@ const StatCard = ({
   description,
   trend,         // number: positive = up, negative = down, 0/null = neutral
   trendLabel,    // e.g. "vs last month"
-  colorClass = "text-indigo-600 bg-indigo-50",
-  accentColor = "#4F46E5",
+  colorClass = "text-[#294998] bg-[#EDF2FC]",
+  accentColor = "#294998",
 }) => {
   const isUp = trend > 0;
   const isDown = trend < 0;

@@ -1,0 +1,521 @@
+import React, { useState, useEffect } from "react";
+import { X, CheckCircle, School, Calendar, DollarSign, BookOpen, User, Phone, Mail, MapPin } from "lucide-react";
+import { clientService, catalogService } from "../services/api";
+
+export default function ClientEditModal({ isOpen, onClose, client, authToken, onSave }) {
+  const [loading, setLoading] = useState(false);
+  const [loadingCatalogs, setLoadingCatalogs] = useState(true);
+  const [error, setError] = useState(null);
+
+  const [packages, setPackages] = useState([]);
+  const [syllabi, setSyllabi] = useState([]);
+
+  const [formData, setFormData] = useState({
+    principal_name: "",
+    principal_number: "",
+    principal_email: "",
+    contact_name: "",
+    contact_number: "",
+    contact_email: "",
+    district: "",
+    municipality: "",
+    mou_start: "",
+    mou_end: "",
+    agreed_price: "",
+    pricing_basis: "per_month",
+    classes_per_week: 2,
+    package_type: "",
+    syllabus_type: "",
+    exams_count: 0,
+    events_count: 0,
+    last_pay_date: "",
+    next_pay_date: "",
+    payment_completed: false,
+  });
+
+  useEffect(() => {
+    if (!isOpen || !client) return;
+
+    let mounted = true;
+    setError(null);
+
+    setFormData({
+      principal_name: client.principal_name || "",
+      principal_number: client.principal_number || "",
+      principal_email: client.principal_email || "",
+      contact_name: client.contact_name || "",
+      contact_number: client.contact_number || "",
+      contact_email: client.contact_email || "",
+      district: client.district || "",
+      municipality: client.municipality || "",
+      mou_start: client.mou_start ? String(client.mou_start).split("T")[0] : "",
+      mou_end: client.mou_end ? String(client.mou_end).split("T")[0] : "",
+      agreed_price: client.agreed_price ?? "",
+      pricing_basis: client.pricing_basis || "per_month",
+      classes_per_week: client.classes_per_week || 2,
+      package_type: client.package_type || "",
+      syllabus_type: client.syllabus_type || "",
+      exams_count: client.exams_count || 0,
+      events_count: client.events_count || 0,
+      last_pay_date: client.last_pay_date ? String(client.last_pay_date).split("T")[0] : "",
+      next_pay_date: client.next_pay_date ? String(client.next_pay_date).split("T")[0] : "",
+      payment_completed: Boolean(client.payment_completed),
+    });
+
+    Promise.all([
+      catalogService.getPackages(authToken).catch(() => []),
+      catalogService.getSyllabi(authToken).catch(() => []),
+    ])
+      .then(([pkgs, syls]) => {
+        if (!mounted) return;
+        setPackages(pkgs);
+        setSyllabi(syls);
+        if (!client.package_type && pkgs[0]) {
+          setFormData((prev) => ({ ...prev, package_type: pkgs[0].id }));
+        }
+        if (!client.syllabus_type && syls[0]) {
+          setFormData((prev) => ({ ...prev, syllabus_type: syls[0].id }));
+        }
+      })
+      .finally(() => {
+        if (mounted) setLoadingCatalogs(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [isOpen, client, authToken]);
+
+  if (!isOpen || !client) return null;
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : type === "number" ? Number(value) : value,
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+
+    if (new Date(formData.mou_end) < new Date(formData.mou_start)) {
+      setError("MOU end date must be on or after start date.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload = {
+        principal_name: formData.principal_name.trim(),
+        principal_number: formData.principal_number.trim(),
+        principal_email: formData.principal_email.trim(),
+        contact_name: formData.contact_name.trim(),
+        contact_number: formData.contact_number.trim(),
+        contact_email: formData.contact_email.trim(),
+        district: formData.district.trim(),
+        municipality: formData.municipality.trim(),
+        mou_start: formData.mou_start,
+        mou_end: formData.mou_end,
+        agreed_price: Number(formData.agreed_price),
+        pricing_basis: formData.pricing_basis,
+        classes_per_week: Number(formData.classes_per_week),
+        package_type: Number(formData.package_type),
+        syllabus_type: Number(formData.syllabus_type),
+        exams_count: Number(formData.exams_count || 0),
+        events_count: Number(formData.events_count || 0),
+        last_pay_date: formData.last_pay_date || null,
+        next_pay_date: formData.next_pay_date || null,
+        payment_completed: Boolean(formData.payment_completed),
+      };
+
+      const updated = await clientService.updateClient(client.id, payload, authToken);
+      if (onSave) {
+        onSave({ ...client, ...payload, ...updated });
+      }
+      onClose();
+    } catch (err) {
+      setError(err?.message || "Failed to update client details.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const schoolName = client.school_name || client.student_name || "School Client";
+  const systemId = client.system_id || "SCH-000";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+      <div className="relative w-full max-w-3xl max-h-[92vh] overflow-hidden bg-white rounded-2xl shadow-2xl flex flex-col border border-slate-100">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-[#EDF2FC]/40">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 bg-[#294998] rounded-xl text-white shadow-sm">
+              <School className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">
+                Edit Client Details
+              </h2>
+              <p className="text-xs text-slate-500">
+                {schoolName} &bull; <span className="font-mono text-[#294998] font-semibold">{systemId}</span>
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600 font-medium">
+              {error}
+            </div>
+          )}
+
+          {/* Section 1: Principal Details */}
+          <div>
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
+              <User className="w-4 h-4 text-[#294998]" /> Principal / School Head
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Principal Name
+                </label>
+                <input
+                  type="text"
+                  name="principal_name"
+                  value={formData.principal_name}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Principal Phone
+                </label>
+                <input
+                  type="text"
+                  name="principal_number"
+                  value={formData.principal_number}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Principal Email
+                </label>
+                <input
+                  type="email"
+                  name="principal_email"
+                  value={formData.principal_email}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: Operational Contact & Location */}
+          <div>
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
+              <Phone className="w-4 h-4 text-[#294998]" /> Operational Contact & Location
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Contact Person
+                </label>
+                <input
+                  type="text"
+                  name="contact_name"
+                  value={formData.contact_name}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Contact Phone
+                </label>
+                <input
+                  type="text"
+                  name="contact_number"
+                  value={formData.contact_number}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Contact Email
+                </label>
+                <input
+                  type="email"
+                  name="contact_email"
+                  value={formData.contact_email}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  District
+                </label>
+                <input
+                  type="text"
+                  name="district"
+                  value={formData.district}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Municipality
+                </label>
+                <input
+                  type="text"
+                  name="municipality"
+                  value={formData.municipality}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: MOU & Financials */}
+          <div>
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
+              <Calendar className="w-4 h-4 text-[#294998]" /> MOU & Pricing
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  MOU Start Date
+                </label>
+                <input
+                  type="date"
+                  name="mou_start"
+                  value={formData.mou_start}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  MOU End Date
+                </label>
+                <input
+                  type="date"
+                  name="mou_end"
+                  value={formData.mou_end}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Pricing Basis
+                </label>
+                <select
+                  name="pricing_basis"
+                  value={formData.pricing_basis}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none bg-white"
+                >
+                  <option value="per_month">Per Month</option>
+                  <option value="per_class">Per Class</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Agreed Price (NPR)
+                </label>
+                <input
+                  type="number"
+                  name="agreed_price"
+                  value={formData.agreed_price}
+                  onChange={handleChange}
+                  min="0"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none font-semibold text-slate-800"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 4: Payment Tracking */}
+          <div>
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
+              <DollarSign className="w-4 h-4 text-emerald-500" /> Payment Tracking
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Last Payment Date
+                </label>
+                <input
+                  type="date"
+                  name="last_pay_date"
+                  value={formData.last_pay_date}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Next Payment Date
+                </label>
+                <input
+                  type="date"
+                  name="next_pay_date"
+                  value={formData.next_pay_date}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                />
+              </div>
+              <div className="flex items-center pt-5">
+                <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    name="payment_completed"
+                    checked={formData.payment_completed}
+                    onChange={handleChange}
+                    className="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500"
+                  />
+                  <span className="text-xs font-semibold text-slate-700">
+                    Payment Fully Completed
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 5: Academic Program */}
+          <div>
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
+              <BookOpen className="w-4 h-4 text-[#294998]" /> Package & Program
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Package Type
+                </label>
+                <select
+                  name="package_type"
+                  value={formData.package_type}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none bg-white capitalize"
+                >
+                  {packages.map((pkg) => (
+                    <option key={pkg.id} value={pkg.id}>
+                      {pkg.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Syllabus Type
+                </label>
+                <select
+                  name="syllabus_type"
+                  value={formData.syllabus_type}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none bg-white capitalize"
+                >
+                  {syllabi.map((syl) => (
+                    <option key={syl.id} value={syl.id}>
+                      {syl.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Classes per Week
+                </label>
+                <input
+                  type="number"
+                  name="classes_per_week"
+                  value={formData.classes_per_week}
+                  onChange={handleChange}
+                  min="1"
+                  max="14"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Exams Count
+                </label>
+                <input
+                  type="number"
+                  name="exams_count"
+                  value={formData.exams_count}
+                  onChange={handleChange}
+                  min="0"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Events Count
+                </label>
+                <input
+                  type="number"
+                  name="events_count"
+                  value={formData.events_count}
+                  onChange={handleChange}
+                  min="0"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Footer Actions */}
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading || loadingCatalogs}
+              className="px-5 py-2.5 bg-[#294998] hover:bg-[#1E3776] text-white rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 transition-all disabled:opacity-50"
+            >
+              {loading ? (
+                <span>Saving...</span>
+              ) : (
+                <>
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Save Changes</span>
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

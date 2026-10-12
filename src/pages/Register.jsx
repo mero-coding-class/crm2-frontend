@@ -2,6 +2,17 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { BASE_URL } from "../config";
+import { AlertTriangle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
 import {
   DndContext,
   closestCenter,
@@ -57,7 +68,7 @@ const SortableRow = ({
           type="checkbox"
           checked={selectedUsers.includes(u.id)}
           onChange={() => toggleSelect(u.id)}
-          className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+          className="h-4 w-4 text-[#294998] border-gray-300 rounded focus:ring-[#294998]"
         />
       </td>
 
@@ -175,7 +186,7 @@ const SortableRow = ({
               </svg>
             </button>
             <button
-              onClick={() => handleDelete(u.id)}
+              onClick={() => setDeleteUserId(u.id)}
               onMouseDown={(e) => e.stopPropagation()}
               onPointerDown={(e) => e.stopPropagation()}
               className="p-1.5 rounded-md text-red-600 hover:bg-red-100 transition-colors"
@@ -224,6 +235,10 @@ const RegisterUser = () => {
 
   // selection
   const [selectedUsers, setSelectedUsers] = useState([]);
+  // confirm dialog state
+  const [deleteUserId, setDeleteUserId] = useState(null);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [deleteTeacherId, setDeleteTeacherId] = useState(null);
 
   // --- Teachers Management State ---
   const [teachers, setTeachers] = useState([]); // list of teacher objects { id, name }
@@ -408,7 +423,6 @@ const RegisterUser = () => {
 
   // Delete teacher
   const handleDeleteTeacher = async (id) => {
-    if (!window.confirm("Delete this teacher?")) return;
     try {
       const res = await fetch(TEACHER_DETAIL_URL(id), {
         method: "DELETE",
@@ -426,6 +440,8 @@ const RegisterUser = () => {
         type: "error",
         text: e.message || "Failed to delete teacher.",
       });
+    } finally {
+      setDeleteTeacherId(null);
     }
   };
 
@@ -500,7 +516,6 @@ const RegisterUser = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this user?")) return;
     try {
       const res = await fetch(`${BASE_URL}/users/${id}/`, {
         method: "DELETE",
@@ -510,17 +525,14 @@ const RegisterUser = () => {
       setUsers((prev) => prev.filter((u) => u.id !== id));
       setSelectedUsers((prev) => prev.filter((uid) => uid !== id));
     } catch (err) {
-      alert(err.message);
+      setMsg({ type: "error", text: err.message || "Failed to delete user." });
+    } finally {
+      setDeleteUserId(null);
     }
   };
 
   const handleBulkDelete = async () => {
-    if (
-      !window.confirm(
-        `Are you sure you want to delete ${selectedUsers.length} users?`
-      )
-    )
-      return;
+    setBulkDeleteConfirm(false);
     try {
       await Promise.all(
         selectedUsers.map((id) =>
@@ -533,7 +545,7 @@ const RegisterUser = () => {
       setUsers((prev) => prev.filter((u) => !selectedUsers.includes(u.id)));
       setSelectedUsers([]);
     } catch (err) {
-      alert("Failed to delete some users.");
+      setMsg({ type: "error", text: "Failed to delete some users." });
     }
   };
 
@@ -642,7 +654,7 @@ const RegisterUser = () => {
             onChange={handleChange}
             placeholder="Enter username"
             autoComplete="off"
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#294998]"
           />
         </div>
 
@@ -654,7 +666,7 @@ const RegisterUser = () => {
             name="role"
             value={form.role}
             onChange={handleChange}
-            className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#294998]"
           >
             <option value="sales_rep">Sales Rep</option>
             <option value="admin">Admin</option>
@@ -673,7 +685,7 @@ const RegisterUser = () => {
               onChange={handleChange}
               placeholder="Set a password"
               autoComplete="new-password"
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 pr-10"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#294998] pr-10"
             />
             <button
               type="button"
@@ -717,7 +729,7 @@ const RegisterUser = () => {
         <button
           type="submit"
           disabled={loading}
-          className="col-span-1 md:col-span-3 mt-4 w-full md:w-auto px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="col-span-1 md:col-span-3 mt-4 w-full md:w-auto px-6 py-3 bg-[#294998] text-white font-semibold rounded-lg hover:bg-[#1E3776] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? "Creating…" : "Create User"}
         </button>
@@ -767,7 +779,7 @@ const RegisterUser = () => {
                       selectedUsers.length ===
                         users.slice(0, visibleUsers).length
                     }
-                    className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                    className="h-4 w-4 text-[#294998] border-gray-300 rounded focus:ring-[#294998]"
                   />
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -864,13 +876,13 @@ const RegisterUser = () => {
               value={teacherName}
               onChange={(e) => setTeacherName(e.target.value)}
               placeholder="Enter teacher name"
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#294998]"
             />
           </div>
           <button
             type="submit"
             disabled={teacherLoading}
-            className="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-3 bg-[#294998] text-white font-semibold rounded-lg hover:bg-[#1E3776] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {teacherLoading ? "Saving…" : "Add Teacher"}
           </button>
@@ -915,7 +927,7 @@ const RegisterUser = () => {
                         type="text"
                         value={editTeacherName}
                         onChange={(e) => setEditTeacherName(e.target.value)}
-                        className="p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 w-full max-w-sm"
+                        className="p-2 border border-gray-300 rounded-md focus:ring-[#294998] focus:border-[#294998] w-full max-w-sm"
                       />
                     ) : (
                       <span className="block max-w-sm truncate">{t.name}</span>
@@ -989,7 +1001,7 @@ const RegisterUser = () => {
                           </svg>
                         </button>
                         <button
-                          onClick={() => handleDeleteTeacher(t.id)}
+                          onClick={() => setDeleteTeacherId(t.id)}
                           className="p-1.5 rounded-md text-red-600 hover:bg-red-100 transition-colors"
                           aria-label="Delete"
                         >
@@ -1015,6 +1027,78 @@ const RegisterUser = () => {
           </table>
         </div>
       )}
+
+      {/* ─── Delete User Confirmation ─── */}
+      <AlertDialog open={!!deleteUserId} onOpenChange={(open) => { if (!open) setDeleteUserId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-rose-500" />
+              Delete User?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This user account will be permanently deleted and they will lose all access.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleDelete(deleteUserId)}
+              className="bg-rose-600 hover:bg-rose-700 text-white border-0"
+            >
+              Delete User
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ─── Bulk Delete Users Confirmation ─── */}
+      <AlertDialog open={bulkDeleteConfirm} onOpenChange={setBulkDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-rose-500" />
+              Delete {selectedUsers.length} User(s)?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedUsers.length} user account(s) will be permanently deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              className="bg-rose-600 hover:bg-rose-700 text-white border-0"
+            >
+              Delete {selectedUsers.length} User(s)
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ─── Delete Teacher Confirmation ─── */}
+      <AlertDialog open={!!deleteTeacherId} onOpenChange={(open) => { if (!open) setDeleteTeacherId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-rose-500" />
+              Delete Teacher?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This teacher will be permanently removed from the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleDeleteTeacher(deleteTeacherId)}
+              className="bg-rose-600 hover:bg-rose-700 text-white border-0"
+            >
+              Delete Teacher
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

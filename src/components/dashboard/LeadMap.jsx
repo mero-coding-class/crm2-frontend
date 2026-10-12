@@ -198,7 +198,7 @@ const LeadMap = ({ leads = [], defaultCountry = "Nepal", defaultCity = "Kathmand
           className="border rounded px-3 py-1 w-48"
         />
         <button
-          className="bg-indigo-600 text-white px-3 py-1 rounded"
+          className="bg-[#294998] hover:bg-[#1E3776] text-white px-3 py-1 rounded text-sm font-medium transition-colors"
           onClick={async () => {
             const city = queryCity || defaultCity;
             const country = queryCountry || defaultCountry;

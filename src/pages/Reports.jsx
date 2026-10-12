@@ -116,9 +116,8 @@ const Reports = () => {
           email: lead.email || "",
           phone: lead.phone || "",
           contactWhatsapp: lead.contactWhatsapp || "",
-          ageGrade: `${lead.age || ""}${lead.age || lead.grade ? "/" : ""}${
-            lead.grade || ""
-          }`,
+          ageGrade: `${lead.age || ""}${lead.age || lead.grade ? "/" : ""}${lead.grade || ""
+            }`,
           course: lead.courseName || lead.course || "", // show string if possible
           source: lead.source || "",
           addDate: formatDate(lead.addDate),
@@ -168,12 +167,22 @@ const Reports = () => {
 
   if (loading)
     return <DelayedLoader message="Loading reports..." minMs={2000} />;
+
   if (error)
     return (
-      <div className="text-red-500 p-4 bg-red-100 rounded-md">
-        Error: {error}
+      <div className="flex items-center justify-center min-h-[400px] p-8">
+        <div className="text-center max-w-sm">
+          <div className="w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-6 h-6 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h3 className="text-[16px] font-[600] text-slate-900 mb-1">Failed to load reports</h3>
+          <p className="text-[13px] text-slate-500 mb-4">{error}</p>
+        </div>
       </div>
     );
+
   if (!filteredReportData) return <Loader />;
 
   return (
@@ -184,197 +193,198 @@ const Reports = () => {
         <p className="text-[13px] text-slate-500 leading-[18px] mt-0.5">Generate and export CRM analytics reports</p>
       </div>
       <div className="p-6">
-      {/* Filters */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-        <h2 className="text-2xl font-bold mb-4">Filter Report Data</h2>
-
-        <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4 mb-6">
-          <label className="flex items-center space-x-2">
-            <input
-              type="radio"
-              value="none"
-              checked={filterType === "none"}
-              onChange={() => setFilterType("none")}
-              className="form-radio text-indigo-600"
-            />
-            <span className="text-gray-700">All Time</span>
-          </label>
-          <label className="flex items-center space-x-2">
-            <input
-              type="radio"
-              value="dateRange"
-              checked={filterType === "dateRange"}
-              onChange={() => setFilterType("dateRange")}
-              className="form-radio text-indigo-600"
-            />
-            <span className="text-gray-700">Date Range</span>
-          </label>
-        </div>
-
-        {filterType === "dateRange" && (
-          <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 mb-6">
-            <div>
-              <label
-                htmlFor="startDate"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Start Date
-              </label>
-              <input
-                type="date"
-                id="startDate"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500"
-              />
+        {/* Filters Card */}
+        <div className="bg-white rounded-[12px] border border-slate-200 p-6 mb-6">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-8 h-8 rounded-[8px] bg-[#EDF2FC] text-[#294998] flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
+              </svg>
             </div>
-            <div>
-              <label
-                htmlFor="endDate"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                End Date
-              </label>
-              <input
-                type="date"
-                id="endDate"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500"
-              />
+            <div className="flex-1 min-w-0">
+              <h2 className="text-[15px] font-[600] text-slate-900 tracking-[-0.01em]">Filter Report Data</h2>
+              <p className="text-[12px] text-slate-400 mt-0.5">Select a date range or view all-time data</p>
             </div>
+            <button
+              onClick={handleGenerateReport}
+              className="h-9 px-4 bg-[#294998] hover:bg-[#1E3776] text-white text-[13px] font-[500] rounded-[8px] shadow-sm transition-colors flex items-center gap-2 shrink-0"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Generate Report
+            </button>
           </div>
-        )}
 
-        <button
-          onClick={handleGenerateReport}
-          className="bg-green-600 hover:bg-green-700 text-white py-2 px-6 rounded-md shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-        >
-          Generate Report
-        </button>
-      </div>
+          <div className="flex flex-wrap items-center gap-3 mb-5">
+            <button
+              onClick={() => setFilterType("none")}
+              className={`px-4 py-2 rounded-[8px] text-[13px] font-[500] transition-colors ${filterType === "none"
+                  ? "bg-[#294998] text-white shadow-xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+            >
+              All Time
+            </button>
+            <button
+              onClick={() => setFilterType("dateRange")}
+              className={`px-4 py-2 rounded-[8px] text-[13px] font-[500] transition-colors ${filterType === "dateRange"
+                  ? "bg-[#294998] text-white shadow-xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+            >
+              Date Range
+            </button>
+          </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-        <ReportCard
-          title="Total Leads"
-          value={filteredReportData.totalLeads}
-          color="bg-blue-500"
-        />
-        <ReportCard
-          title="Active Leads"
-          value={filteredReportData.activeLeads}
-          color="bg-yellow-500"
-        />
-        <ReportCard
-          title="Converted Leads"
-          value={filteredReportData.convertedLeads}
-          color="bg-green-500"
-        />
-        <ReportCard
-          title="Lost Leads"
-          value={filteredReportData.lostLeads}
-          color="bg-red-500"
-        />
-        <ReportCard
-          title="Missed Leads"
-          value={filteredReportData.missedLeads}
-          color="bg-purple-500"
-        />
-      </div>
-
-      {/* PDF Download */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-8 flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Download Report PDF</h2>
-        <PDFDownloadLink
-          document={
-            <ReportDocument
-              reportData={filteredReportData}
-              filterCriteria={{ filterType, startDate, endDate }}
-            />
-          }
-          fileName={`CRM_Report_${
-            filterType === "dateRange"
-              ? `${formatDate(startDate)}_to_${formatDate(endDate)}`
-              : "AllTime"
-          }.pdf`}
-        >
-          {({ loading }) =>
-            loading ? (
-              <button className="bg-gray-400 text-white py-2 px-4 rounded-md cursor-not-allowed">
-                Preparing PDF...
-              </button>
-            ) : (
-              <button className="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-md shadow">
-                Download PDF
-              </button>
-            )
-          }
-        </PDFDownloadLink>
-      </div>
-
-      {/* Converted Students Table */}
-      <h2 className="text-2xl font-bold mb-4">
-        Converted Students List (
-        {filterType === "dateRange" && startDate && endDate
-          ? `From ${formatDate(startDate)} to ${formatDate(endDate)}`
-          : "All Time"}
-        )
-      </h2>
-
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                {convertedStudentsTableColumns.map((col, idx) => (
-                  <th
-                    key={col.accessor || idx}
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    {col.header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredReportData.convertedStudentsList.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={convertedStudentsTableColumns.length}
-                    className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500"
-                  >
-                    No converted students found for the selected criteria.
-                  </td>
-                </tr>
-              ) : (
-                filteredReportData.convertedStudentsList.map((student) => (
-                  <tr key={student._id}>
-                    {convertedStudentsTableColumns.map((col, idx) => (
-                      <td
-                        key={col.accessor + idx}
-                        className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                      >
-                        {student[col.accessor]}
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+          {filterType === "dateRange" && (
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  id="startDate"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full h-10 px-3.5 text-[13px] rounded-[10px] bg-slate-100/70 hover:bg-slate-100 border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all text-slate-800"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
+                  End Date
+                </label>
+                <input
+                  type="date"
+                  id="endDate"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full h-10 px-3.5 text-[13px] rounded-[10px] bg-slate-100/70 hover:bg-slate-100 border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all text-slate-800"
+                />
+              </div>
+            </div>
+          )}
         </div>
-      </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+          <ReportCard title="Total Leads" value={filteredReportData.totalLeads} colorClass="text-[#294998]" bgClass="bg-[#EDF2FC]" />
+          <ReportCard title="Active Leads" value={filteredReportData.activeLeads} colorClass="text-[#B8740C]" bgClass="bg-[#FEF7EB]" />
+          <ReportCard title="Converted" value={filteredReportData.convertedLeads} colorClass="text-emerald-600" bgClass="bg-emerald-50" />
+          <ReportCard title="Lost Leads" value={filteredReportData.lostLeads} colorClass="text-rose-600" bgClass="bg-rose-50" />
+          <ReportCard title="Uncategorized" value={filteredReportData.missedLeads} colorClass="text-slate-500" bgClass="bg-slate-100" />
+        </div>
+
+        {/* PDF Download */}
+        <div className="bg-white rounded-[12px] border border-slate-200 p-5 mb-6 flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-[14px] font-[600] text-slate-900">Export Report PDF</h2>
+            <p className="text-[12px] text-slate-400 mt-0.5">
+              {filterType === "dateRange" && startDate && endDate
+                ? `Filtered: ${formatDate(startDate)} → ${formatDate(endDate)}`
+                : "All-time data"}
+            </p>
+          </div>
+          <PDFDownloadLink
+            document={
+              <ReportDocument
+                reportData={filteredReportData}
+                filterCriteria={{ filterType, startDate, endDate }}
+              />
+            }
+            fileName={`CRM_Report_${filterType === "dateRange"
+                ? `${formatDate(startDate)}_to_${formatDate(endDate)}`
+                : "AllTime"
+              }.pdf`}
+          >
+            {({ loading: pdfLoading }) =>
+              pdfLoading ? (
+                <button disabled className="h-9 px-4 bg-slate-100 text-slate-400 text-[13px] font-[500] rounded-[8px] cursor-not-allowed flex items-center gap-2">
+                  <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Preparing…
+                </button>
+              ) : (
+                <button className="h-9 px-4 bg-[#294998] hover:bg-[#1E3776] text-white text-[13px] font-[500] rounded-[8px] shadow-sm transition-colors flex items-center gap-2">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Download PDF
+                </button>
+              )
+            }
+          </PDFDownloadLink>
+        </div>
+
+        {/* Converted Students Table */}
+        <div className="bg-white rounded-[12px] border border-slate-200 overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100">
+            <h2 className="text-[14px] font-[600] text-slate-900 tracking-[-0.005em]">
+              Converted Leads
+              <span className="ml-2 px-2 py-0.5 text-[11px] font-[600] bg-emerald-50 text-emerald-700 rounded-full ring-1 ring-emerald-200">
+                {filteredReportData.convertedStudentsList.length}
+              </span>
+            </h2>
+            <p className="text-[12px] text-slate-400 mt-0.5">
+              {filterType === "dateRange" && startDate && endDate
+                ? `From ${formatDate(startDate)} to ${formatDate(endDate)}`
+                : "All time"}
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-[13px]">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  {convertedStudentsTableColumns.map((col, idx) => (
+                    <th
+                      key={col.accessor || idx}
+                      className="px-4 py-3 text-left text-[11px] font-[600] text-slate-400 uppercase tracking-[0.05em] whitespace-nowrap"
+                    >
+                      {col.header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {filteredReportData.convertedStudentsList.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={convertedStudentsTableColumns.length}
+                      className="px-4 py-12 text-center text-[13px] text-slate-400"
+                    >
+                      No converted leads found for the selected criteria.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredReportData.convertedStudentsList.map((student) => (
+                    <tr key={student._id} className="hover:bg-slate-50 transition-colors">
+                      {convertedStudentsTableColumns.map((col, idx) => (
+                        <td
+                          key={col.accessor + idx}
+                          className="px-4 py-3 whitespace-nowrap text-slate-700"
+                        >
+                          {student[col.accessor] || "—"}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>{/* end p-6 */}
     </div>
   );
 };
 
-const ReportCard = ({ title, value, color }) => (
-  <div className="bg-white rounded-[12px] border border-slate-200 p-5 flex flex-col items-center justify-center hover:border-slate-300 transition-colors">
-    <p className="text-[12px] font-[600] text-slate-500 uppercase tracking-[0.04em] mb-2">{title}</p>
-    <p className={`text-[32px] font-[700] tracking-[-0.02em] tabular-nums ${color || "text-slate-900"}`}>{value}</p>
+const ReportCard = ({ title, value, colorClass, bgClass }) => (
+  <div className="bg-white rounded-[12px] border border-slate-200 p-5 hover:border-slate-300 transition-colors">
+    <p className="text-[11px] font-[600] text-slate-400 uppercase tracking-[0.05em] mb-2">{title}</p>
+    <p className={`text-[32px] font-[700] tracking-[-0.02em] tabular-nums ${colorClass || "text-slate-900"}`}>{value ?? 0}</p>
   </div>
 );
 

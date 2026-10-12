@@ -1,4 +1,4 @@
-// src/pages/EnrolledStudents.jsx
+// src/pages/Clients.jsx
 
 import React, {
   useState,
@@ -10,21 +10,30 @@ import React, {
 import Loader from "../components/common/Loader";
 import DelayedLoader from "../components/common/DelayedLoader";
 import { useAuth } from "../context/AuthContext.jsx";
-import EnrolledStudentsTable from "../components/EnrolledStudentsTable";
-import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
-import EnrolledStudentEditModal from "../components/EnrolledStudentEditModal";
-import { courseService } from "../services/courseService";
+import ClientsTable from "../components/ClientsTable";
+import {
+  Building2,
+  CheckCircle2,
+  Clock,
+  MonitorPlay,
+  RotateCw,
+  FileDown,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import ClientEditModal from "../components/ClientEditModal";
+import { courseService } from "../services/api";
 import { BASE_URL } from "../config";
 import Toast from "../components/common/Toast";
 
-// New modular hooks and components for Enrolled Students page
-import useEnrollmentsCore from "./enrolled/useEnrollmentsCore";
-import useEnrollmentFilters from "./enrolled/useEnrollmentFilters";
-import useEnrollmentExport from "./enrolled/useEnrollmentExport";
-import useTeachers from "./enrolled/useTeachers";
-import useEnrollmentEvents from "./enrolled/useEnrollmentEvents";
-import FiltersPanel from "./enrolled/FiltersPanel";
-import useEnrollmentUpdates from "./enrolled/useEnrollmentUpdates";
+// Modular hooks and components for Clients page
+import useEnrollmentsCore from "./clients/useEnrollmentsCore";
+import useEnrollmentFilters from "./clients/useEnrollmentFilters";
+import useEnrollmentExport from "./clients/useEnrollmentExport";
+import useTeachers from "./clients/useTeachers";
+import useEnrollmentEvents from "./clients/useEnrollmentEvents";
+import FiltersPanel from "./clients/FiltersPanel";
+import useEnrollmentUpdates from "./clients/useEnrollmentUpdates";
 
 // A small in-memory map to deduplicate identical outgoing requests
 // (helps avoid duplicate fetches triggered by StrictMode double-invoke
@@ -50,7 +59,7 @@ async function safeFetchWithRetries(
         timeoutHandle = setTimeout(() => {
           try {
             controller.abort();
-          } catch (e) {}
+          } catch (e) { }
           rej(new Error("timeout"));
         }, timeoutMs);
       });
@@ -62,8 +71,7 @@ async function safeFetchWithRetries(
       const isLast = attempt === retries;
       if (isLast) {
         console.warn(
-          `safeFetch: network error when fetching ${url} (attempt ${
-            attempt + 1
+          `safeFetch: network error when fetching ${url} (attempt ${attempt + 1
           }/${retries + 1})`,
           e && e.message ? e.message : e
         );
@@ -78,7 +86,7 @@ async function safeFetchWithRetries(
   return null;
 }
 
-const EnrolledStudents = () => {
+const Clients = () => {
   const { authToken } = useAuth();
   const ITEMS_PER_PAGE = 20;
   // Core paginated state and server fetcher
@@ -271,7 +279,7 @@ const EnrolledStudents = () => {
               : s
           )
         );
-      } catch {}
+      } catch { }
     };
     window.addEventListener("crm:leadFirstInstallmentUpdated", onLeadFI);
     return () => {
@@ -408,14 +416,29 @@ const EnrolledStudents = () => {
     setEditingStudent(null);
   }, []);
 
+  const stats = useMemo(() => {
+    const total = allStudents?.length || 0;
+    const paidCompleted =
+      allStudents?.filter((s) => Boolean(s.payment_completed)).length || 0;
+    const paymentPending = total - paidCompleted;
+    const demoTaken =
+      allStudents?.filter((s) => {
+        const v =
+          s.scheduled_taken ||
+          (s.lead && s.lead.scheduled_taken) ||
+          s.demo_scheduled ||
+          (s.lead && s.lead.demo_scheduled);
+        return v === "Yes" || v === true;
+      }).length || 0;
+    return { total, paidCompleted, paymentPending, demoTaken };
+  }, [allStudents]);
+
   // Delete handlers now provided by useEnrollmentUpdates
 
-  // Show full-screen delayed loader only on the very first load. For
-  // subsequent background fetches (e.g. debounce-driven) keep the table
-  // visible and avoid sudden re-render/replace.
+  // Show full-screen delayed loader only on the very first load.
   if (initialLoad)
     return (
-      <DelayedLoader message="Loading enrolled students..." minMs={2000} />
+      <DelayedLoader message="Loading clients..." minMs={150} />
     );
 
   if (error)
@@ -426,14 +449,99 @@ const EnrolledStudents = () => {
     );
 
   return (
-    <div className="bg-[#F8FAFC] min-h-full">
-      {/* Page header */}
-      <div className="px-6 py-4 border-b border-slate-200 bg-white">
-        <h1 className="text-[20px] font-[600] leading-[28px] tracking-[-0.015em] text-slate-900">Enrolled Students</h1>
-        <p className="text-[13px] text-slate-500 leading-[18px] mt-0.5">Manage and track enrolled students</p>
+    <div className="flex flex-col min-h-full bg-[#F8FAFC] font-[Inter,system-ui,sans-serif] antialiased">
+      {/* ─── Header: Aligned with Leads & Demo ─── */}
+      <div className="px-6 py-5 border-b border-slate-200 bg-white">
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-[22px] font-[700] text-slate-900 tracking-[-0.015em]">
+                Clients Management
+              </h1>
+              <span className="px-2.5 py-0.5 rounded-full text-[12px] font-[500] bg-[#EEF2F6] text-slate-600">
+                {stats.total} Total
+              </span>
+            </div>
+            <p className="text-[13px] text-slate-500 mt-1">
+              Manage and track school clients, institutional contracts, and fee structures.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              onClick={() => fetchEnrolledStudents(currentPage)}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-[8px] text-[13px] font-[500] bg-[#EEF2F6] hover:bg-slate-200 text-slate-700 transition-colors"
+            >
+              <RotateCw className="h-4 w-4" />
+              Refresh
+            </button>
+
+            <button
+              onClick={onExport}
+              disabled={exporting}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-[8px] text-[13px] font-[500] bg-[#294998] hover:bg-[#1E3776] text-white shadow-xs transition-colors disabled:opacity-50"
+            >
+              <FileDown className="h-4 w-4" />
+              {exporting ? "Exporting..." : "Export CSV"}
+            </button>
+          </div>
+        </div>
       </div>
-      <div className="p-6">
-      {/* Filters */}
+
+      {/* ─── Metric Strip ─── */}
+      <div className="px-6 py-3.5 border-b border-slate-200 bg-white">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="flex items-center justify-between p-3 rounded-[10px] bg-slate-50 border border-slate-200/70">
+            <div>
+              <p className="text-[11px] font-[600] text-slate-400 uppercase tracking-[0.04em]">
+                Total Clients
+              </p>
+              <p className="text-[18px] font-[700] text-slate-900 mt-0.5">{stats.total}</p>
+            </div>
+            <div className="w-8 h-8 rounded-[8px] bg-white border border-slate-200/80 flex items-center justify-center text-slate-600">
+              <Building2 className="w-4 h-4" />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-[10px] bg-emerald-50/50 border border-emerald-200/70">
+            <div>
+              <p className="text-[11px] font-[600] text-emerald-600 uppercase tracking-[0.04em]">
+                Paid / Active
+              </p>
+              <p className="text-[18px] font-[700] text-slate-900 mt-0.5">{stats.paidCompleted}</p>
+            </div>
+            <div className="w-8 h-8 rounded-[8px] bg-white border border-emerald-200/80 flex items-center justify-center text-emerald-600">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-[10px] bg-amber-50/50 border border-amber-200/70">
+            <div>
+              <p className="text-[11px] font-[600] text-amber-600 uppercase tracking-[0.04em]">
+                Payment Pending
+              </p>
+              <p className="text-[18px] font-[700] text-slate-900 mt-0.5">{stats.paymentPending}</p>
+            </div>
+            <div className="w-8 h-8 rounded-[8px] bg-white border border-amber-200/80 flex items-center justify-center text-amber-600">
+              <Clock className="w-4 h-4" />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-[10px] bg-blue-50/50 border border-blue-200/70">
+            <div>
+              <p className="text-[11px] font-[600] text-blue-600 uppercase tracking-[0.04em]">
+                Demo Completed
+              </p>
+              <p className="text-[18px] font-[700] text-slate-900 mt-0.5">{stats.demoTaken}</p>
+            </div>
+            <div className="w-8 h-8 rounded-[8px] bg-white border border-blue-200/80 flex items-center justify-center text-blue-600">
+              <MonitorPlay className="w-4 h-4" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── Sleek Toolbar Filters ─── */}
       <FiltersPanel
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
@@ -443,8 +551,6 @@ const EnrolledStudents = () => {
         setFilterPaymentNotCompleted={setFilterPaymentNotCompleted}
         filterScheduledTaken={filterScheduledTaken}
         setFilterScheduledTaken={setFilterScheduledTaken}
-        exporting={exporting}
-        onExport={onExport}
         onClear={() => {
           setSearchQuery("");
           setSearchLastPaymentDate("");
@@ -455,9 +561,9 @@ const EnrolledStudents = () => {
         loading={loading}
       />
 
-      {/* Students Table */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <EnrolledStudentsTable
+      {/* ─── Clients Table & Content ─── */}
+      <div className="p-6">
+        <ClientsTable
           students={filteredStudents}
           courses={courses}
           teachers={teachers}
@@ -470,70 +576,113 @@ const EnrolledStudents = () => {
           totalPages={totalPages}
           onPageChange={(p) => setCurrentPage(p)}
         />
-      </div>
 
-      {/* Pagination controls (arrow + Page X of Y style) */}
-      <div className="flex justify-end items-center mt-4">
-        <button
-          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-          disabled={currentPage === 1}
-          className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <ChevronLeftIcon className="h-5 w-5 text-gray-500" />
-        </button>
-        <span className="mx-4 text-sm font-medium text-gray-700">
-          Page {currentPage} of {totalPages}
-        </span>
-        <button
-          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-          disabled={currentPage === totalPages}
-          className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <ChevronRightIcon className="h-5 w-5 text-gray-500" />
-        </button>
-      </div>
+        {/* ─── Integrated Pagination Controls ─── */}
+        {totalPages > 0 && (
+          <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3 px-1">
+            <p className="text-[13px] text-slate-500">
+              Showing{" "}
+              <span className="font-semibold text-slate-900">
+                {Math.min(
+                  (currentPage - 1) * ITEMS_PER_PAGE + 1,
+                  filteredStudents?.length || 0
+                )}
+              </span>{" "}
+              to{" "}
+              <span className="font-semibold text-slate-900">
+                {Math.min(
+                  currentPage * ITEMS_PER_PAGE,
+                  filteredStudents?.length || 0
+                )}
+              </span>{" "}
+              of{" "}
+              <span className="font-semibold text-slate-900">
+                {filteredStudents?.length || 0}
+              </span>{" "}
+              filtered clients
+            </p>
 
-      {/* Edit Modal */}
-      {isModalOpen && editingStudent && (
-        <EnrolledStudentEditModal
-          student={editingStudent}
-          teachers={teachers}
-          onClose={handleCloseModal}
-          onSave={async (updatedStudent) => {
-            const resp = await handleUpdateField(
-              updatedStudent.id,
-              null,
-              updatedStudent
-            );
-            if (resp) {
-              // close modal and show toast
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-[13px] font-[500] text-slate-700 bg-white border border-slate-200 rounded-[8px] hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-2xs"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </button>
+              <span className="px-3 py-1.5 text-[13px] font-[500] text-slate-600 bg-slate-100 rounded-[8px] border border-slate-200/70">
+                Page {currentPage} of {Math.max(1, totalPages)}
+              </span>
+              <button
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
+                disabled={currentPage === totalPages || totalPages === 0}
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-[13px] font-[500] text-slate-700 bg-white border border-slate-200 rounded-[8px] hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-2xs"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Modal */}
+        {isModalOpen && editingStudent && (
+          <ClientEditModal
+            isOpen={isModalOpen}
+            client={editingStudent}
+            authToken={authToken}
+            onClose={handleCloseModal}
+            onSave={(updatedClient) => {
+              setAllStudents((prev) =>
+                (prev || []).map((s) => {
+                  if (String(s.id) !== String(updatedClient.id)) return s;
+                  return {
+                    ...s,
+                    ...updatedClient,
+                    school_name: updatedClient.school_name || s.school_name,
+                    student_name: updatedClient.school_name || s.student_name,
+                    principal_name: updatedClient.principal_name,
+                    parents_name: updatedClient.principal_name || s.parents_name,
+                    contact_name: updatedClient.contact_name,
+                    contact_number: updatedClient.contact_number,
+                    contact_email: updatedClient.contact_email,
+                    phone_number: updatedClient.contact_number || s.phone_number,
+                    email: updatedClient.contact_email || s.email,
+                    total_payment: updatedClient.agreed_price != null ? `NPR ${updatedClient.agreed_price}` : s.total_payment,
+                    payment_type: updatedClient.pricing_basis === "per_month" ? "Per Month" : (updatedClient.pricing_basis === "per_class" ? "Per Class" : s.payment_type),
+                    batchname: updatedClient.classes_per_week ? `${updatedClient.classes_per_week} classes/wk` : s.batchname,
+                    course_duration: updatedClient.mou_start && updatedClient.mou_end ? `${updatedClient.mou_start} ~ ${updatedClient.mou_end}` : s.course_duration,
+                  };
+                })
+              );
               setIsModalOpen(false);
               setEditingStudent(null);
               setToast({
                 show: true,
-                message: "Updated successfully",
+                message: "Client details updated successfully",
                 type: "success",
                 duration: 3000,
               });
-            }
-            return resp;
-          }}
-        />
-      )}
+            }}
+          />
+        )}
 
-      {toast.show && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          duration={toast.duration ?? 6000}
-          onClose={() =>
-            setToast({ show: false, message: "", type: "success" })
-          }
-        />
-      )}
+        {toast.show && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            duration={toast.duration ?? 6000}
+            onClose={() =>
+              setToast({ show: false, message: "", type: "success" })
+            }
+          />
+        )}
       </div>{/* end p-6 */}
     </div>
   );
 };
 
-export default EnrolledStudents;
+export default Clients;

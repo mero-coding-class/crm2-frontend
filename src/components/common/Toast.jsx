@@ -19,8 +19,8 @@ const TOAST_CONFIG = {
   },
   info: {
     icon: Info,
-    classes: "bg-white border-l-4 border-indigo-500 text-slate-900",
-    iconClass: "text-indigo-500",
+    classes: "bg-white border-l-4 border-[#294998] text-slate-900",
+    iconClass: "text-[#294998]",
   },
 };
 

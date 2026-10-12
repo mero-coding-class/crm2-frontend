@@ -3,20 +3,22 @@ import { cva } from "class-variance-authority";
 import { cn } from "../../lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-[8px] text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 cursor-pointer select-none",
+  "inline-flex items-center justify-center gap-2 rounded-[8px] text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#294998] focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 cursor-pointer select-none",
   {
     variants: {
       variant: {
         primary:
-          "bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800 shadow-sm",
+          "bg-[#294998] text-white hover:bg-[#1e3776] active:bg-[#172b5c] shadow-xs",
         secondary:
-          "bg-white text-slate-800 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 shadow-sm",
+          "bg-white text-slate-800 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 shadow-xs",
+        amber:
+          "bg-[#e8a026] text-white hover:bg-[#d38e1a] active:bg-[#b8740c] shadow-xs",
         ghost:
           "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
         destructive:
           "bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-600 hover:text-white",
         outline:
-          "border border-indigo-200 text-indigo-600 hover:bg-indigo-50",
+          "border border-[#cddbf6] text-[#294998] hover:bg-[#edf2fc]",
       },
       size: {
         default: "h-9 px-4 py-2",

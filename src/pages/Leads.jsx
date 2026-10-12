@@ -8,6 +8,16 @@ import LeadsFilters from "../components/LeadsFilters";
 import Toast from "../components/common/Toast";
 import DelayedLoader from "../components/common/DelayedLoader";
 import Loader from "../components/common/Loader";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
 
 import useUsers from "./leads/useUsers";
 import useCourses from "./leads/useCourses";
@@ -135,10 +145,11 @@ const Leads = () => {
     handleCloseEditModal,
     updateLeadField,
     handleAssignedToChange,
+    handleActivitySave,
     handleAddNewLead,
     handleSaveEdit,
-    handleDelete,
-    handleBulkDelete,
+    handleDelete: handleDeleteLeadFn,
+    handleBulkDelete: handleBulkDeleteLeadFn,
   } = useLeadsHandlers({
     authToken,
     allLeads,
@@ -147,6 +158,36 @@ const Leads = () => {
     setError,
     courses,
   });
+
+  // Archive confirmation state
+  const [archiveConfirmId, setArchiveConfirmId] = useState(null);
+  const [bulkArchiveConfirmIds, setBulkArchiveConfirmIds] = useState(null);
+  const [archiveProcessing, setArchiveProcessing] = useState(false);
+
+  // Wrapped handlers that show a dialog first
+  const handleDelete = useCallback((leadId) => {
+    setArchiveConfirmId(leadId);
+  }, []);
+
+  const handleBulkDelete = useCallback((leadIds) => {
+    setBulkArchiveConfirmIds(leadIds);
+  }, []);
+
+  const confirmArchive = useCallback(async () => {
+    if (!archiveConfirmId) return;
+    setArchiveProcessing(true);
+    await handleDeleteLeadFn(archiveConfirmId);
+    setArchiveProcessing(false);
+    setArchiveConfirmId(null);
+  }, [archiveConfirmId, handleDeleteLeadFn]);
+
+  const confirmBulkArchive = useCallback(async () => {
+    if (!bulkArchiveConfirmIds) return;
+    setArchiveProcessing(true);
+    await handleBulkDeleteLeadFn(bulkArchiveConfirmIds);
+    setArchiveProcessing(false);
+    setBulkArchiveConfirmIds(null);
+  }, [bulkArchiveConfirmIds, handleBulkDeleteLeadFn]);
 
   const handleStatusChange = useCallback(
     async (leadId, newStatus) => {
@@ -165,7 +206,7 @@ const Leads = () => {
   );
   const handleSubStatusChange = useCallback(
     (leadId, newSubStatus) =>
-      updateLeadField(leadId, "substatus", newSubStatus),
+      updateLeadField(leadId, "sub_status", newSubStatus),
     [updateLeadField]
   );
   const handleRemarkChange = useCallback(
@@ -230,60 +271,30 @@ const Leads = () => {
       role === "superadmin" ||
       role === "super-admin");
 
-  let currentLeads = deduplicateLeads([...searchedLeads]);
-  if (!isAdmin) {
-    const username =
-      (user && user.username) || localStorage.getItem("username") || "";
-    const normalizedUsername = String(username).trim().toLowerCase();
-    currentLeads = currentLeads.filter((lead) => {
-      // consider the lead assigned to current user if normalized matches
-      const aNorm = (lead.assigned_to_normalized || "")
-        .toString()
-        .trim()
-        .toLowerCase();
-      const auNorm = (lead.assigned_to_username_normalized || "")
-        .toString()
-        .trim()
-        .toLowerCase();
-      const isAssigned =
-        normalizedUsername &&
-        (aNorm === normalizedUsername || auNorm === normalizedUsername);
-
-      return (
-        isAssigned || (lead.status !== "Converted" && lead.status !== "Lost")
-      );
-    });
-  }
-
-  if (!isAdmin) {
-    const username =
-      (user && user.username) || localStorage.getItem("username") || "";
-    const normalizedUsername = String(username).trim().toLowerCase();
-    if (normalizedUsername) {
-      currentLeads = currentLeads.filter((lead) => {
-        // Use normalized assigned fields when available (set during fetch)
-        const aNorm = (lead.assigned_to_normalized || "").trim().toLowerCase();
-        const auNorm = (lead.assigned_to_username_normalized || "")
-          .trim()
-          .toLowerCase();
-        // Fallback to raw fields
-        const aRaw = String(lead.assigned_to || "").trim();
-        const auRaw = String(lead.assigned_to_username || "").trim();
-
-        return (
-          (aNorm && aNorm === normalizedUsername) ||
-          (auNorm && auNorm === normalizedUsername) ||
-          (aRaw && aRaw === username) ||
-          (auRaw && auRaw === username)
-        );
-      });
+  // Consolidated non-admin scoping: keep only leads assigned to the current user
+  const currentLeads = useMemo(() => {
+    let result = deduplicateLeads([...searchedLeads]);
+    if (!isAdmin) {
+      const username = (
+        (user && user.username) || localStorage.getItem("username") || ""
+      ).trim().toLowerCase();
+      if (username) {
+        result = result.filter((lead) => {
+          const aNorm = (lead.assigned_to_normalized || "").toLowerCase();
+          const auNorm = (lead.assigned_to_username_normalized || "").toLowerCase();
+          const aRaw = String(lead.assigned_to || "").trim();
+          const auRaw = String(lead.assigned_to_username || "").trim();
+          return (
+            (aNorm && aNorm === username) ||
+            (auNorm && auNorm === username) ||
+            aRaw === (user?.username || "") ||
+            auRaw === (user?.username || "")
+          );
+        });
+      }
     }
-  }
-
-  // If there are no leads yet, provide the placeholder sample lead so the table structure is visible
-  if ((!currentLeads || currentLeads.length === 0) && !searchTerm.trim()) {
-    currentLeads = [SAMPLE_PLACEHOLDER_LEAD];
-  }
+    return result;
+  }, [searchedLeads, isAdmin, user, searchTerm]);
 
   // removed noisy debug logging
 
@@ -293,14 +304,25 @@ const Leads = () => {
 
   if (error) {
     return (
-      <div className="text-red-500 text-center p-4">
-        <p>Error: {error}</p>
-        <button
-          onClick={handleRefresh}
-          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-        >
-          Retry
-        </button>
+      <div className="flex items-center justify-center min-h-[400px] p-8">
+        <div className="text-center max-w-sm">
+          <div className="w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-6 h-6 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h3 className="text-[16px] font-[600] text-slate-900 mb-1">Failed to load leads</h3>
+          <p className="text-[13px] text-slate-500 mb-4">{error}</p>
+          <button
+            onClick={handleRefresh}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#294998] text-white text-[13px] font-[500] rounded-[8px] hover:bg-[#1E3776] transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
@@ -372,78 +394,80 @@ const Leads = () => {
         </div>
       )}
 
-      {/* Export All confirmation modal */}
-      {exportConfirmVisibleHook && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-lg p-6 w-11/12 max-w-md">
-            <h3 className="text-lg font-semibold mb-2">
-              Export all filtered leads?
-            </h3>
-            <p className="text-sm text-gray-700 mb-4">
+      {/* Export All confirmation dialog */}
+      <AlertDialog
+        open={exportConfirmVisibleHook}
+        onOpenChange={(open) => {
+          if (!open) {
+            setExportConfirmVisibleHook(false);
+            setExportSizeConfirmed(false);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Export all filtered leads?</AlertDialogTitle>
+            <AlertDialogDescription>
               {exportEstimateCountHook !== null
-                ? `Server reports ~${exportEstimateCountHook} matching leads.`
+                ? `Server reports approximately ${exportEstimateCountHook.toLocaleString()} matching leads.`
                 : "Estimating number of matching leads..."}
-            </p>
-            {/* size warning */}
-            {exportEstimateCountHook !== null &&
-              exportEstimateCountHook >= EXPORT_WARNING_THRESHOLD && (
-                <div className="mb-4 p-3 rounded-md bg-yellow-50 border-l-4 border-yellow-300 text-yellow-800">
-                  Exporting a large dataset ({exportEstimateCountHook} rows) may
-                  take a while and produce a large file. Consider filtering
-                  further or using the backend export endpoint if available.
-                </div>
-              )}
-            {exportEstimateCountHook !== null &&
-              exportEstimateCountHook >= EXPORT_REQUIRE_CHECKBOX_THRESHOLD && (
-                <div className="mb-4 flex items-start gap-2">
-                  <input
-                    type="checkbox"
-                    id="export-confirm-checkbox"
-                    checked={exportSizeConfirmed}
-                    onChange={(e) => setExportSizeConfirmed(e.target.checked)}
-                  />
-                  <label
-                    htmlFor="export-confirm-checkbox"
-                    className="text-sm text-gray-700"
-                  >
-                    I understand this will export a very large file (
-                    {exportEstimateCountHook} rows).
-                  </label>
-                </div>
-              )}
-            <div className="flex justify-end space-x-2">
-              <button
-                onClick={() => {
-                  setExportConfirmVisibleHook(false);
-                  setExportSizeConfirmed(false);
-                }}
-                className="px-4 py-2 rounded-md border bg-white hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={performExportAll}
-                disabled={
-                  exportEstimateCountHook !== null &&
-                  exportEstimateCountHook >=
-                    EXPORT_REQUIRE_CHECKBOX_THRESHOLD &&
-                  !exportSizeConfirmed
-                }
-                className={`px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 ${
-                  exportEstimateCountHook !== null &&
-                  exportEstimateCountHook >=
-                    EXPORT_REQUIRE_CHECKBOX_THRESHOLD &&
-                  !exportSizeConfirmed
-                    ? "opacity-60 cursor-not-allowed"
-                    : ""
-                }`}
-              >
-                Confirm & Export
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {/* size warning */}
+          {exportEstimateCountHook !== null &&
+            exportEstimateCountHook >= EXPORT_WARNING_THRESHOLD && (
+              <div className="mx-0 px-4 py-3 rounded-[8px] bg-amber-50 border border-amber-200 text-[13px] text-amber-700 flex items-start gap-2">
+                <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <span>
+                  Exporting {exportEstimateCountHook.toLocaleString()} rows may take a while. Consider applying more filters.
+                </span>
+              </div>
+            )}
+
+          {exportEstimateCountHook !== null &&
+            exportEstimateCountHook >= EXPORT_REQUIRE_CHECKBOX_THRESHOLD && (
+              <div className="flex items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  id="export-confirm-checkbox"
+                  checked={exportSizeConfirmed}
+                  onChange={(e) => setExportSizeConfirmed(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-[#294998] focus:ring-[#294998] mt-0.5"
+                />
+                <label
+                  htmlFor="export-confirm-checkbox"
+                  className="text-[13px] text-slate-700 cursor-pointer"
+                >
+                  I understand this will export a very large file ({exportEstimateCountHook.toLocaleString()} rows).
+                </label>
+              </div>
+            )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setExportConfirmVisibleHook(false);
+                setExportSizeConfirmed(false);
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={performExportAll}
+              disabled={
+                exportEstimateCountHook !== null &&
+                exportEstimateCountHook >= EXPORT_REQUIRE_CHECKBOX_THRESHOLD &&
+                !exportSizeConfirmed
+              }
+            >
+              Confirm &amp; Export
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <LeadsFilters
         showFilters={showFilters}
@@ -487,16 +511,17 @@ const Leads = () => {
         classTypeOptions={["Class", "Online", "Physical"]}
         deviceOptions={["Device", "Yes", "No"]}
         subStatusOptions={[
-          "SubStatus",
-          "New",
-          "Open",
-          "Followup",
-          "inProgress",
-          "Average",
-          "Interested",
-          "Junk",
-          "NextBatch",
-        ]}
+            "SubStatus",
+            "New",
+            "Contacted",
+            "Follow-up",
+            "Visit scheduled",
+            "Demo scheduled",
+            "Proposal sent",
+            "Interested",
+            "On hold",
+            "Not interested",
+          ]}
         previousCodingExpOptions={[
           "CodingExp",
           "None",
@@ -527,6 +552,7 @@ const Leads = () => {
             handleBulkDelete={handleBulkDelete}
             onStatusChange={handleStatusChange}
             onSubStatusChange={handleSubStatusChange}
+            onActivitySave={handleActivitySave}
             onRemarkChange={handleRemarkChange}
             onRecentCallChange={handleLastCallChange}
             onNextCallChange={handleNextCallChange}
@@ -567,6 +593,41 @@ const Leads = () => {
           authToken={authToken}
         />
       )}
+      {/* ─── Archive (soft-delete) confirmation ─── */}
+      <AlertDialog open={!!archiveConfirmId} onOpenChange={(open) => { if (!open) setArchiveConfirmId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Move lead to Archive?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This lead will be moved to the Archive section. You can restore it at any time from the Archive page.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={archiveProcessing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmArchive} disabled={archiveProcessing}>
+              {archiveProcessing ? "Moving…" : "Move to Archive"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ─── Bulk Archive confirmation ─── */}
+      <AlertDialog open={!!bulkArchiveConfirmIds} onOpenChange={(open) => { if (!open) setBulkArchiveConfirmIds(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive {bulkArchiveConfirmIds?.length ?? 0} lead(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {bulkArchiveConfirmIds?.length ?? 0} selected lead(s) will be moved to Archive. You can restore them later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={archiveProcessing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBulkArchive} disabled={archiveProcessing}>
+              {archiveProcessing ? "Moving…" : `Archive ${bulkArchiveConfirmIds?.length ?? 0} Lead(s)`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

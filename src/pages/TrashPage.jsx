@@ -9,16 +9,26 @@ import {
   FunnelIcon,
   ArrowPathIcon,
 } from "@heroicons/react/24/outline";
+import { AlertTriangle } from "lucide-react";
 import { trashService, leadService, courseService } from "../services/api.js";
 import { BASE_URL } from "../config";
 import DelayedLoader from "../components/common/DelayedLoader";
 import { exportsStore } from "../services/exportsStore";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
 
 // Helper: convert array of objects to CSV and trigger download
 const downloadCsv = (rows, filename = "export.csv") => {
   if (!rows || rows.length === 0) {
-    window.alert("No data to export.");
-    return;
+    return; // nothing to export — caller can handle this case
   }
 
   // Collect headers from union of keys
@@ -73,6 +83,11 @@ const TrashPage = () => {
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState(null);
+
+  // Confirmation dialog state
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [restoreConfirmId, setRestoreConfirmId] = useState(null);
+  const [actionProcessing, setActionProcessing] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
@@ -281,108 +296,92 @@ const TrashPage = () => {
 
   const handlePermanentDeleteLead = useCallback(
     async (id) => {
-      if (
-        window.confirm(
-          "Are you sure you want to permanently delete this lead? This action cannot be undone."
-        )
-      ) {
-        try {
-          await trashService.deleteTrashedLead(id, authToken);
-          setAllLeads((prevLeads) =>
-            prevLeads.filter((lead) => lead.id !== id)
-          );
-        } catch (err) {
-          setError("Failed to permanently delete lead.");
-          console.error("Error permanently deleting lead:", err);
-        }
+      setActionProcessing(true);
+      try {
+        await trashService.deleteTrashedLead(id, authToken);
+        setAllLeads((prevLeads) =>
+          prevLeads.filter((lead) => lead.id !== id)
+        );
+      } catch (err) {
+        setError("Failed to permanently delete lead.");
+        console.error("Error permanently deleting lead:", err);
+      } finally {
+        setActionProcessing(false);
+        setDeleteConfirmId(null);
       }
     },
     [authToken]
   );
 
+  // Wrapper — sets confirmation state instead of calling directly
+  const requestDeleteConfirm = useCallback((id) => setDeleteConfirmId(id), []);
+  const requestRestoreConfirm = useCallback((id) => setRestoreConfirmId(id), []);
+
   const handleRestoreLead = useCallback(
     async (id) => {
-      if (
-        window.confirm(
-          "Are you sure you want to restore this lead? It will be moved back to active leads."
-        )
-      ) {
+      setActionProcessing(true);
+      setRestoreConfirmId(null);
+      try {
+        const originalLead = allLeads.find((lead) => lead.id === id);
+        if (!originalLead) return;
+
+        // Call trashService.restoreTrashedLead which PATCHes /trash/{id}/ to status Active
         try {
-          const originalLead = allLeads.find((lead) => lead.id === id);
-          if (!originalLead) return;
+          const restored = await trashService.restoreTrashedLead(id, authToken);
 
-          // Call trashService.restoreTrashedLead which PATCHes /trash/{id}/ to status Active
-          try {
-            const restored = await trashService.restoreTrashedLead(
-              id,
-              authToken
-            );
+          // Broadcast restored lead so Leads page can insert it immediately
+          window.dispatchEvent(
+            new CustomEvent("crm:leadRestored", { detail: { lead: restored } })
+          );
 
-            // Broadcast restored lead so Leads page can insert it immediately
-            window.dispatchEvent(
-              new CustomEvent("crm:leadRestored", {
-                detail: { lead: restored },
-              })
-            );
+          // Persist restored lead for Leads page to pick up
+          try { localStorage.setItem("crm:restoredLead", JSON.stringify(restored)); } catch {}
 
-            // Persist restored lead for Leads page to pick up
-            try { localStorage.setItem("crm:restoredLead", JSON.stringify(restored)); } catch {}
+          // Remove from local trash list optimistically
+          setAllLeads((prevLeads) => prevLeads.filter((lead) => lead.id !== id));
 
-            // Remove from local trash list optimistically
-            setAllLeads((prevLeads) =>
-              prevLeads.filter((lead) => lead.id !== id)
-            );
-
-            // Navigate to Leads page to show the restored lead (default status Active)
-            setTimeout(() => {
-              try {
-                window.location.href = "/leads";
-              } catch (e) {
-                // ignore navigation errors in embedded contexts
-              }
-            }, 300);
-          } catch (err) {
-            console.error(
-              "Failed to restore via trashService, falling back to leadService update:",
-              err
-            );
-            // fallback behavior: update lead status back to 'Active' via leadService
-            const newLogEntry = {
-              timestamp: new Date().toISOString(),
-              updaterName: currentUser?.username || "Unknown User",
-              updaterRole: currentUser?.role || "Guest",
-              message: `Restored from Trash.`,
-            };
-
-            const updatedChangeLog = originalLead.changeLog
-              ? [...originalLead.changeLog, newLogEntry]
-              : [newLogEntry];
-
-            await leadService.updateLead(
-              id,
-              { status: "Active", changeLog: updatedChangeLog },
-              authToken
-            );
-            // Persist restored lead for Leads page to pick up
-            try { localStorage.setItem("crm:restoredLead", JSON.stringify({ ...originalLead, status: "Active" })); } catch {}
-            setAllLeads((prevLeads) =>
-              prevLeads.filter((lead) => lead.id !== id)
-            );
-            window.dispatchEvent(
-              new CustomEvent("crm:leadRestored", {
-                detail: { lead: { ...originalLead, status: "Active" } },
-              })
-            );
-            setTimeout(() => {
-              try {
-                window.location.href = "/leads";
-              } catch (e) {}
-            }, 300);
-          }
+          // Navigate to Leads page to show the restored lead (default status Active)
+          setTimeout(() => {
+            try { window.location.href = "/leads"; } catch (e) {}
+          }, 300);
         } catch (err) {
-          setError("Failed to restore lead.");
-          console.error("Error restoring lead:", err);
+          console.error(
+            "Failed to restore via trashService, falling back to leadService update:",
+            err
+          );
+          // fallback behavior: update lead status back to 'Active' via leadService
+          const newLogEntry = {
+            timestamp: new Date().toISOString(),
+            updaterName: currentUser?.username || "Unknown User",
+            updaterRole: currentUser?.role || "Guest",
+            message: `Restored from Trash.`,
+          };
+
+          const updatedChangeLog = originalLead.changeLog
+            ? [...originalLead.changeLog, newLogEntry]
+            : [newLogEntry];
+
+          await leadService.updateLead(
+            id,
+            { status: "Active", changeLog: updatedChangeLog },
+            authToken
+          );
+          try { localStorage.setItem("crm:restoredLead", JSON.stringify({ ...originalLead, status: "Active" })); } catch {}
+          setAllLeads((prevLeads) => prevLeads.filter((lead) => lead.id !== id));
+          window.dispatchEvent(
+            new CustomEvent("crm:leadRestored", {
+              detail: { lead: { ...originalLead, status: "Active" } },
+            })
+          );
+          setTimeout(() => {
+            try { window.location.href = "/leads"; } catch (e) {}
+          }, 300);
         }
+      } catch (err) {
+        setError("Failed to restore lead.");
+        console.error("Error restoring lead:", err);
+      } finally {
+        setActionProcessing(false);
       }
     },
     [allLeads, authToken, currentUser]
@@ -713,7 +712,7 @@ const TrashPage = () => {
       downloadCsv(rows, filename);
     } catch (err) {
       console.error("Export CSV failed:", err);
-      window.alert("Failed to export CSV. Check console for details.");
+      setError("Failed to export CSV. Please try again.");
     }
   }, [filteredTrashedLeads, currentPage]);
 
@@ -741,7 +740,7 @@ const TrashPage = () => {
           </button>
           <button
             onClick={handleClearFilters}
-            className="flex items-center px-4 py-2 border border-gray-300 cursor-pointer rounded-md bg-blue-700 text-white hover:bg-blue-600 transition-colors shadow-sm"
+            className="flex items-center px-4 py-2 border border-slate-300 cursor-pointer rounded-md bg-[#294998] text-white hover:bg-[#1E3776] transition-colors shadow-sm"
           >
             Clear Filters
           </button>
@@ -752,7 +751,7 @@ const TrashPage = () => {
             <select
               value={filterCourse}
               onChange={(e) => setFilterCourse(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 bg-white"
+              className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm focus:border-[#294998] focus:ring-[#294998] sm:text-sm p-2 bg-white"
             >
               <option value="All">All Courses</option>
               {courses.map((c) => (
@@ -768,7 +767,7 @@ const TrashPage = () => {
               placeholder="Search by Email, Phone, Name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full p-2 pl-10 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-all duration-200"
+              className="w-full p-2 pl-10 border border-gray-300 rounded-md shadow-sm focus:ring-[#294998] focus:border-[#294998] sm:text-sm transition-all duration-200"
             />
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
           </div>
@@ -903,8 +902,8 @@ const TrashPage = () => {
           <TrashTableDisplay
             leads={filteredTrashedLeads}
             handleEdit={handleEditLead}
-            onPermanentDelete={handlePermanentDeleteLead}
-            onRestoreLead={handleRestoreLead}
+            onPermanentDelete={requestDeleteConfirm}
+            onRestoreLead={requestRestoreConfirm}
             onBulkRestore={handleBulkRestoreLeads}
             onBulkPermanentDelete={handleBulkPermanentDeleteLeads}
             currentPage={currentPage}
@@ -933,6 +932,55 @@ const TrashPage = () => {
           onSave={handleSaveEdit}
         />
       )}
+
+      {/* ─── Permanent Delete Confirmation ─── */}
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-rose-500" />
+              Permanently Delete Lead?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the lead record. This action <strong>cannot</strong> be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionProcessing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handlePermanentDeleteLead(deleteConfirmId)}
+              disabled={actionProcessing}
+              className="bg-rose-600 hover:bg-rose-700 text-white border-0"
+            >
+              {actionProcessing ? "Deleting…" : "Delete Permanently"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ─── Restore Lead Confirmation ─── */}
+      <AlertDialog open={!!restoreConfirmId} onOpenChange={(open) => { if (!open) setRestoreConfirmId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-500" />
+              Restore Lead?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This lead will be moved back to Active Leads and removed from Trash.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionProcessing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleRestoreLead(restoreConfirmId)}
+              disabled={actionProcessing}
+            >
+              {actionProcessing ? "Restoring…" : "Restore Lead"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

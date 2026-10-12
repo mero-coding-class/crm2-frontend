@@ -51,9 +51,9 @@ export const getSubStatusColor = (substatus) => {
       };
     case 'inprogress':
       return {
-        bg: 'bg-indigo-100',
-        text: 'text-indigo-800',
-        border: 'border-indigo-200'
+        bg: 'bg-[#EDF2FC]',
+        text: 'text-[#294998]',
+        border: 'border-[#CDDBF6]'
       };
     case 'average':
       return {

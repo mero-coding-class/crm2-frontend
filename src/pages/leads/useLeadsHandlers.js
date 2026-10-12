@@ -3,6 +3,10 @@ import { resolveServerId, leadService } from "../../services/api";
 import { deduplicateLeads, matchId } from "./utils";
 import { SAMPLE_PLACEHOLDER_LEAD } from "./useLeadsCore";
 
+/** Guard: skip server calls for the placeholder sample lead. */
+const isSampleLead = (lead) =>
+  lead?._id === SAMPLE_PLACEHOLDER_LEAD._id || lead?.id === SAMPLE_PLACEHOLDER_LEAD.id;
+
 export default function useLeadsHandlers(ctx) {
   const { authToken, allLeads, setAllLeads, setToast, setError, courses } = ctx;
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -27,14 +31,14 @@ export default function useLeadsHandlers(ctx) {
       const prevLeads = (allLeads || []).slice();
       try {
         let leadObj = (allLeads || []).find((l) => matchId(l, leadId));
+        if (isSampleLead(leadObj)) return; // never call server for placeholder
         const serverId = resolveServerId(leadObj || leadId, prevLeads);
         if (!serverId) throw new Error("Unable to resolve Lead ID");
 
         if (!leadObj) leadObj = prevLeads.find((l) => matchId(l, serverId));
 
-        // Keep the previous substatus for change-log purposes
-        const previousSubstatus =
-          (leadObj?.substatus ?? leadObj?.sub_status ?? "") || "";
+        // Keep the previous sub_status for change-log purposes
+        const previousSubStatus = leadObj?.sub_status || "";
 
         if (
           fieldName === "status" &&
@@ -130,19 +134,18 @@ export default function useLeadsHandlers(ctx) {
           setToast({ show: true, message: "Lead converted and moved to Enrolled", type: "success" });
         }
 
-        // If substatus changed, dispatch a log event so LeadLogDisplay can append an entry immediately
+        // If sub_status changed, dispatch a log event
         const normalizedField = (fieldName || "").toLowerCase();
-        if (normalizedField === "substatus" || normalizedField === "sub_status") {
-          const newSub =
-            serverResp?.substatus ?? serverResp?.sub_status ?? newValue ?? "";
-          if (previousSubstatus !== newSub) {
+        if (normalizedField === "sub_status") {
+          const newSub = serverResp?.sub_status ?? newValue ?? "";
+          if (previousSubStatus !== newSub) {
             try {
               window.dispatchEvent(
                 new CustomEvent("crm:leadUpdated", {
                   detail: {
                     id: serverId,
-                    field_changed: "substatus",
-                    old_value: previousSubstatus || null,
+                    field_changed: "sub_status",
+                    old_value: previousSubStatus || null,
                     new_value: newSub || null,
                   },
                 })
@@ -161,6 +164,107 @@ export default function useLeadsHandlers(ctx) {
   const handleAssignedToChange = useCallback(
     (leadId, newAssignedTo) => updateLeadField(leadId, "assigned_to_username", newAssignedTo),
     [updateLeadField]
+  );
+
+  const handleActivitySave = useCallback(
+    async (leadId, activityData) => {
+      const prevLeads = (allLeads || []).slice();
+      try {
+        let leadObj = (allLeads || []).find((l) => matchId(l, leadId));
+        if (isSampleLead(leadObj)) return true; // skip server for placeholder
+        const serverId = resolveServerId(leadObj || leadId, prevLeads);
+        if (!serverId) throw new Error("Unable to resolve Lead ID");
+
+        if (!leadObj) leadObj = prevLeads.find((l) => matchId(l, serverId));
+        const previousSubStatus = leadObj?.sub_status || "";
+
+        // Optimistically update allLeads
+        setAllLeads((prev) =>
+          deduplicateLeads(
+            prev.map((l) =>
+              matchId(l, serverId)
+                ? {
+                    ...l,
+                    substatus: activityData.substatus ?? l.substatus,
+                    sub_status: activityData.substatus ?? l.sub_status,
+                    source: activityData.source ?? l.source,
+                    last_call: activityData.last_call ?? l.last_call,
+                    next_call: activityData.next_call ?? l.next_call,
+                    remarks: activityData.remarks ?? l.remarks,
+                  }
+                : l
+            )
+          )
+        );
+
+        const updatesToSend = {
+          source: activityData.source,
+          sub_status: activityData.sub_status || activityData.substatus,
+          last_call: activityData.last_call,
+          next_call: activityData.next_call,
+          remarks: activityData.remarks,
+        };
+
+        const serverResp = await leadService.updateLead(
+          serverId,
+          updatesToSend,
+          authToken
+        );
+
+        setToast({
+          show: true,
+          message: "Activity updated successfully",
+          type: "success",
+        });
+
+        setAllLeads((prev) =>
+          deduplicateLeads(
+            prev.map((l) =>
+              matchId(l, serverId)
+                ? {
+                    ...l,
+                    ...serverResp,
+                    _id: l._id || serverResp.id,
+                    sub_status:
+                      serverResp.sub_status ??
+                      activityData.sub_status ??
+                      activityData.substatus,
+                    source: serverResp.source ?? activityData.source,
+                  }
+                : l
+            )
+          )
+        );
+
+        // If sub_status changed, dispatch event
+        const newSub = serverResp?.sub_status ?? activityData.sub_status ?? activityData.substatus ?? "";
+        if (previousSubStatus !== newSub) {
+          try {
+            window.dispatchEvent(
+              new CustomEvent("crm:leadUpdated", {
+                detail: {
+                  id: serverId,
+                  field_changed: "sub_status",
+                  old_value: previousSubStatus || null,
+                  new_value: newSub || null,
+                },
+              })
+            );
+          } catch {}
+        }
+
+        return true;
+      } catch (err) {
+        setAllLeads(prevLeads);
+        setToast({
+          show: true,
+          message: err.message || "Failed to update activity",
+          type: "error",
+        });
+        throw err;
+      }
+    },
+    [authToken, allLeads, setAllLeads, setToast]
   );
 
   const handleAddNewLead = useCallback(
@@ -240,30 +344,56 @@ export default function useLeadsHandlers(ctx) {
     [allLeads, setAllLeads, setToast]
   );
 
+  /**
+   * Archive a lead (soft-delete). The caller is responsible for showing
+   * a confirmation dialog before invoking this function.
+   * On success the lead is removed from the active list and moves to Archive.
+   */
   const handleDelete = useCallback(
     async (leadId) => {
-      if (window.confirm("Are you sure you want to move this lead to trash?")) {
+      const lead = (allLeads || []).find((l) => matchId(l, leadId));
+      if (isSampleLead(lead)) return; // never archive the placeholder
+      try {
+        const serverId = resolveServerId(lead || leadId, allLeads);
+        if (!serverId) throw new Error("Unable to resolve Lead ID");
+        await leadService.archiveLead(serverId, authToken);
+        setAllLeads((prevLeads) =>
+          deduplicateLeads(prevLeads.filter((l) => !matchId(l, leadId)))
+        );
+        setToast({ show: true, message: "Lead moved to Archive", type: "success" });
         try {
-          await leadService.updateLead(leadId, { status: "Lost" }, authToken);
-          setAllLeads((prevLeads) => deduplicateLeads(prevLeads.filter((lead) => !matchId(lead, leadId))));
-        } catch (err) {
-          setError(err.message || "Failed to move lead to trash");
-        }
+          window.dispatchEvent(new CustomEvent("crm:leadArchived", { detail: { leadId: serverId } }));
+        } catch {}
+      } catch (err) {
+        setError(err.message || "Failed to archive lead");
       }
     },
-    [authToken, setAllLeads, setError]
+    [authToken, allLeads, setAllLeads, setError, setToast]
   );
 
+  /**
+   * Bulk archive selected leads using a single backend request.
+   */
   const handleBulkDelete = useCallback(
     async (leadIds) => {
+      const realIds = (leadIds || []).map((id) => {
+        const lead = (allLeads || []).find((l) => matchId(l, id));
+        if (isSampleLead(lead)) return null;
+        return resolveServerId(lead || id, allLeads);
+      }).filter(Boolean);
+
+      if (!realIds.length) return;
       try {
-        await Promise.all(leadIds.map((id) => leadService.updateLead(id, { status: "Lost" }, authToken)));
-        setAllLeads((prevLeads) => deduplicateLeads(prevLeads.filter((lead) => !leadIds.some((id) => matchId(lead, id)))));
+        await leadService.bulkArchiveLeads(realIds, authToken);
+        setAllLeads((prevLeads) =>
+          deduplicateLeads(prevLeads.filter((lead) => !leadIds.some((id) => matchId(lead, id))))
+        );
+        setToast({ show: true, message: `${realIds.length} lead(s) moved to Archive`, type: "success" });
       } catch (err) {
-        setError(err.message || "Failed to move selected leads to trash");
+        setError(err.message || "Failed to archive selected leads");
       }
     },
-    [authToken, setAllLeads, setError]
+    [authToken, allLeads, setAllLeads, setError, setToast]
   );
 
   const handleSaveEdit = useCallback(
@@ -310,6 +440,7 @@ export default function useLeadsHandlers(ctx) {
     // updates
     updateLeadField,
     handleAssignedToChange,
+    handleActivitySave,
 
     // add/edit/delete
     handleAddNewLead,

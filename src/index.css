@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
-/* ─── Design Tokens ─── */
+/* ─── Design Tokens (Mero Coding Brand Identity) ─── */
 :root {
   --canvas: #F8FAFC;
   --canvas-subtle: #F1F5F9;
@@ -9,21 +9,29 @@
   --border-subtle: #E2E8F0;
   --border-strong: #CBD5E1;
 
-  /* Brand Primary */
-  --primary-base: #4F46E5;
-  --primary-hover: #4338CA;
-  --primary-dark: #3730A3;
-  --primary-light: #EEF2FF;
+  /* Mero Coding Brand Primary (Royal Navy Blue #294998) */
+  --primary-base: #294998;
+  --primary-hover: #1E3776;
+  --primary-dark: #172B5C;
+  --primary-light: #EDF2FC;
+  --primary-border: #CDDBF6;
 
-  /* Status */
+  /* Mero Coding Brand Secondary / Accent (Warm Golden Amber #E8A026) */
+  --accent-base: #E8A026;
+  --accent-hover: #D38E1A;
+  --accent-light: #FEF7EB;
+  --accent-border: #FAD99A;
+  --accent-dark: #B8740C;
+
+  /* Status Colors */
   --success: #10B981;
   --success-bg: #ECFDF5;
-  --warning: #F59E0B;
-  --warning-bg: #FFFBEB;
+  --warning: #E8A026;
+  --warning-bg: #FEF7EB;
   --danger: #EF4444;
   --danger-bg: #FEF2F2;
-  --info: #0EA5E9;
-  --info-bg: #F0F9FF;
+  --info: #294998;
+  --info-bg: #EDF2FC;
 
   /* Text */
   --text-primary: #0F172A;
@@ -95,8 +103,8 @@ body {
   background-color: #F8FAFC;
 }
 .crm-table tr.selected td {
-  background-color: #F5F3FF;
-  border-left: 2px solid #4F46E5;
+  background-color: #EDF2FC;
+  border-left: 2px solid #294998;
 }
 
 /* ─── Transition utilities ─── */
@@ -113,9 +121,92 @@ body {
   animation: pulse-soft 2s ease-in-out infinite;
 }
 
-/* ─── Focus ring indigo ─── */
-.focus-ring-indigo:focus-visible {
+/* ─── Focus ring brand (#294998) ─── */
+.focus-ring-brand:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
-  border-color: #4F46E5;
+  box-shadow: 0 0 0 3px rgba(41, 73, 152, 0.15);
+  border-color: #294998;
+}
+
+/* ─── Radix UI / shadcn animation keyframes ─── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes zoomIn95 {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes zoomOut95 {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.95); }
+}
+
+@keyframes slideInFromTop {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInFromBottom {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInFromLeft {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInFromRight {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* animate-in / animate-out utility classes for shadcn components */
+.animate-in {
+  animation-duration: 200ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: both;
+}
+
+.animate-out {
+  animation-duration: 150ms;
+  animation-timing-function: ease-in;
+  animation-fill-mode: both;
+}
+
+.fade-in-0 { animation-name: fadeIn; }
+.fade-out-0 { animation-name: fadeOut; }
+.zoom-in-95 { animation-name: zoomIn95; }
+.zoom-out-95 { animation-name: zoomOut95; }
+
+.slide-in-from-top-2 { animation-name: slideInFromTop; }
+.slide-in-from-bottom-2 { animation-name: slideInFromBottom; }
+.slide-in-from-left-2 { animation-name: slideInFromLeft; }
+.slide-in-from-right-2 { animation-name: slideInFromRight; }
+.slide-out-to-top-2 { animation-name: slideInFromBottom; }
+.slide-out-to-bottom-2 { animation-name: slideInFromTop; }
+
+/* Composite animation shorthands used by Radix Dialog */
+[data-state=open].data-\[state\=open\]\:animate-in { animation-name: zoomIn95, fadeIn; }
+[data-state=closed].data-\[state\=closed\]\:animate-out { animation-name: zoomOut95, fadeOut; }
+
+/* Duration utilities */
+.duration-200 { animation-duration: 200ms; }
+.duration-300 { animation-duration: 300ms; }
+
+/* ─── Recharts custom tooltip ─── */
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  border-radius: 8px !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 4px 6px -1px rgba(15,23,42,0.07) !important;
+  font-size: 12px !important;
+  font-family: 'Inter', sans-serif !important;
 }

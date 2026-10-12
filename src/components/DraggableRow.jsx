@@ -2,7 +2,13 @@
 import React, { useState, useEffect } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Bars3Icon, PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
+import {
+  Bars3Icon,
+  PencilIcon,
+  TrashIcon,
+  ClipboardDocumentListIcon,
+  AcademicCapIcon,
+} from "@heroicons/react/24/outline";
 import LeadLogDisplay from "./LeadLogDisplay";
 import {
   getCourseClasses,
@@ -22,6 +28,8 @@ const DraggableRow = ({
   savedRemarks,
   handleEdit,
   handleDelete,
+  onOpenActivityModal,
+  onOpenEnrollModal,
   onStatusChange,
   onSubStatusChange,
   onRemarkChange,
@@ -111,25 +119,16 @@ const DraggableRow = ({
     <tr
       ref={setNodeRef}
       style={style}
-      className={`hover:bg-gray-50 ${
-        isDragging ? "bg-gray-100 shadow-lg" : ""
+      className={`hover:bg-slate-50/80 transition-colors ${
+        selected ? "bg-[#EDF2FC]/60" : ""
       }`}
     >
-      <td className="px-3 py-4 whitespace-nowrap text-sm font-medium">
-        <button
-          {...attributes}
-          {...listeners}
-          className="cursor-grab active:cursor-grabbing"
-        >
-          <Bars3Icon className="h-5 w-5 text-gray-400" />
-        </button>
-      </td>
-      <td className="px-3 py-4 whitespace-nowrap">
+      <td className="px-3 py-3 whitespace-nowrap text-center w-10">
         <input
           type="checkbox"
           checked={selected}
           onChange={() => onSelect(lead._id)}
-          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+          className="h-3.5 w-3.5 rounded-[4px] border-slate-300 text-[#294998] focus:ring-[#294998] cursor-pointer"
         />
       </td>
 
@@ -140,103 +139,134 @@ const DraggableRow = ({
 
         const renderCell = () => {
           switch (key) {
-            case "school_college_name":
+            case "school_name":
               return (
                 <td
                   key={key}
                   className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
                 >
-                  {lead.school_college_name && String(lead.school_college_name).trim() !== ""
-                    ? lead.school_college_name
-                    : lead.student_name || "N/A"}
+                  {lead.school_name && String(lead.school_name).trim() !== ""
+                    ? lead.school_name
+                    : "N/A"}
                 </td>
               );
-            case "address_line_1":
+            case "municipality":
               return (
                 <td
                   key={key}
                   className="px-3 py-4 whitespace-nowrap text-sm text-gray-700"
                 >
-                  {lead.address_line_1 && String(lead.address_line_1).trim() !== ""
-                    ? lead.address_line_1
-                    : lead.city || "N/A"}
+                  {lead.municipality && String(lead.municipality).trim() !== ""
+                    ? lead.municipality
+                    : lead.district || "N/A"}
                 </td>
               );
-            case "scheduled_taken": {
-              const value =
-                (lead.scheduled_taken || lead.demo_scheduled || "No") === "Yes"
-                  ? "Yes"
-                  : "No";
+            case "contact_person":
               return (
                 <td
                   key={key}
-                  className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 min-w-[120px]"
+                  className="px-3 py-4 whitespace-nowrap text-sm text-gray-700"
                 >
-                  <select
-                    value={value}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (typeof onDemoScheduledChange === "function") {
-                        onDemoScheduledChange(lead.id || lead._id, v);
-                      }
-                    }}
-                    className="block w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm font-semibold"
-                  >
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
+                  {lead.contact_person || "N/A"}
                 </td>
               );
-            }
-            case "course_type":
+            case "contact_number":
               return (
                 <td
                   key={key}
-                  className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 min-w-[120px]"
+                  className="px-3 py-4 whitespace-nowrap text-sm text-gray-700"
                 >
-                  <select
-                    value={lead.course_type || ""}
-                    onChange={(e) => {
-                      if (typeof onCourseTypeChange === "function") {
-                        onCourseTypeChange(lead.id || lead._id, e.target.value);
-                      }
-                    }}
-                    className="block w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm font-semibold"
-                  >
-                    <option value="">Select</option>
-                    {["Physical", "Online"].map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
+                  {lead.contact_number && String(lead.contact_number).trim() !== ""
+                    ? lead.contact_number
+                    : "N/A"}
                 </td>
               );
-            case "class_type":
+            case "alt_number":
               return (
-                <td
-                  key={key}
-                  className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 min-w-[120px]"
-                >
-                  <select
-                    value={lead.class_type || ""}
-                    onChange={(e) => {
-                      if (typeof onClassTypeChange === "function") {
-                        onClassTypeChange(lead.id || lead._id, e.target.value);
-                      }
-                    }}
-                    className="block w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm font-semibold"
-                  >
-                    <option value="">Select</option>
-                    {["One to One", "Group"].map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
+                <td key={key} className="px-3 py-4 whitespace-nowrap text-sm text-gray-700">
+                  {lead.alt_number || "—"}
                 </td>
               );
-            case "substatus":
+            case "alt_contact_person":
+              return (
+                <td key={key} className="px-3 py-4 whitespace-nowrap text-sm text-gray-700">
+                  {lead.alt_contact_person || "—"}
+                </td>
+              );
+            case "district":
+              return (
+                <td key={key} className="px-3 py-4 whitespace-nowrap text-sm text-gray-700">
+                  {lead.district || "N/A"}
+                </td>
+              );
+            case "address":
+              return (
+                <td key={key} className="px-3 py-4 text-sm text-gray-700 max-w-[200px] truncate">
+                  {lead.address || "N/A"}
+                </td>
+              );
+            case "system_id":
+              return (
+                <td key={key} className="px-3 py-4 whitespace-nowrap text-xs text-slate-500 font-mono">
+                  {lead.system_id || "—"}
+                </td>
+              );
+            case "social_media":
+              return (
+                <td key={key} className="px-3 py-4 whitespace-nowrap text-sm text-gray-700">
+                  {lead.social_media ? (
+                    <a href={lead.social_media} target="_blank" rel="noreferrer"
+                      className="text-[#294998] hover:underline text-xs">
+                      {lead.social_media.length > 30
+                        ? lead.social_media.slice(0, 30) + "…"
+                        : lead.social_media}
+                    </a>
+                  ) : "—"}
+                </td>
+              );
+            case "course_interest":
+              return (
+                <td key={key} className="px-3 py-4 whitespace-nowrap text-sm text-gray-700">
+                  {lead.course_interest || "—"}
+                </td>
+              );
+            case "proposal_status":
+              return (
+                <td key={key} className="px-3 py-4 whitespace-nowrap text-sm text-center">
+                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
+                    lead.proposal_status
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-slate-100 text-slate-500"
+                  }`}>
+                    {lead.proposal_status ? "Sent" : "No"}
+                  </span>
+                </td>
+              );
+            case "demo_scheduled":
+              return (
+                <td key={key} className="px-3 py-4 whitespace-nowrap text-sm text-center">
+                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
+                    lead.demo_scheduled
+                      ? "bg-purple-100 text-purple-700"
+                      : "bg-slate-100 text-slate-500"
+                  }`}>
+                    {lead.demo_scheduled ? "Yes" : "No"}
+                  </span>
+                </td>
+              );
+            case "owner_username":
+              return (
+                <td key={key} className="px-3 py-4 whitespace-nowrap text-sm text-gray-700">
+                  {lead.owner_username || "—"}
+                </td>
+              );
+            case "call_assignee_username":
+              return (
+                <td key={key} className="px-3 py-4 whitespace-nowrap text-sm text-gray-700">
+                  {lead.call_assignee_username || "—"}
+                </td>
+              );
+            case "sub_status":
               return (
                 <td
                   key={key}
@@ -244,31 +274,27 @@ const DraggableRow = ({
                 >
                   <div
                     className={`inline-flex items-center px-3 py-1 rounded-lg border shadow-sm ${getSubStatusClasses(
-                      lead.substatus || lead.sub_status
+                      lead.sub_status
                     )}`}
                   >
                     <select
-                      value={lead.substatus || lead.sub_status || "New"}
+                      value={lead.sub_status || "New"}
                       onChange={(e) => {
-                        // Update frontend state and backend. Prefer backend id.
                         if (onSubStatusChange) {
-                          onSubStatusChange(
-                            lead.id || lead._id,
-                            e.target.value
-                          );
+                          onSubStatusChange(lead.id || lead._id, e.target.value);
                         }
                       }}
                       className="bg-transparent border-0 p-0 m-0 text-sm font-semibold appearance-none focus:outline-none text-current"
                     >
                       {[
                         "New",
-                        "Open",
-                        "Followup",
-                        "inProgress",
-                        "Average",
+                        "Contacted",
+                        "Follow-up",
+                        "Visit scheduled",
+                        "Demo scheduled",
+                        "Proposal sent",
                         "Interested",
-                        "Junk",
-                        "NextBatch",
+                        "On hold",
                       ].map((opt) => (
                         <option key={opt} value={opt}>
                           {opt}
@@ -278,73 +304,33 @@ const DraggableRow = ({
                   </div>
                 </td>
               );
-            /* assigned_to is rendered later (single, canonical case). */
-            case "phone_number":
-              return (
-                <td
-                  key={key}
-                  className="px-3 py-4 whitespace-nowrap text-sm text-gray-700"
-                >
-                  {lead.phone_number && String(lead.phone_number).trim() !== ""
-                    ? lead.phone_number
-                    : "N/A"}
-                </td>
-              );
-            case "whatsapp_number":
-              return (
-                <td
-                  key={key}
-                  className="px-3 py-4 whitespace-nowrap text-sm text-gray-700"
-                >
-                  {lead.whatsapp_number &&
-                  String(lead.whatsapp_number).trim() !== ""
-                    ? lead.whatsapp_number
-                    : "N/A"}
-                </td>
-              );
-            // ... inside renderCell for "age":
-            case "age":
-              return (
-                <td
-                  key={key}
-                  className="px-3 py-4 whitespace-nowrap text-sm text-gray-700"
-                >
-                  {/* local state to avoid triggering parent update on every keystroke */}
-                  <AgeGradeInput
-                    initialValue={lead.age}
-                    onCommit={(val) => {
-                      const leadId = lead.id || lead._id;
-                      onAgeChange(leadId, val);
-                    }}
-                  />
-                </td>
-              );
 
-            // ... same for "grade":
-            case "grade":
-              return (
-                <td
-                  key={key}
-                  className="px-3 py-4 whitespace-nowrap text-sm text-gray-700"
-                >
-                  <AgeGradeInput
-                    initialValue={lead.grade}
-                    onCommit={(val) => {
-                      const leadId = lead.id || lead._id;
-                      onGradeChange(leadId, val);
-                    }}
-                  />
-                </td>
-              );
             case "source":
               return (
                 <td
                   key={key}
-                  className="px-3 py-4 whitespace-nowrap text-sm text-gray-700"
+                  className="px-3 py-3.5 whitespace-nowrap text-sm text-gray-700"
                 >
-                  {lead.source && String(lead.source).trim() !== ""
-                    ? lead.source
-                    : "N/A"}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onOpenActivityModal && onOpenActivityModal(lead)
+                      }
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[#EDF2FC] hover:bg-[#DCE6F9] text-[#294998] hover:text-[#1E3776] border border-[#CDDBF6] shadow-xs transition-all focus:outline-none focus:ring-2 focus:ring-[#294998]/20 active:scale-95 cursor-pointer"
+                      title="View & update lead activity"
+                    >
+                      <ClipboardDocumentListIcon className="w-3.5 h-3.5 text-[#294998]" />
+                      <span>Activity View</span>
+                    </button>
+                    {lead.source &&
+                      String(lead.source).trim() !== "" &&
+                      lead.source !== "N/A" && (
+                        <span className="text-[11px] text-slate-500 font-medium px-2 py-0.5 bg-slate-100 rounded-md">
+                          {lead.source}
+                        </span>
+                      )}
+                  </div>
                 </td>
               );
             case "course_name":
@@ -399,33 +385,7 @@ const DraggableRow = ({
                 </td>
               );
 
-            case "demo_scheduled":
-              // Legacy support: render same as scheduled_taken
-              return (
-                <td
-                  key={key}
-                  className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 min-w-[120px]"
-                >
-                  <select
-                    value={
-                      (lead.scheduled_taken || lead.demo_scheduled || "No") ===
-                      "Yes"
-                        ? "Yes"
-                        : "No"
-                    }
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (typeof onDemoScheduledChange === "function") {
-                        onDemoScheduledChange(lead.id || lead._id, v);
-                      }
-                    }}
-                    className="block w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm font-semibold"
-                  >
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
-                </td>
-              );
+
             case "assigned_to":
               return (
                 <td
@@ -550,7 +510,7 @@ const DraggableRow = ({
                     ) : (
                       visibleLines.map((line, idx) => (
                         <div key={idx} className="flex items-start gap-2">
-                          <span className="mt-1 inline-block h-2 w-2 rounded-full bg-indigo-400" />
+                          <span className="mt-1 inline-block h-2 w-2 rounded-full bg-[#294998]" />
                           <span className="text-gray-800 break-words">
                             {line}
                           </span>
@@ -560,7 +520,7 @@ const DraggableRow = ({
                     {canShowToggle && (
                       <button
                         type="button"
-                        className="text-indigo-600 text-xs hover:underline"
+                        className="text-[#294998] text-xs hover:underline"
                         onClick={() => setShowAllRemarks((v) => !v)}
                       >
                         {showAllRemarks
@@ -582,13 +542,13 @@ const DraggableRow = ({
                           handleAddRemark();
                         }
                       }}
-                      className="flex-1 p-2 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                      className="flex-1 p-2 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-[#294998] focus:border-[#294998]"
                       placeholder="Add a remark and press Enter"
                     />
                     <button
                       type="button"
                       onClick={handleAddRemark}
-                      className="px-3 py-2 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md"
+                      className="px-3 py-2 text-xs font-medium text-white bg-[#294998] hover:bg-[#1E3776] rounded-md"
                     >
                       Save
                     </button>
@@ -622,8 +582,34 @@ const DraggableRow = ({
                   className="px-3 py-4 whitespace-nowrap text-right text-sm font-medium"
                 >
                   <button
+                    onClick={() =>
+                      onOpenActivityModal && onOpenActivityModal(lead)
+                    }
+                    className="text-[#294998] hover:text-[#1E3776] mr-2 p-1 rounded-md hover:bg-[#EDF2FC] cursor-pointer"
+                    title="Activity View"
+                  >
+                    <ClipboardDocumentListIcon className="h-5 w-5" />
+                  </button>
+                  {lead.status !== "enrolled" && lead.status !== "Enrolled" ? (
+                    <button
+                      onClick={() => onOpenEnrollModal && onOpenEnrollModal(lead)}
+                      className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/90 rounded-md transition-colors mr-2 cursor-pointer shadow-xs"
+                      title="Convert Lead to Client"
+                    >
+                      <AcademicCapIcon className="h-4 w-4 text-emerald-600" />
+                      <span>Convert</span>
+                    </button>
+                  ) : (
+                    <span
+                      className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 mr-2"
+                      title="Converted to Client"
+                    >
+                      Client
+                    </span>
+                  )}
+                  <button
                     onClick={() => handleEdit(lead)}
-                    className="text-indigo-600 hover:text-indigo-900 mr-2 p-1 rounded-md hover:bg-indigo-50"
+                    className="text-[#294998] hover:text-[#1E3776] mr-2 p-1 rounded-md hover:bg-[#EDF2FC]"
                   >
                     <PencilIcon className="h-5 w-5" />
                   </button>

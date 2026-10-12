@@ -32,7 +32,7 @@ const ColumnToggler = ({ columns, setColumns }) => {
                     type="checkbox"
                     checked={visible}
                     onChange={() => toggleColumn(key)}
-                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 mr-3"
+                    className="h-4 w-4 rounded border-gray-300 text-[#294998] focus:ring-[#294998] mr-3"
                   />
                   {label}
                 </label>

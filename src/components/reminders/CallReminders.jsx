@@ -458,7 +458,7 @@ const CallReminders = ({ leads = [], currentUser = {}, isAdminLike = false }) =>
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="px-3 py-1.5 text-xs md:text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
+            className="px-3 py-1.5 text-xs md:text-sm rounded-md bg-[#294998] text-white hover:bg-[#1E3776] shadow-sm focus:outline-none focus:ring-2 focus:ring-[#294998]/20 focus:ring-offset-1"
             aria-expanded={expanded}
             aria-controls="call-reminders-table"
             title={expanded ? "Hide table" : "Show table"}

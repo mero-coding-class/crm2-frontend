@@ -6,7 +6,7 @@ const FilterPill = ({ label, value, onChange, options, placeholder }) => (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="h-8 pl-3 pr-7 text-[13px] font-[500] rounded-[9999px] border border-slate-200 bg-white text-slate-700 appearance-none cursor-pointer transition-colors hover:border-slate-300 focus:outline-none focus:border-indigo-500 focus:ring-[3px] focus:ring-indigo-500/12"
+      className="h-8 pl-3 pr-7 text-[13px] font-[500] rounded-[9999px] border border-slate-200 bg-white text-slate-700 appearance-none cursor-pointer transition-colors hover:border-slate-300 focus:outline-none focus:border-[#294998] focus:ring-[3px] focus:ring-[#294998]/15"
       style={{ minWidth: "120px" }}
     >
       {options.map((opt) => (
@@ -64,7 +64,7 @@ const LeadsFilters = ({
               placeholder="Search leads, students…"
               value={searchTerm || ""}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full h-8 pl-9 pr-3 text-[13px] rounded-[9999px] border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-[3px] focus:ring-indigo-500/12 hover:border-slate-300 transition-colors"
+              className="w-full h-8 pl-9 pr-3 text-[13px] rounded-[9999px] border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#294998] focus:ring-[3px] focus:ring-[#294998]/15 hover:border-slate-300 transition-colors"
             />
           </div>
         )}
@@ -114,7 +114,7 @@ const LeadsFilters = ({
           <select
             value={filterAssignedTo}
             onChange={(e) => setFilterAssignedTo(e.target.value)}
-            className="h-8 pl-3 pr-7 text-[13px] font-[500] rounded-[9999px] border border-slate-200 bg-white text-slate-700 appearance-none cursor-pointer transition-colors hover:border-slate-300 focus:outline-none focus:border-indigo-500 focus:ring-[3px] focus:ring-indigo-500/12"
+            className="h-8 pl-3 pr-7 text-[13px] font-[500] rounded-[9999px] border border-slate-200 bg-white text-slate-700 appearance-none cursor-pointer transition-colors hover:border-slate-300 focus:outline-none focus:border-[#294998] focus:ring-[3px] focus:ring-[#294998]/15"
             style={{ minWidth: "140px" }}
           >
             <option value="">All Counselors</option>
@@ -135,7 +135,7 @@ const LeadsFilters = ({
           placeholder="Age…"
           value={filterAge}
           onChange={(e) => setFilterAge(e.target.value)}
-          className="h-8 px-3 text-[13px] rounded-[9999px] border border-slate-200 bg-white text-slate-700 placeholder:text-slate-400 w-20 focus:outline-none focus:border-indigo-500 focus:ring-[3px] focus:ring-indigo-500/12 hover:border-slate-300 transition-colors"
+          className="h-8 px-3 text-[13px] rounded-[9999px] border border-slate-200 bg-white text-slate-700 placeholder:text-slate-400 w-20 focus:outline-none focus:border-[#294998] focus:ring-[3px] focus:ring-[#294998]/15 hover:border-slate-300 transition-colors"
         />
 
         {/* Grade text filter */}
@@ -144,7 +144,7 @@ const LeadsFilters = ({
           placeholder="Grade…"
           value={filterGrade}
           onChange={(e) => setFilterGrade(e.target.value)}
-          className="h-8 px-3 text-[13px] rounded-[9999px] border border-slate-200 bg-white text-slate-700 placeholder:text-slate-400 w-24 focus:outline-none focus:border-indigo-500 focus:ring-[3px] focus:ring-indigo-500/12 hover:border-slate-300 transition-colors"
+          className="h-8 px-3 text-[13px] rounded-[9999px] border border-slate-200 bg-white text-slate-700 placeholder:text-slate-400 w-24 focus:outline-none focus:border-[#294998] focus:ring-[3px] focus:ring-[#294998]/15 hover:border-slate-300 transition-colors"
         />
 
         {/* Date filter */}
@@ -152,7 +152,7 @@ const LeadsFilters = ({
           type="date"
           value={filterLastCall}
           onChange={(e) => setFilterLastCall(e.target.value)}
-          className="h-8 px-3 text-[13px] rounded-[9999px] border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-[3px] focus:ring-indigo-500/12 hover:border-slate-300 transition-colors"
+          className="h-8 px-3 text-[13px] rounded-[9999px] border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-[#294998] focus:ring-[3px] focus:ring-[#294998]/15 hover:border-slate-300 transition-colors"
         />
 
         {/* Clear */}

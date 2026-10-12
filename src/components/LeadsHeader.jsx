@@ -35,11 +35,10 @@ const LeadsHeader = ({
         <div className="flex flex-wrap items-center gap-2 shrink-0">
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-[8px] text-[13px] font-[500] transition-colors ${
-              showFilters
-                ? "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200"
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-[8px] text-[13px] font-[500] transition-colors ${showFilters
+                ? "bg-[#edf2fc] text-[#294998] ring-1 ring-[#cddbf6]"
                 : "bg-[#EEF2F6] hover:bg-slate-200 text-slate-700"
-            }`}
+              }`}
           >
             <ListFilter className="h-4 w-4" />
             {showFilters ? "Hide Filters" : "Show Filters"}
@@ -76,7 +75,7 @@ const LeadsHeader = ({
 
           <button
             onClick={handleOpenAddModal}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-[8px] text-[13px] font-[500] bg-[#4F46E5] hover:bg-indigo-700 text-white shadow-sm transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-[8px] text-[13px] font-[500] bg-[#294998] hover:bg-[#1e3776] text-white shadow-xs transition-colors"
           >
             <Plus className="h-4 w-4" />
             Add New Lead
@@ -86,7 +85,7 @@ const LeadsHeader = ({
 
       {fetchingAll && (
         <div className="mt-3 flex items-center gap-2 text-[12px] text-slate-500">
-          <div className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" />
+          <div className="h-1.5 w-1.5 rounded-full bg-[#294998] animate-pulse" />
           Fetching full dataset — this may take a moment…
         </div>
       )}
