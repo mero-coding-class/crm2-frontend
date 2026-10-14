@@ -21,12 +21,10 @@ const handleResponse = async (response) => {
         typeof errorMsg === "string" &&
         (errorMsg.includes("Authentication credentials") || errorMsg.includes("Invalid token")))
     ) {
+      // Dispatch a custom event so AuthContext can clear React state properly
+      // (direct localStorage.removeItem won't trigger re-render in the same tab)
       try {
-        localStorage.removeItem("authToken");
-        localStorage.removeItem("user");
-        if (window.location.pathname !== "/login") {
-          window.location.href = "/login";
-        }
+        window.dispatchEvent(new CustomEvent("crm:authExpired"));
       } catch (_) {}
     }
     throw new Error(errorMsg);
@@ -43,6 +41,20 @@ const handleResponse = async (response) => {
     return text;
   }
 };
+
+/**
+ * apiFetch — thin wrapper around fetch() that always sends session cookies
+ * (credentials: "include"). Required because the backend uses Django session
+ * auth (not DRF Token auth). Pass the same args as fetch().
+ */
+export const apiFetch = (url, options = {}) => {
+  return fetch(url, {
+    credentials: "include",
+    ...options,
+    headers: options.headers || {},
+  });
+};
+
 
 // Format date for API: backend expects YYYY-MM-DD for date fields like last_call/next_call.
 const formatDateForApi = (d) => {
@@ -91,7 +103,7 @@ const sanitizeShift = (s) => {
 export const leadService = {
   getLeads: async (authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await fetch(`${BASE_URL}/leads/`, {
+    const response = await apiFetch(`${BASE_URL}/leads/`, {
       headers: {
         Authorization: `Token ${authToken}`,
         "Content-Type": "application/json",
@@ -144,7 +156,7 @@ export const leadService = {
   getLeadsPage: async (authToken, page = 1, pageSize = 20) => {
     if (!authToken) throw new Error("Authentication token not found.");
     const url = `${BASE_URL}/leads/?page=${page}&page_size=${pageSize}`;
-    const resp = await fetch(url, {
+    const resp = await apiFetch(url, {
       headers: { Authorization: `Token ${authToken}` },
     });
     const json = await handleResponse(resp);
@@ -243,13 +255,13 @@ export const leadService = {
           }
         });
         fd.append("first_invoice", updates.first_invoice);
-        resp = await fetch(`${BASE_URL}/leads/${id}/`, {
+        resp = await apiFetch(`${BASE_URL}/leads/${id}/`, {
           method: "PATCH",
           headers: { Authorization: `Token ${authToken}` },
           body: fd,
         });
       } else {
-        resp = await fetch(`${BASE_URL}/leads/${id}/`, {
+        resp = await apiFetch(`${BASE_URL}/leads/${id}/`, {
           method: "PATCH",
           headers: {
             Authorization: `Token ${authToken}`,
@@ -339,7 +351,7 @@ export const leadService = {
       ...(newLeadData.owner !== undefined ? { owner: newLeadData.owner } : {}),
     };
 
-    const response = await fetch(`${BASE_URL}/leads/`, {
+    const response = await apiFetch(`${BASE_URL}/leads/`, {
       method: "POST",
       headers: {
         Authorization: `Token ${authToken}`,
@@ -353,7 +365,7 @@ export const leadService = {
   /** Archive a single lead (soft-delete). Optionally pass a reason. */
   archiveLead: async (id, authToken, reason = "") => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await fetch(`${BASE_URL}/leads/${id}/archive/`, {
+    const response = await apiFetch(`${BASE_URL}/leads/${id}/archive/`, {
       method: "POST",
       headers: {
         Authorization: `Token ${authToken}`,
@@ -367,7 +379,7 @@ export const leadService = {
   /** Restore an archived lead back to the active pipeline. */
   restoreLead: async (id, authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await fetch(`${BASE_URL}/leads/${id}/restore/`, {
+    const response = await apiFetch(`${BASE_URL}/leads/${id}/restore/`, {
       method: "POST",
       headers: {
         Authorization: `Token ${authToken}`,
@@ -381,7 +393,7 @@ export const leadService = {
   /** Archive multiple leads in one round-trip. */
   bulkArchiveLeads: async (ids, authToken, reason = "") => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await fetch(`${BASE_URL}/leads/bulk-archive/`, {
+    const response = await apiFetch(`${BASE_URL}/leads/bulk-archive/`, {
       method: "POST",
       headers: {
         Authorization: `Token ${authToken}`,
@@ -399,7 +411,7 @@ export const leadService = {
     if (owner !== undefined) body.owner = owner;
     if (call_assignee !== undefined) body.call_assignee = call_assignee;
     if (reason) body.reason = reason;
-    const response = await fetch(`${BASE_URL}/leads/${id}/assign/`, {
+    const response = await apiFetch(`${BASE_URL}/leads/${id}/assign/`, {
       method: "POST",
       headers: {
         Authorization: `Token ${authToken}`,
@@ -414,7 +426,7 @@ export const leadService = {
   getSubStatusChoices: async (authToken) => {
     if (!authToken) return [];
     try {
-      const response = await fetch(`${BASE_URL}/leads/sub-status-choices/`, {
+      const response = await apiFetch(`${BASE_URL}/leads/sub-status-choices/`, {
         headers: { Authorization: `Token ${authToken}` },
       });
       return handleResponse(response);
@@ -427,7 +439,7 @@ export const leadService = {
   getArchivedLeads: async (authToken, page = 1, pageSize = 20, params = {}) => {
     if (!authToken) throw new Error("Authentication token not found.");
     const qs = new URLSearchParams({ page, page_size: pageSize, ...params }).toString();
-    const response = await fetch(`${BASE_URL}/archived-leads/?${qs}`, {
+    const response = await apiFetch(`${BASE_URL}/archived-leads/?${qs}`, {
       headers: { Authorization: `Token ${authToken}` },
     });
     const json = await handleResponse(response);
@@ -485,73 +497,71 @@ export const resolveServerId = (leadOrId, prevLeads = []) => {
 };
 
 export const trashService = {
-  getTrashedLeads: async (authToken) => {
+  /** Fetch paginated archived/trashed leads from the new backend. */
+  getTrashedLeads: async (authToken, page = 1, pageSize = 50) => {
     if (!authToken) throw new Error("Authentication token not found.");
     try {
-      const response = await fetch(`${BASE_URL}/trash/`, {
+      const qs = new URLSearchParams({ page, page_size: pageSize }).toString();
+      const response = await apiFetch(`${BASE_URL}/archived-leads/?${qs}`, {
         headers: { Authorization: `Token ${authToken}` },
       });
       if (response.status === 404) return [];
-      const backendLeads = await handleResponse(response);
-      const list = Array.isArray(backendLeads) ? backendLeads : backendLeads?.results || [];
+      const json = await handleResponse(response);
+      const list = Array.isArray(json) ? json : json?.results || [];
       return list.map((lead) => ({
         id: lead.id,
-        student_name: lead.student_name || "",
-        parents_name: lead.parents_name || "",
+        _id: String(lead.id),
+        system_id: lead.system_id || "",
+        student_name: lead.school_name || lead.student_name || "",
+        school_name: lead.school_name || "",
+        parents_name: lead.contact_person || lead.parents_name || "",
         email: lead.email || "",
-        phone_number: lead.phone_number || "",
-        whatsapp_number: lead.whatsapp_number || "",
-        age: lead.age || "",
-        grade: lead.grade || "",
-        course_name: lead.course_name || "",
+        phone_number: lead.contact_number || lead.phone_number || "",
+        whatsapp_number: lead.alt_number || lead.whatsapp_number || "",
+        district: lead.district || "",
+        municipality: lead.municipality || "",
+        address: lead.address || "",
         source: lead.source || "",
-        add_date: lead.add_date || "",
-        last_call: lead.last_call || "",
-        next_call: lead.next_call || "",
-        status: lead.status || "Junk",
-        address_line_1: lead.address_line_1 || "",
-        address_line_2: lead.address_line_2 || "",
-        city: lead.city || "",
-        county: lead.county || "",
-        post_code: lead.post_code || "",
-        class_type: lead.class_type || "",
-        value: lead.value || "",
-        adset_name: lead.adset_name || "",
-        remarks: lead.remarks || "",
-        shift: lead.shift || "",
-        payment_type: lead.payment_type || "",
-        device: lead.device || "",
-        previous_coding_experience: lead.previous_coding_experience || "",
-        workshop_batch: lead.workshop_batch || "",
-        changeLog: lead.change_log || [],
+        course_name: lead.course_interest || lead.course_name || "",
+        status: lead.status || "archived",
+        sub_status: lead.sub_status || "",
+        archived: lead.archived ?? true,
+        archive_reason: lead.archive_reason || "",
+        created_at: lead.created_at || "",
+        updated_at: lead.updated_at || "",
+        owner_username: lead.owner_username || "",
+        assigned_to: lead.call_assignee_username || "",
+        changeLog: [],
       }));
     } catch {
       return [];
     }
   },
 
+  /** Restore an archived lead back to the active pipeline. */
   restoreTrashedLead: async (id, authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await fetch(`${BASE_URL}/trash/${id}/`, {
-      method: "PATCH",
+    const response = await apiFetch(`${BASE_URL}/leads/${id}/restore/`, {
+      method: "POST",
       headers: {
         Authorization: `Token ${authToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ status: "Active" }),
+      body: "{}",
     });
     return handleResponse(response);
   },
 
+  /** Permanently delete an archived lead (hard delete via admin, else 403). */
   deleteTrashedLead: async (id, authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await fetch(`${BASE_URL}/trash/${id}/`, {
+    const response = await apiFetch(`${BASE_URL}/leads/${id}/`, {
       method: "DELETE",
       headers: { Authorization: `Token ${authToken}` },
     });
     if (!response.ok) {
       if (response.status === 404) return {};
-      let errorMsg = "Failed to permanently delete lead from trash";
+      let errorMsg = "Failed to permanently delete lead";
       try {
         const errData = await response.json();
         errorMsg = errData.detail || JSON.stringify(errData);
@@ -560,19 +570,27 @@ export const trashService = {
       }
       throw new Error(errorMsg);
     }
-    return response;
+    return {};
   },
 };
 
 export const courseService = {
+  /** Fetch all catalog classes (replaces old /api/courses/). */
   getCourses: async (authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
     try {
-      const response = await fetch(`${BASE_URL}/courses/`, {
+      const response = await apiFetch(`${BASE_URL}/catalogs/classes/`, {
         headers: { Authorization: `Token ${authToken}` },
       });
       if (response.status === 404) return [];
-      return await handleResponse(response);
+      const data = await handleResponse(response);
+      // Normalize to [{id, course_name}] shape the rest of the UI expects
+      const list = Array.isArray(data) ? data : data?.results || [];
+      return list.map((c) => ({
+        id: c.id,
+        course_name: c.class_name || c.name || c.title || "",
+        ...c,
+      }));
     } catch {
       return [];
     }
@@ -580,33 +598,33 @@ export const courseService = {
 
   createCourse: async (courseName, authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await fetch(`${BASE_URL}/courses/`, {
+    const response = await apiFetch(`${BASE_URL}/catalogs/classes/`, {
       method: "POST",
       headers: {
         Authorization: `Token ${authToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ course_name: courseName }),
+      body: JSON.stringify({ class_name: courseName, name: courseName }),
     });
     return handleResponse(response);
   },
 
   updateCourse: async (id, courseName, authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await fetch(`${BASE_URL}/courses/${id}/`, {
+    const response = await apiFetch(`${BASE_URL}/catalogs/classes/${id}/`, {
       method: "PATCH",
       headers: {
         Authorization: `Token ${authToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ course_name: courseName }),
+      body: JSON.stringify({ class_name: courseName, name: courseName }),
     });
     return handleResponse(response);
   },
 
   deleteCourse: async (id, authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await fetch(`${BASE_URL}/courses/${id}/`, {
+    const response = await apiFetch(`${BASE_URL}/catalogs/classes/${id}/`, {
       method: "DELETE",
       headers: { Authorization: `Token ${authToken}` },
     });
@@ -627,7 +645,19 @@ export const courseService = {
 export const changeLogService = {
   getLeadLogs: async (leadId, authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await fetch(`${BASE_URL}/leads/${leadId}/logs/`, {
+    // Try the new audit change-log endpoint first
+    try {
+      const qs = new URLSearchParams({ entity: "leads", record_id: leadId }).toString();
+      const response = await apiFetch(`${BASE_URL}/change-log/?${qs}`, {
+        headers: { Authorization: `Token ${authToken}` },
+      });
+      if (response.ok) {
+        const payload = await handleResponse(response);
+        const logs = Array.isArray(payload) ? payload : payload?.results || [];
+        return logs.sort((a, b) => new Date(b.at || b.timestamp) - new Date(a.at || a.timestamp));
+      }
+    } catch (_) { /* fall through to legacy */ }
+    const response = await apiFetch(`${BASE_URL}/leads/${leadId}/logs/`, {
       headers: { Authorization: `Token ${authToken}` },
     });
     const payload = await handleResponse(response);
@@ -636,10 +666,353 @@ export const changeLogService = {
   },
 };
 
+// ─── Approval Queue Service (admin only) ──────────────────────────────────────
+export const approvalService = {
+  /** Get pending approval queue (admin only). */
+  getQueue: async (authToken, page = 1, pageSize = 20) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const qs = new URLSearchParams({ page, page_size: pageSize }).toString();
+    const response = await apiFetch(`${BASE_URL}/approvals/?${qs}`, {
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    const data = await handleResponse(response);
+    return { results: Array.isArray(data) ? data : data?.results || [], count: data?.count || 0 };
+  },
+
+  /** Approve a pending lead submission. */
+  approveLead: async (id, reason, authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/leads/${id}/approve/`, {
+      method: "POST",
+      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ reason }),
+    });
+    return handleResponse(response);
+  },
+
+  /** Reject a pending lead submission. */
+  rejectLead: async (id, reason, authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/leads/${id}/reject/`, {
+      method: "POST",
+      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ reason }),
+    });
+    return handleResponse(response);
+  },
+
+  /** Batch approve or reject. action = 'approve' | 'reject'. */
+  batchReview: async (ids, action, authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/approvals/batch/`, {
+      method: "POST",
+      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ ids, action }),
+    });
+    return handleResponse(response);
+  },
+};
+
+// ─── Import Service (B2B CSV import) ──────────────────────────────────────────
+export const importService = {
+  /**
+   * Upload a CSV/XLSX file for bulk lead import.
+   * Returns { batch_id, queued, errors } on success.
+   */
+  uploadBatch: async (file, authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const fd = new FormData();
+    fd.append("file", file);
+    const response = await apiFetch(`${BASE_URL}/leads/import/`, {
+      method: "POST",
+      headers: { Authorization: `Token ${authToken}` },
+      body: fd,
+    });
+    return handleResponse(response);
+  },
+
+  /** Get status/results of a past import batch by ID. */
+  getBatch: async (batchId, authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/leads/import/${batchId}/`, {
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    return handleResponse(response);
+  },
+
+  /** List all import batches for the current user. */
+  listBatches: async (authToken, page = 1) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const qs = new URLSearchParams({ page }).toString();
+    const response = await apiFetch(`${BASE_URL}/leads/import/?${qs}`, {
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    const data = await handleResponse(response);
+    return { results: Array.isArray(data) ? data : data?.results || [], count: data?.count || 0 };
+  },
+};
+
+// ─── Activity Service ────────────────────────────────────────────────────────
+export const activityService = {
+  /** List activities for a lead (paginated). */
+  getActivities: async (leadId, authToken, page = 1) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const qs = new URLSearchParams({ lead: leadId, page }).toString();
+    const response = await apiFetch(`${BASE_URL}/activities/?${qs}`, {
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    const data = await handleResponse(response);
+    return { results: Array.isArray(data) ? data : data?.results || [], count: data?.count || 0 };
+  },
+
+  /** Log a new activity on a lead. */
+  createActivity: async (payload, authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/activities/`, {
+      method: "POST",
+      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(response);
+  },
+
+  /** Edit an existing activity (patch). */
+  updateActivity: async (id, updates, authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/activities/${id}/`, {
+      method: "PATCH",
+      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+    return handleResponse(response);
+  },
+};
+
+// ─── Task Service ────────────────────────────────────────────────────────────
+export const taskService = {
+  /** Get tasks (optionally filtered by lead, status, due range). */
+  getTasks: async (authToken, params = {}) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ""))
+    ).toString();
+    const response = await apiFetch(`${BASE_URL}/tasks/${qs ? `?${qs}` : ""}`, {
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    const data = await handleResponse(response);
+    return { results: Array.isArray(data) ? data : data?.results || [], count: data?.count || 0 };
+  },
+
+  /** Update a task status/due date. */
+  updateTask: async (id, updates, authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/tasks/${id}/`, {
+      method: "PATCH",
+      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+    return handleResponse(response);
+  },
+};
+
+// ─── Demo Service ────────────────────────────────────────────────────────────
+export const demoService = {
+  /** List demos (role-scoped). Supports params: lead, demo_status, academic, from, to, unassigned */
+  getDemos: async (authToken, params = {}) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ""))
+    ).toString();
+    const response = await apiFetch(`${BASE_URL}/demos/${qs ? `?${qs}` : ""}`, {
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    const data = await handleResponse(response);
+    const list = Array.isArray(data) ? data : data?.results || [];
+    return { results: list, count: data?.count || list.length };
+  },
+
+  /** Schedule a new demo. */
+  createDemo: async (payload, authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/demos/`, {
+      method: "POST",
+      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(response);
+  },
+
+  /** Update a demo (reschedule, status, etc.). */
+  updateDemo: async (id, updates, authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/demos/${id}/`, {
+      method: "PATCH",
+      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+    return handleResponse(response);
+  },
+
+  /** Admin-only: assign an academic to a demo. */
+  assignDemo: async (id, { academic, reason }, authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/demos/${id}/assign/`, {
+      method: "POST",
+      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ academic, reason }),
+    });
+    return handleResponse(response);
+  },
+
+  /** Submit feedback for a completed demo (academic or admin). */
+  submitFeedback: async (id, feedbackData, authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/demos/${id}/feedback/`, {
+      method: "POST",
+      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify(feedbackData),
+    });
+    return handleResponse(response);
+  },
+};
+
+// ─── Dashboard Service ───────────────────────────────────────────────────────
+export const dashboardService = {
+  /** Dashboard payload: today/tomorrow/next7days/overdue tasks, demo_queue, notifications count. */
+  getDashboard: async (authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/dashboard/`, {
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    return handleResponse(response);
+  },
+
+  /** Calendar data for a date range (?from=YYYY-MM-DD&to=YYYY-MM-DD). */
+  getCalendar: async (authToken, from, to) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries({ from, to }).filter(([, v]) => v))
+    ).toString();
+    const response = await apiFetch(`${BASE_URL}/calendar/${qs ? `?${qs}` : ""}`, {
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    return handleResponse(response);
+  },
+};
+
+// ─── Notification Service ────────────────────────────────────────────────────
+export const notificationService = {
+  /** Get notifications (own only). Pass { unread: true } to filter unread. */
+  getNotifications: async (authToken, params = {}) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ""))
+    ).toString();
+    const response = await apiFetch(`${BASE_URL}/notifications/${qs ? `?${qs}` : ""}`, {
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    const data = await handleResponse(response);
+    return { results: Array.isArray(data) ? data : data?.results || [], count: data?.count || 0 };
+  },
+
+  /** Mark a single notification as read. */
+  markRead: async (id, authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/notifications/${id}/`, {
+      method: "PATCH",
+      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ is_read: true }),
+    });
+    return handleResponse(response);
+  },
+};
+
+// ─── Audit Service ────────────────────────────────────────────────────────────
+export const auditService = {
+  /** Query change-log. Params: entity, record_id, actor, from, to */
+  getChangeLogs: async (authToken, params = {}) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ""))
+    ).toString();
+    const response = await apiFetch(`${BASE_URL}/change-log/${qs ? `?${qs}` : ""}`, {
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    const data = await handleResponse(response);
+    return { results: Array.isArray(data) ? data : data?.results || [], count: data?.count || 0 };
+  },
+
+  getLeadChangeLogs: async (leadId, authToken) =>
+    auditService.getChangeLogs(authToken, { entity: "leads", record_id: leadId }),
+};
+
+// ─── Report Service ──────────────────────────────────────────────────────────
+export const reportService = {
+  /**
+   * Summary report metrics.
+   * Params: from, to, district, municipality, owner, export ('csv'|'xlsx')
+   * Returns JSON by default; Blob when export param is set.
+   */
+  getSummary: async (authToken, params = {}) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ""))
+    ).toString();
+    const response = await apiFetch(`${BASE_URL}/reports/summary/${qs ? `?${qs}` : ""}`, {
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    if (params.export) return response.blob();
+    return handleResponse(response);
+  },
+
+  /**
+   * Filtered lead rows for the report table/export.
+   * Params: from, to, district, municipality, owner, export ('csv'|'xlsx')
+   */
+  getLeadRows: async (authToken, params = {}) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ""))
+    ).toString();
+    const response = await apiFetch(`${BASE_URL}/reports/leads/${qs ? `?${qs}` : ""}`, {
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    if (params.export) return response.blob();
+    return handleResponse(response);
+  },
+
+  /**
+   * Full dataset dump.
+   * dataset: 'leads' | 'activities' | 'tasks' | 'clients' | 'contracts'
+   * format:  'csv' | 'xlsx'
+   */
+  exportDataset: async (authToken, dataset, format = "csv") => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(
+      `${BASE_URL}/reports/export/${dataset}/?export=${format}`,
+      { headers: { Authorization: `Token ${authToken}` } }
+    );
+    if (!response.ok) throw new Error(`Export failed: ${response.status}`);
+    return response.blob();
+  },
+
+  /** Trigger a browser file download from a Blob. */
+  downloadBlob: (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
+};
+
 export const catalogService = {
   getPackages: async (authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await fetch(`${BASE_URL}/catalogs/packages/`, {
+    const response = await apiFetch(`${BASE_URL}/catalogs/packages/`, {
       headers: { Authorization: `Token ${authToken}` },
     });
     const data = await handleResponse(response);
@@ -647,7 +1020,7 @@ export const catalogService = {
   },
   getSyllabi: async (authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await fetch(`${BASE_URL}/catalogs/syllabi/`, {
+    const response = await apiFetch(`${BASE_URL}/catalogs/syllabi/`, {
       headers: { Authorization: `Token ${authToken}` },
     });
     const data = await handleResponse(response);
@@ -655,11 +1028,25 @@ export const catalogService = {
   },
   getClasses: async (authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await fetch(`${BASE_URL}/catalogs/classes/`, {
+    const response = await apiFetch(`${BASE_URL}/catalogs/classes/`, {
       headers: { Authorization: `Token ${authToken}` },
     });
     const data = await handleResponse(response);
     return Array.isArray(data) ? data : data?.results || [];
+  },
+  // Fetch dynamic activity types from DropdownOption (group=activity_type)
+  getActivityTypes: async (authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/catalogs/dropdowns/?group=activity_type`, {
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    const data = await handleResponse(response);
+    const list = Array.isArray(data) ? data : data?.results || [];
+    // Normalize: [{label, value}]
+    return list.map((item) => ({
+      label: item.label || item.name || item.value,
+      value: item.value || item.label,
+    }));
   },
 };
 
@@ -676,7 +1063,7 @@ export const clientService = {
 
     const qs = searchParams.toString();
     const url = `${BASE_URL}/clients/${qs ? `?${qs}` : ""}`;
-    const response = await fetch(url, {
+    const response = await apiFetch(url, {
       headers: { Authorization: `Token ${authToken}` },
     });
     return handleResponse(response);
@@ -684,7 +1071,7 @@ export const clientService = {
 
   getClient: async (id, authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await fetch(`${BASE_URL}/clients/${id}/`, {
+    const response = await apiFetch(`${BASE_URL}/clients/${id}/`, {
       headers: { Authorization: `Token ${authToken}` },
     });
     return handleResponse(response);
@@ -692,7 +1079,7 @@ export const clientService = {
 
   enrollLead: async (enrollData, authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await fetch(`${BASE_URL}/clients/enroll/`, {
+    const response = await apiFetch(`${BASE_URL}/clients/enroll/`, {
       method: "POST",
       headers: {
         Authorization: `Token ${authToken}`,
@@ -705,7 +1092,7 @@ export const clientService = {
 
   updateClient: async (id, updates, authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await fetch(`${BASE_URL}/clients/${id}/`, {
+    const response = await apiFetch(`${BASE_URL}/clients/${id}/`, {
       method: "PATCH",
       headers: {
         Authorization: `Token ${authToken}`,
@@ -718,7 +1105,7 @@ export const clientService = {
 
   getContracts: async (leadId, authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await fetch(`${BASE_URL}/contracts/?lead=${leadId}`, {
+    const response = await apiFetch(`${BASE_URL}/contracts/?lead=${leadId}`, {
       headers: { Authorization: `Token ${authToken}` },
     });
     return handleResponse(response);

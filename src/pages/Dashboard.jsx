@@ -9,7 +9,7 @@ import StatCard from "../components/dashboard/StatCard";
 import LatestLeadsTable from "../components/dashboard/LatestLeadsTable";
 import TopCoursesTable from "../components/dashboard/TopCoursesTable";
 
-import { leadService } from "../services/api";
+import { leadService, dashboardService } from "../services/api";
 import { BASE_URL } from "../config";
 
 // Recharts
@@ -40,6 +40,7 @@ import {
 } from "@heroicons/react/24/outline";
 import LeadMap from "../components/dashboard/LeadMap";
 import CallReminders from "../components/reminders/CallReminders";
+import { apiFetch } from "../services/api";
 
 const ChartContainer = ({ title, description, children }) => (
   <div className="bg-white rounded-[12px] border border-slate-200 p-5 flex flex-col h-full hover:border-slate-300 transition-colors">
@@ -75,6 +76,8 @@ const Dashboard = () => {
   const [trashedLeads, setTrashedLeads] = useState([]);
   const [enrollmentsCount, setEnrollmentsCount] = useState(0);
   const [trashCount, setTrashCount] = useState(0);
+  // Real dashboard API data (tasks queue, notifications, admin extras)
+  const [apiDashData, setApiDashData] = useState(null);
 
   // Helper to fetch ALL pages for a paginated endpoint that returns either
   // an array or an object with `results` & optional `next` (Django DRF style).
@@ -88,7 +91,7 @@ const Dashboard = () => {
       while (url && !seenUrls.has(url)) {
         seenUrls.add(url);
         try {
-          const res = await fetch(url, {
+          const res = await apiFetch(url, {
             headers,
             credentials: authToken ? "include" : "same-origin",
           });
@@ -130,24 +133,31 @@ const Dashboard = () => {
     "#14B8A6", // Teal
   ];
 
-  // Load real leads from backend
+  // Load real data from backend
   useEffect(() => {
     const fetchLeadsData = async () => {
       setLoading(true);
       setError(null);
       try {
         if (!authToken) throw new Error("Not authenticated.");
-        // Fetch all pages for each source so monthly chart & totals are accurate
-        const [leadsAll, enrollmentsAll, trashAll] = await Promise.all([
+        // Fetch leads (active pipeline) and clients (enrolled) in parallel
+        const [leadsAll, clientsData] = await Promise.all([
           fetchAllPaginated(`${BASE_URL}/leads/`),
-          fetchAllPaginated(`${BASE_URL}/enrollments/`),
-          fetchAllPaginated(`${BASE_URL}/trash/`),
+          fetchAllPaginated(`${BASE_URL}/clients/`).catch(() => []),
         ]);
         setAllLeads(leadsAll);
-        setEnrollments(enrollmentsAll);
-        setTrashedLeads(trashAll);
-        setEnrollmentsCount(enrollmentsAll.length);
-        setTrashCount(trashAll.length);
+        setEnrollments(clientsData);
+        setEnrollmentsCount(clientsData.length);
+        // Archived leads count from the archived-leads endpoint
+        try {
+          const archivedResp = await apiFetch(`${BASE_URL}/archived-leads/?page_size=1`, {
+            headers: { Authorization: `Token ${authToken}` },
+          });
+          if (archivedResp.ok) {
+            const archivedJson = await archivedResp.json();
+            setTrashCount(archivedJson?.count || 0);
+          }
+        } catch (_) { /* non-fatal */ }
       } catch (err) {
         setError(err.message || "Failed to fetch leads");
       } finally {
@@ -157,138 +167,45 @@ const Dashboard = () => {
     if (authToken) fetchLeadsData();
   }, [authToken, fetchAllPaginated]);
 
+  // Fetch real dashboard queue (tasks, notifications, demo_queue, admin extras)
   useEffect(() => {
-    const fetchCourses = async () => {
+    const fetchDashboardData = async () => {
+      if (!authToken) return;
       try {
-        const headers = {
-          "Content-Type": "application/json",
-        };
-        let usingAuth = false;
-        if (authToken) {
-          headers.Authorization = `Token ${authToken}`;
-          usingAuth = true;
-        }
+        const data = await dashboardService.getDashboard(authToken);
+        setApiDashData(data);
+      } catch (_) { /* non-fatal: charts still work from leads */ }
+    };
+    fetchDashboardData();
+  }, [authToken]);
 
-        // Attempt to fetch courses with or without Authorization depending on availability
-        const res = await fetch(`${BASE_URL}/courses/`, {
-          method: "GET",
-          headers,
-          // only include credentials when auth token present to avoid CORS surprises
-          credentials: authToken ? "include" : "same-origin",
+  useEffect(() => {
+    // Fetch catalog classes from the real backend endpoint (/api/catalogs/classes/)
+    // to build a course-name lookup map used by the dashboard charts.
+    const fetchCatalogClasses = async () => {
+      if (!authToken) return;
+      try {
+        const res = await apiFetch(`${BASE_URL}/catalogs/classes/`, {
+          headers: { Authorization: `Token ${authToken}` },
         });
-
-        if (!res.ok) {
-          throw new Error(`Failed to fetch courses: ${res.status}`);
-        }
-
+        if (!res.ok) return; // non-fatal
         const data = await res.json();
-        // build a lookup map by common id keys and by name fallback (prefer course_name)
+        const list = Array.isArray(data) ? data : data?.results || [];
         const map = {};
-        if (Array.isArray(data)) {
-          data.forEach((c) => {
-            const id = c.id ?? c.pk ?? c._id ?? c.course_id ?? null;
-            const name = c.course_name || c.name || c.title || c.course || "";
-            if (id != null) map[String(id)] = name;
-            if (name) map[String(name).toLowerCase()] = name;
-          });
-        }
+        list.forEach((c) => {
+          const id = c.id ?? c.pk ?? null;
+          // Prefer class_name, then name
+          const name = c.class_name || c.name || c.title || "";
+          if (id != null) map[String(id)] = name;
+          if (name) map[String(name).toLowerCase()] = name;
+        });
         setCoursesMap(map);
-
-        // Also try to fetch enrollments to build fallback top-courses if needed
-        try {
-          const enrRes = await fetch(`${BASE_URL}/enrollments/`, {
-            method: "GET",
-            headers,
-            credentials: authToken ? "include" : "same-origin",
-          });
-          if (enrRes.ok) {
-            let enrData = await enrRes.json();
-            // normalize common envelope shapes: {results: [...]}, {data: [...]}
-            if (!Array.isArray(enrData)) {
-              if (Array.isArray(enrData.results)) enrData = enrData.results;
-              else if (Array.isArray(enrData.data)) enrData = enrData.data;
-            }
-            // keep the raw enrollments for dashboard aggregates (enrolled students, revenue)
-            setEnrollments(Array.isArray(enrData) ? enrData : []);
-            const map2 = new Map();
-            if (Array.isArray(enrData)) {
-              enrData.forEach((e) => {
-                const cname =
-                  e.course_name ||
-                  e.course?.course_name ||
-                  e.course ||
-                  "Unknown";
-                const rev = Number(e.value) || 0;
-                const prev = map2.get(cname) || {
-                  enrollments: 0,
-                  revenue: 0,
-                };
-                map2.set(cname, {
-                  enrollments: prev.enrollments + 1,
-                  revenue: prev.revenue + rev,
-                });
-              });
-            }
-            const fallback = Array.from(map2.entries())
-              .map(([name, data]) => ({
-                name,
-                enrollments: data.enrollments,
-                revenue: `Rs ${data.revenue.toLocaleString()}`,
-              }))
-              .sort((a, b) => b.enrollments - a.enrollments)
-              .slice(0, 7);
-            setEnrollmentsTopCourses(fallback);
-
-            // Build enrollment trends fallback (monthly counts) from enrollment records
-            try {
-              const trendMap = new Map();
-              const parseDate = (d) => {
-                if (!d) return null;
-                const dt = new Date(d);
-                return isNaN(dt.getTime()) ? null : dt;
-              };
-              enrData.forEach((e) => {
-                const d =
-                  e.add_date ||
-                  e.addDate ||
-                  e.created_at ||
-                  e.created_on ||
-                  e.createdAt ||
-                  e.createdOn ||
-                  null;
-                const dt = parseDate(d);
-                if (!dt) return;
-                const key = `${dt.getFullYear()}-${String(
-                  dt.getMonth() + 1
-                ).padStart(2, "0")}`;
-                trendMap.set(key, (trendMap.get(key) || 0) + 1);
-              });
-              const trendArr = Array.from(trendMap.entries())
-                .sort(([a], [b]) => a.localeCompare(b))
-                .map(([monthYear, cnt]) => ({
-                  month: monthYear.substring(5),
-                  students: cnt,
-                }));
-              setEnrollmentsTrendData(trendArr);
-            } catch (err) {
-              console.warn(
-                "Failed to build enrollment trends from enrollments:",
-                err
-              );
-            }
-          }
-        } catch (err) {
-          console.warn(
-            "Failed to fetch enrollments for fallback top courses:",
-            err
-          );
-        }
       } catch (err) {
-        // non-fatal for dashboard; log for debugging
-        console.warn("Failed to fetch courses for dashboard:", err);
+        // non-fatal for dashboard
+        console.warn("Failed to fetch catalog classes for dashboard:", err);
       }
     };
-    fetchCourses();
+    fetchCatalogClasses();
   }, [authToken]);
 
   // Helper: parse date safely
@@ -687,6 +604,9 @@ const Dashboard = () => {
     };
   }, [allLeads, coursesMap, enrollments, enrollmentsTrendData, trashedLeads]);
 
+  // apiDash = real-time dashboard payload from /api/dashboard/
+  const apiDash = apiDashData;
+
   // Normalize leads for CallReminders and today's call stats reuse
   const remindersLeads = useMemo(
     () =>
@@ -816,19 +736,12 @@ const Dashboard = () => {
             colorClass="text-emerald-600 bg-emerald-50"
           />
           <StatCard
-            title="Trash Students"
+            title="Archived Leads"
             value={trashCount}
             icon={GlobeAltIcon}
-            description="Leads in Trash"
+            description="Archived / not interested"
             colorClass="text-rose-600 bg-rose-50"
           />
-          {/* <StatCard
-          title="New Leads This Month"
-          value={dashboardData.stats.newLeadsThisMonth}
-          icon={PlusIcon}
-          description="Leads added in current month"
-          colorClass="text-green-600 bg-green-100"
-        /> */}
           {isAdminLike && (
             <StatCard
               title="Revenue This Month"
@@ -839,13 +752,32 @@ const Dashboard = () => {
             />
           )}
           <StatCard
-            title="Today's Calls"
-            value={`${todaysCalls.pending} Pending`}
+            title="Today's Tasks"
+            value={`${(apiDash?.today?.length ?? todaysCalls.pending)} Due`}
             icon={CalendarDaysIcon}
-            description={`Completed ${todaysCalls.completed}`}
+            description={apiDash ? `${apiDash.overdue?.length ?? 0} overdue` : `Completed ${todaysCalls.completed}`}
             colorClass="text-[#B8740C] bg-[#FEF7EB]"
           />
-          {/* Upcoming Classes/Calls intentionally removed (replaced by Trash Students) */}
+          {/* Unread notifications from /api/dashboard/ */}
+          {apiDash && (
+            <StatCard
+              title="Notifications"
+              value={apiDash.unread_notifications ?? 0}
+              icon={CalendarDaysIcon}
+              description="Unread alerts"
+              colorClass="text-violet-600 bg-violet-50"
+            />
+          )}
+          {/* Pending approvals (admin) */}
+          {isAdminLike && apiDash?.pending_approvals != null && (
+            <StatCard
+              title="Pending Approvals"
+              value={apiDash.pending_approvals}
+              icon={PlusIcon}
+              description="B2B leads awaiting approval"
+              colorClass="text-amber-600 bg-amber-50"
+            />
+          )}
         </div>
 
         {/* Charts */}

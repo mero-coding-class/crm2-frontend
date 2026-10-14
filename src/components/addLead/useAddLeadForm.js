@@ -58,6 +58,8 @@ export default function useAddLeadForm({ authToken, onClose, onSave, isAdmin }) 
   const [errors, setErrors] = useState({});
 
   const setField = (name, value) => {
+    // sub_status is always "New" on lead creation — only changeable via Activity Log
+    if (name === "sub_status") return;
     setFormData((prev) => ({ ...prev, [name]: value }));
     setErrors((prev) => {
       if (!prev || !prev[name]) return prev;
@@ -69,13 +71,13 @@ export default function useAddLeadForm({ authToken, onClose, onSave, isAdmin }) 
 
   const handleSubmit = async () => {
     // Validate required fields per LeadCreateSerializer
+    // Task 2.2: contact_number is now optional
     const requiredFields = [
       "school_name",
       "district",
       "municipality",
       "address",
       "contact_person",
-      "contact_number",
       "email",
     ];
 
@@ -94,15 +96,16 @@ export default function useAddLeadForm({ authToken, onClose, onSave, isAdmin }) 
     }
 
     // Build payload matching LeadCreateSerializer fields exactly
+    // Task 2.2: contact_number is optional
     const backendPayload = {
       school_name: formData.school_name.trim(),
       district: formData.district.trim(),
       municipality: formData.municipality.trim(),
       address: formData.address.trim(),
       contact_person: formData.contact_person.trim(),
-      contact_number: formData.contact_number.trim(),
       email: formData.email.trim(),
     };
+    if (formData.contact_number?.trim()) backendPayload.contact_number = formData.contact_number.trim();
 
     // Optional fields — only include if non-empty
     if (formData.alt_number?.trim()) backendPayload.alt_number = formData.alt_number.trim();
@@ -110,7 +113,8 @@ export default function useAddLeadForm({ authToken, onClose, onSave, isAdmin }) 
     if (formData.source?.trim()) backendPayload.source = formData.source.trim();
     if (formData.course_interest?.trim()) backendPayload.course_interest = formData.course_interest.trim();
     if (formData.social_media?.trim()) backendPayload.social_media = formData.social_media.trim();
-    if (formData.sub_status) backendPayload.sub_status = formData.sub_status;
+    // sub_status is always "New" on lead creation (only changes via Activity Log)
+    backendPayload.sub_status = "New";
 
     // Admin-only: owner and call_assignee (FK PKs)
     if (isAdmin) {

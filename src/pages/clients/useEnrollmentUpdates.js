@@ -1,8 +1,9 @@
 import { useCallback } from "react";
 import { BASE_URL } from "../../config";
+import { apiFetch } from "../../services/api";
 
-// Use the configured API base for enrollment updates to stay in the same environment
-const ENROLLMENTS_API_BASE = `${BASE_URL}/enrollments/`;
+// Use /api/clients/ — the new backend route (replaced old /enrollments/)
+const ENROLLMENTS_API_BASE = `${BASE_URL}/clients/`;
 
 export default function useEnrollmentUpdates({
   authToken,
@@ -242,14 +243,14 @@ export default function useEnrollmentUpdates({
               }
               if (hasSecondFile) fd.append("second_invoice", value.second_invoice_file);
               if (hasThirdFile) fd.append("third_invoice", value.third_invoice_file);
-              resp = await fetch(enrollUrl, {
+              resp = await apiFetch(enrollUrl, {
                 method: "PATCH",
                 headers: { Authorization: `Token ${authToken}` },
                 body: fd,
                 credentials: "include",
               });
             } else if (hasEnrollmentChanges) {
-              resp = await fetch(enrollUrl, {
+              resp = await apiFetch(enrollUrl, {
                 method: "PATCH",
                 headers: {
                   "Content-Type": "application/json",
@@ -287,14 +288,14 @@ export default function useEnrollmentUpdates({
               if (hasFirstFile) {
                 const fd = new FormData();
                 fd.append("first_invoice", value.first_invoice_file);
-                lresp = await fetch(leadUrl, {
+                lresp = await apiFetch(leadUrl, {
                   method: "PATCH",
                   headers: { Authorization: `Token ${authToken}` },
                   body: fd,
                   credentials: "include",
                 });
               } else if (removeFirst) {
-                lresp = await fetch(leadUrl, {
+                lresp = await apiFetch(leadUrl, {
                   method: "PATCH",
                   headers: {
                     "Content-Type": "application/json",
@@ -320,7 +321,7 @@ export default function useEnrollmentUpdates({
           if (leadId && Object.keys(leadPayload).length > 0) {
             try {
               const leadUrl = `${BASE_URL}/leads/${leadId}/`;
-              const lresp = await fetch(leadUrl, {
+              const lresp = await apiFetch(leadUrl, {
                 method: "PATCH",
                 headers: {
                   "Content-Type": "application/json",
@@ -488,7 +489,7 @@ export default function useEnrollmentUpdates({
           }
           if (hasSecondFile) fd.append("second_invoice", value.second_invoice_file);
           if (hasThirdFile) fd.append("third_invoice", value.third_invoice_file);
-          response = await fetch(`${ENROLLMENTS_API_BASE}${studentId}/`, {
+          response = await apiFetch(`${ENROLLMENTS_API_BASE}${studentId}/`, {
             method: "PATCH",
             headers: { Authorization: `Token ${authToken}` },
             body: fd,
@@ -575,7 +576,7 @@ export default function useEnrollmentUpdates({
             apiUrl = `${ENROLLMENTS_API_BASE}${studentId}/`;
           }
 
-          response = await fetch(apiUrl, {
+          response = await apiFetch(apiUrl, {
             method,
             headers: { "Content-Type": "application/json", Authorization: `Token ${authToken}` },
             body: JSON.stringify(payload),
@@ -592,7 +593,7 @@ export default function useEnrollmentUpdates({
           ) {
             try {
               const retryPayload = { ...payload, scheduled_taken: payload.scheduled_taken ? "Yes" : "No" };
-              const retryResp = await fetch(typeof apiUrl !== "undefined" ? apiUrl : `${ENROLLMENTS_API_BASE}${studentId}/`, {
+              const retryResp = await apiFetch(typeof apiUrl !== "undefined" ? apiUrl : `${ENROLLMENTS_API_BASE}${studentId}/`, {
                 method,
                 headers: { "Content-Type": "application/json", Authorization: `Token ${authToken}` },
                 body: JSON.stringify(retryPayload),
@@ -623,7 +624,7 @@ export default function useEnrollmentUpdates({
             try {
               const retryPayload = { ...payload, lead: { payment_type: payload.payment_type } };
               const retryUrl = typeof apiUrl !== "undefined" ? apiUrl : `${ENROLLMENTS_API_BASE}${studentId}/`;
-              const retryResp = await fetch(retryUrl, {
+              const retryResp = await apiFetch(retryUrl, {
                 method,
                 headers: { "Content-Type": "application/json", Authorization: `Token ${authToken}` },
                 body: JSON.stringify(retryPayload),
@@ -644,7 +645,7 @@ export default function useEnrollmentUpdates({
             try {
               const retryPayload = { ...payload, lead: { course_duration: payload.course_duration } };
               const retryUrl = typeof apiUrl !== "undefined" ? apiUrl : `${ENROLLMENTS_API_BASE}${studentId}/`;
-              const retryResp = await fetch(retryUrl, {
+              const retryResp = await apiFetch(retryUrl, {
                 method,
                 headers: { "Content-Type": "application/json", Authorization: `Token ${authToken}` },
                 body: JSON.stringify(retryPayload),
@@ -736,7 +737,7 @@ export default function useEnrollmentUpdates({
                 first_installment:
                   fi === null || fi === "" ? null : Number.isFinite(Number(fi)) ? Number(fi) : fi,
               };
-              const leadResp = await fetch(`${BASE_URL}/leads/${leadId}/`, {
+              const leadResp = await apiFetch(`${BASE_URL}/leads/${leadId}/`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json", Authorization: `Token ${authToken}` },
                 body: JSON.stringify(body),
@@ -786,7 +787,7 @@ export default function useEnrollmentUpdates({
             (current.lead?.id ?? current.lead?._id ?? current.leadId ?? current.lead?.lead_id)) ||
           null;
 
-        const resp = await fetch(`${BASE_URL}/enrollments/${studentId}/`, {
+        const resp = await apiFetch(`${BASE_URL}/clients/${studentId}/`, {
           method: "DELETE",
           headers: { Authorization: `Token ${authToken}` },
           credentials: "include",
@@ -795,8 +796,8 @@ export default function useEnrollmentUpdates({
           let errorBody = null;
           try { errorBody = await resp.json(); } catch (e) { try { errorBody = await resp.text(); } catch (e2) { errorBody = null; } }
           const detailMsg = (errorBody && errorBody.detail) || (typeof errorBody === "string" && errorBody) || resp.statusText;
-          setError(`Failed to delete enrollment: ${detailMsg}`);
-          console.error("DELETE error details:", { url: `${BASE_URL}/enrollments/${studentId}/`, status: resp.status, response: errorBody });
+          setError(`Failed to delete client: ${detailMsg}`);
+          console.error("DELETE error details:", { url: `${BASE_URL}/clients/${studentId}/`, status: resp.status, response: errorBody });
           return;
         }
         setAllStudents((prev) => prev.filter((s) => s.id !== studentId));
@@ -805,7 +806,7 @@ export default function useEnrollmentUpdates({
         // After successful enrollment deletion, move the associated lead to Trash (if any)
         if (leadId !== null && leadId !== undefined) {
           try {
-            const trashResp = await fetch(`${BASE_URL}/leads/${leadId}/`, {
+            const trashResp = await apiFetch(`${BASE_URL}/leads/${leadId}/`, {
               method: "DELETE",
               headers: {
                 "Content-Type": "application/json",
@@ -844,7 +845,7 @@ export default function useEnrollmentUpdates({
         // Delete enrollments first
         const deleteResults = await Promise.all(
           ids.map((id) =>
-            fetch(`${BASE_URL}/enrollments/${id}/`, {
+            fetch(`${BASE_URL}/clients/${id}/`, {
               method: "DELETE",
               headers: { Authorization: `Token ${authToken}` },
               credentials: "include",

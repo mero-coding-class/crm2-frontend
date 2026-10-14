@@ -91,6 +91,11 @@ const Leads = () => {
     setFilterAssignedTo,
   } = useLeadFilters(allLeads, allLeadsFullRef, fetchAllLeads);
 
+  // Global filter additions: Followup Date filters
+  const [filterFollowupDate, setFilterFollowupDate] = useState("");
+  const [filterFollowupFrom, setFilterFollowupFrom] = useState("");
+  const [filterFollowupTo, setFilterFollowupTo] = useState("");
+
   // Apply free-text search on top of filtered leads
   const searchedLeads = useMemo(() => {
     if (!searchTerm.trim()) return deduplicateLeads(leads);
@@ -493,6 +498,13 @@ const Leads = () => {
         setFilterAssignedTo={setFilterAssignedTo}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
+        // Followup date filters
+        filterFollowupDate={filterFollowupDate}
+        setFilterFollowupDate={setFilterFollowupDate}
+        filterFollowupFrom={filterFollowupFrom}
+        setFilterFollowupFrom={setFilterFollowupFrom}
+        filterFollowupTo={filterFollowupTo}
+        setFilterFollowupTo={setFilterFollowupTo}
         onClearFilters={() => {
           setFilterStatus("All");
           setFilterAge("");
@@ -505,6 +517,9 @@ const Leads = () => {
           setFilterPrevCodingExp("CodingExp");
           setFilterAssignedTo("");
           setSearchTerm("");
+          setFilterFollowupDate("");
+          setFilterFollowupFrom("");
+          setFilterFollowupTo("");
         }}
         users={users}
         usersLoading={usersLoading}

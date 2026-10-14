@@ -15,6 +15,7 @@ import { leadService } from "../services/api";
 import { Folder, Plus, FileUp, ChevronLeft, ChevronRight, Building2 } from "lucide-react";
 import ImportCsvButton from "./ImportCsvButton";
 import ActivityModal from "./ActivityModal";
+import ActivityLogViewModal from "./ActivityLogViewModal";
 import EnrollModal from "./EnrollModal";
 
 const initialColumns = {
@@ -87,6 +88,8 @@ const LeadTableDisplay = ({
   const [columns, setColumns] = useState(initialColumns);
   const [internalPage, setInternalPage] = useState(1);
   const [activityModalLead, setActivityModalLead] = useState(null);
+  // Task 3.4: Eye icon view modal state
+  const [viewModalLead, setViewModalLead] = useState(null);
   const [enrollModalLead, setEnrollModalLead] = useState(null);
   const pageSize = parentLeadsPerPage || 20;
 
@@ -618,6 +621,10 @@ const LeadTableDisplay = ({
                       onOpenActivityModal={(leadToView) =>
                         setActivityModalLead(leadToView)
                       }
+                      // Task 3.4: Eye icon opens read-only Activity Log view
+                      onOpenViewModal={(leadToView) =>
+                        setViewModalLead(leadToView)
+                      }
                       onOpenEnrollModal={(leadToEnroll) =>
                         setEnrollModalLead(leadToEnroll)
                       }
@@ -664,8 +671,24 @@ const LeadTableDisplay = ({
       {activityModalLead && (
         <ActivityModal
           lead={activityModalLead}
+          authToken={authToken}
           onClose={() => setActivityModalLead(null)}
           onSave={handleSaveActivity}
+        />
+      )}
+
+      {/* Task 3.4: Activity Log View modal (read-only, eye icon) */}
+      {viewModalLead && (
+        <ActivityLogViewModal
+          lead={viewModalLead}
+          authToken={authToken}
+          onClose={() => setViewModalLead(null)}
+          onEditRequest={() => {
+            // Switch from view to edit mode
+            const lead = viewModalLead;
+            setViewModalLead(null);
+            setActivityModalLead(lead);
+          }}
         />
       )}
 

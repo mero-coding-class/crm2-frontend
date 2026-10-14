@@ -5,32 +5,18 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { BASE_URL } from "../config";
 
 async function fetchUserProfile(token, fallbackUsername) {
-  const headers = { Authorization: `Token ${token}` };
-  // Get user list and try to find the matching user by username
   try {
-    const { data } = await axios.get(`${BASE_URL}/users/`, { headers });
+    const { data } = await axios.get(`${BASE_URL}/auth/me/`);
+    if (data && data.username) return data;
+  } catch (_) {}
+  try {
+    const { data } = await axios.get(`${BASE_URL}/users/`);
     const list = Array.isArray(data) ? data : data.results || [];
     const found =
       list.find((u) => u?.username === fallbackUsername) ?? list[0] ?? null;
-    if (!found) return { username: fallbackUsername };
-
-    // If we have an id, fetch the full user resource at /users/{id}/
-    if (found?.id != null) {
-      try {
-        const { data: full } = await axios.get(
-          `${BASE_URL}/users/${found.id}/`,
-          { headers }
-        );
-        return full;
-      } catch (_) {
-        return found; // return partial entry if detailed endpoint not available
-      }
-    }
-
-    return found;
-  } catch (_) {
-    return { username: fallbackUsername }; // last resort
-  }
+    if (found) return found;
+  } catch (_) {}
+  return { username: fallbackUsername };
 }
 
 const Login = () => {
@@ -41,6 +27,9 @@ const Login = () => {
   });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  // Task 1.1: Show password toggle state
+  const [showPassword, setShowPassword] = useState(false);
+
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -166,23 +155,48 @@ const Login = () => {
               />
             </div>
 
+            {/* Task 1.1: Password field with show/hide toggle */}
             <div>
               <label htmlFor="password" className="block text-[13px] font-[500] text-slate-700 mb-1.5">
                 Password
               </label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Enter your password"
-                className="w-full h-10 px-3 text-[14px] rounded-[8px] border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#294998] focus:ring-[3px] focus:ring-[#294998]/15 hover:border-slate-300 transition-colors"
-                required
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  id="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="Enter your password"
+                  className="w-full h-10 px-3 pr-10 text-[14px] rounded-[8px] border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#294998] focus:ring-[3px] focus:ring-[#294998]/15 hover:border-slate-300 transition-colors"
+                  required
+                />
+                {/* Eye icon toggle */}
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-600 transition-colors"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    /* Eye-off icon */
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    </svg>
+                  ) : (
+                    /* Eye icon */
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
 
-            <div className="flex items-center justify-between">
+            {/* Task 1.1: Only "Remember me" checkbox — Forgot Password removed */}
+            <div className="flex items-center">
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -196,12 +210,7 @@ const Login = () => {
                   Remember me
                 </label>
               </div>
-              <button
-                type="button"
-                className="text-[13px] text-[#294998] hover:text-[#1E3776] font-[500] hover:underline transition-colors"
-              >
-                Forgot password?
-              </button>
+              {/* Forgot Password link removed per Task 1.1 */}
             </div>
 
             <button
@@ -221,17 +230,7 @@ const Login = () => {
             </button>
           </form>
         </div>
-
-        <p className="text-center mt-5 text-[13px] text-slate-500">
-          Don&apos;t have an account?{" "}
-          <button
-            onClick={() => navigate("/register")}
-            disabled={loading}
-            className="text-[#294998] font-[500] hover:underline transition-colors"
-          >
-            Register here
-          </button>
-        </p>
+        {/* Task 1.1: Register Here link removed */}
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import {
   TrashIcon,
   ClipboardDocumentListIcon,
   AcademicCapIcon,
+  EyeIcon,
 } from "@heroicons/react/24/outline";
 import LeadLogDisplay from "./LeadLogDisplay";
 import {
@@ -29,6 +30,8 @@ const DraggableRow = ({
   handleEdit,
   handleDelete,
   onOpenActivityModal,
+  // Task 3.4: eye icon opens read-only Activity Log view
+  onOpenViewModal,
   onOpenEnrollModal,
   onStatusChange,
   onSubStatusChange,
@@ -272,36 +275,26 @@ const DraggableRow = ({
                   key={key}
                   className="px-3 py-4 whitespace-nowrap text-sm text-gray-700"
                 >
-                  <div
-                    className={`inline-flex items-center px-3 py-1 rounded-lg border shadow-sm ${getSubStatusClasses(
-                      lead.sub_status
-                    )}`}
-                  >
-                    <select
-                      value={lead.sub_status || "New"}
-                      onChange={(e) => {
-                        if (onSubStatusChange) {
-                          onSubStatusChange(lead.id || lead._id, e.target.value);
-                        }
-                      }}
-                      className="bg-transparent border-0 p-0 m-0 text-sm font-semibold appearance-none focus:outline-none text-current"
+                  <div className="flex items-center gap-2">
+                    {/* Read-only sub-status badge */}
+                    <span
+                      className={`inline-flex items-center px-2.5 py-1 rounded-lg border text-xs font-semibold ${getSubStatusClasses(lead.sub_status)}`}
                     >
-                      {[
-                        "New",
-                        "Contacted",
-                        "Follow-up",
-                        "Visit scheduled",
-                        "Demo scheduled",
-                        "Proposal sent",
-                        "Interested",
-                        "On hold",
-                      ].map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
+                      {lead.sub_status || "New"}
+                    </span>
+                    {/* Eye icon — opens Activity Log view modal */}
+                    <button
+                      type="button"
+                      title="View Activity Log"
+                      onClick={() => onOpenViewModal && onOpenViewModal(lead)}
+                      className="p-1 text-slate-400 hover:text-[#294998] hover:bg-[#EDF2FC] rounded transition-colors"
+                    >
+                      <EyeIcon className="h-3.5 w-3.5" />
+                    </button>
                   </div>
+                  <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">
+                    Change via Activity Log
+                  </p>
                 </td>
               );
 
@@ -312,16 +305,25 @@ const DraggableRow = ({
                   className="px-3 py-3.5 whitespace-nowrap text-sm text-gray-700"
                 >
                   <div className="flex items-center gap-2">
+                    {/* Task 3.4: Eye icon — opens read-only Activity Log view */}
+                    <button
+                      type="button"
+                      onClick={() => onOpenViewModal && onOpenViewModal(lead)}
+                      className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-800 border border-slate-200 shadow-xs transition-all focus:outline-none focus:ring-2 focus:ring-slate-300 active:scale-95 cursor-pointer"
+                      title="View Activity Log (read-only)"
+                    >
+                      <EyeIcon className="w-3.5 h-3.5" />
+                    </button>
                     <button
                       type="button"
                       onClick={() =>
                         onOpenActivityModal && onOpenActivityModal(lead)
                       }
                       className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[#EDF2FC] hover:bg-[#DCE6F9] text-[#294998] hover:text-[#1E3776] border border-[#CDDBF6] shadow-xs transition-all focus:outline-none focus:ring-2 focus:ring-[#294998]/20 active:scale-95 cursor-pointer"
-                      title="View & update lead activity"
+                      title="Log new activity"
                     >
                       <ClipboardDocumentListIcon className="w-3.5 h-3.5 text-[#294998]" />
-                      <span>Activity View</span>
+                      <span>Log</span>
                     </button>
                     {lead.source &&
                       String(lead.source).trim() !== "" &&

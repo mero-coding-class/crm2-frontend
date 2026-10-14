@@ -28,62 +28,31 @@ const TopCoursesTable = ({
       return;
     }
 
+    if (!authToken) return;
     let mounted = true;
-    const fetchCourses = async () => {
-      const headers = { "Content-Type": "application/json" };
-      if (authToken) headers.Authorization = `Token ${authToken}`;
-
+    const fetchCatalogClasses = async () => {
       try {
-        const res = await fetch(`${BASE_URL}/courses/`, {
-          method: "GET",
-          headers,
-          credentials: authToken ? "include" : "same-origin",
+        // Use /api/catalogs/classes/ — the real endpoint in crm2-backend
+        const res = await fetch(`${BASE_URL}/catalogs/classes/`, {
+          headers: { Authorization: `Token ${authToken}` },
         });
-        if (!res.ok) throw new Error(`Failed to fetch courses: ${res.status}`);
+        if (!res.ok || !mounted) return;
         const data = await res.json();
-        if (!mounted) return;
-        const map = buildCoursesMap(data);
-        if (Object.keys(map).length > 0) {
-          setLocalMap(map);
-          return;
-        }
-        // If courses endpoint returned empty, fall back to enrollments which may include course_name
-      } catch (err) {
-        console.warn("TopCoursesTable: failed to fetch courses:", err);
-        // continue to try enrollments
-      }
-
-      // Fallback: try enrollments endpoint to extract course_name fields
-      try {
-        const enrRes = await fetch(`${BASE_URL}/enrollments/`, {
-          method: "GET",
-          headers,
-          credentials: authToken ? "include" : "same-origin",
-        });
-        if (!enrRes.ok)
-          throw new Error(`Failed to fetch enrollments: ${enrRes.status}`);
-        const enrData = await enrRes.json();
-        if (!mounted) return;
-        // Build a map from enrollment.course_name values
+        const list = Array.isArray(data) ? data : data?.results || [];
         const map = {};
-        if (Array.isArray(enrData)) {
-          enrData.forEach((e, idx) => {
-            const cname =
-              e.course_name || e.course?.course_name || e.course || null;
-            const cid = e.course_id ?? e.course?.id ?? e.id ?? null;
-            if (cname) map[String(cname).toLowerCase()] = cname;
-            if (cid != null) map[String(cid)] = cname || String(cid);
-          });
-        }
-        if (Object.keys(map).length > 0) setLocalMap(map);
+        list.forEach((c) => {
+          const id = c.id ?? c.pk ?? null;
+          const name = c.class_name || c.name || c.title || "";
+          if (id != null) map[String(id)] = name;
+          if (name) map[String(name).toLowerCase()] = name;
+        });
+        if (mounted && Object.keys(map).length > 0) setLocalMap(map);
       } catch (err) {
-        console.warn("TopCoursesTable: failed to fetch enrollments:", err);
+        console.warn("TopCoursesTable: failed to fetch catalog classes:", err);
       }
     };
-    fetchCourses();
-    return () => {
-      mounted = false;
-    };
+    fetchCatalogClasses();
+    return () => { mounted = false; };
   }, [propCoursesMap, authToken]);
   return (
     <div className="bg-white p-6 rounded-lg shadow-md">

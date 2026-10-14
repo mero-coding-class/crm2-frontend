@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { BASE_URL } from "../../config";
 import { exportsStore } from "../../services/exportsStore";
+import { apiFetch } from "../../services/api";
 
 export default function useEnrollmentExport(authToken) {
   const [exporting, setExporting] = useState(false);
@@ -25,12 +26,12 @@ export default function useEnrollmentExport(authToken) {
           const params = new URLSearchParams(baseParams.toString());
           params.set("page", String(page));
           params.set("page_size", String(pageSize));
-          const url = `${BASE_URL}/enrollments/?${params.toString()}`;
-          const resp = await fetch(url, {
+          const url = `${BASE_URL}/clients/?${params.toString()}`;
+          const resp = await apiFetch(url, {
             headers: { Authorization: `Token ${authToken}` },
             credentials: "include",
           });
-          if (!resp.ok) throw new Error(`Failed to fetch enrollments: ${resp.status}`);
+          if (!resp.ok) throw new Error(`Failed to fetch clients: ${resp.status}`);
           const json = await resp.json();
           let list = [];
           let count = null;

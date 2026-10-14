@@ -100,20 +100,22 @@ const Settings = () => {
 
   const [packageForm, setPackageForm] = useState({
     name: "",
-    price: "",
+    price: "",           // NPR by default (Module 6)
     validity: "6 Months",
     features: "",
+    client_date: "",     // Module 6: new Client Date field
   });
   const [packageMsg, setPackageMsg] = useState({ type: "", text: "" });
 
   // Package Edit Modal State
   const [editingPackage, setEditingPackage] = useState(null);
+  // Module 6: Status and Phase removed from package form
   const [editPackageForm, setEditPackageForm] = useState({
     name: "",
     price: "",
     duration: "6 Months",
     features: "",
-    status: "Active",
+    client_date: "",
   });
 
   useEffect(() => {
@@ -296,13 +298,14 @@ const Settings = () => {
       return;
     }
 
+    // Module 6: No status/phase — default currency is NPR
     const newPkg = {
       id: Date.now(),
       name: packageForm.name.trim(),
       description: packageForm.features.trim() || "Course & guidance support",
-      price: packageForm.price.trim() || "$0",
+      price: packageForm.price.trim() || "NPR 0",  // Module 6: default NPR
       duration: packageForm.validity || "6 Months",
-      status: "Active",
+      client_date: packageForm.client_date || "",
       features: packageForm.features.trim(),
     };
 
@@ -312,6 +315,7 @@ const Settings = () => {
       price: "",
       validity: "6 Months",
       features: "",
+      client_date: "",
     });
     setPackageMsg({ type: "success", text: "Package added successfully!" });
   };
@@ -323,12 +327,13 @@ const Settings = () => {
 
   const handleOpenEditPackage = (pkg) => {
     setEditingPackage(pkg);
+    // Module 6: Status and Phase removed
     setEditPackageForm({
       name: pkg.name || "",
       price: pkg.price || "",
       duration: pkg.duration || "6 Months",
       features: pkg.description || pkg.features || "",
-      status: pkg.status || "Active",
+      client_date: pkg.client_date || "",
     });
   };
 
@@ -345,7 +350,8 @@ const Settings = () => {
               price: editPackageForm.price.trim(),
               duration: editPackageForm.duration,
               description: editPackageForm.features.trim(),
-              status: editPackageForm.status,
+              client_date: editPackageForm.client_date || "",
+              // Module 6: status and phase removed
             }
           : p
       )
@@ -547,6 +553,7 @@ const Settings = () => {
                             <option value="superadmin">Super Admin</option>
                           )}
                           <option value="counselor">Counselor</option>
+                          <option value="academic_counsellor">Academic Counsellor</option>
                         </select>
                         <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                       </div>
@@ -763,23 +770,26 @@ const Settings = () => {
                     />
                   </div>
 
-                  {/* PRICE / FEE */}
+                  {/* Module 6: PRICE — default NPR currency */}
                   <div className="md:col-span-2">
                     <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
-                      PRICE / FEE <span className="text-rose-500">*</span>
+                      PRICE (NPR) <span className="text-rose-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      value={packageForm.price}
-                      onChange={(e) =>
-                        setPackageForm((prev) => ({
-                          ...prev,
-                          price: e.target.value,
-                        }))
-                      }
-                      placeholder="e.g. $1,200"
-                      className="w-full h-10 px-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all placeholder:text-slate-400 text-slate-800"
-                    />
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] font-[600] text-slate-500 pointer-events-none">NPR</span>
+                      <input
+                        type="text"
+                        value={packageForm.price}
+                        onChange={(e) =>
+                          setPackageForm((prev) => ({
+                            ...prev,
+                            price: e.target.value,
+                          }))
+                        }
+                        placeholder="e.g. 45,000"
+                        className="w-full h-10 pl-12 pr-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all placeholder:text-slate-400 text-slate-800"
+                      />
+                    </div>
                   </div>
 
                   {/* VALIDITY */}
@@ -808,6 +818,24 @@ const Settings = () => {
                     </div>
                   </div>
 
+                  {/* Module 6: CLIENT DATE */}
+                  <div className="md:col-span-2">
+                    <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
+                      CLIENT DATE
+                    </label>
+                    <input
+                      type="date"
+                      value={packageForm.client_date}
+                      onChange={(e) =>
+                        setPackageForm((prev) => ({
+                          ...prev,
+                          client_date: e.target.value,
+                        }))
+                      }
+                      className="w-full h-10 px-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all text-slate-800"
+                    />
+                  </div>
+
                   {/* FEATURES / SCOPE */}
                   <div className="md:col-span-2">
                     <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
@@ -822,7 +850,7 @@ const Settings = () => {
                           features: e.target.value,
                         }))
                       }
-                      placeholder="e.g. Sop + 5 Univs"
+                      placeholder="e.g. Documentation review & guidance"
                       className="w-full h-10 px-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all placeholder:text-slate-400 text-slate-800"
                     />
                   </div>
@@ -843,6 +871,7 @@ const Settings = () => {
               <div className="overflow-x-auto border-t border-slate-100">
                 <table className="w-full text-left border-collapse">
                   <thead>
+                    {/* Module 6: STATUS column removed */}
                     <tr className="border-b border-slate-200 bg-slate-50">
                       <th className="px-4 h-9 text-left text-[11px] font-[600] text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap w-12">
                         ID
@@ -851,13 +880,13 @@ const Settings = () => {
                         PACKAGE NAME
                       </th>
                       <th className="px-4 h-9 text-left text-[11px] font-[600] text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap">
-                        PRICE
+                        PRICE (NPR)
                       </th>
                       <th className="px-4 h-9 text-left text-[11px] font-[600] text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap">
                         DURATION
                       </th>
                       <th className="px-4 h-9 text-left text-[11px] font-[600] text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap">
-                        STATUS
+                        CLIENT DATE
                       </th>
                       <th className="px-4 h-9 text-right text-[11px] font-[600] text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap pr-4">
                         ACTIONS
@@ -900,16 +929,20 @@ const Settings = () => {
                               </div>
                             </div>
                           </td>
+                          {/* Module 6: NPR currency shown */}
                           <td className="px-4 py-3 text-[13px] font-[600] text-slate-900 whitespace-nowrap">
-                            {pkg.price}
+                            {pkg.price ? (
+                              String(pkg.price).startsWith("NPR") || String(pkg.price).startsWith("$")
+                                ? pkg.price
+                                : `NPR ${pkg.price}`
+                            ) : "—"}
                           </td>
                           <td className="px-4 py-3 text-[13px] text-slate-600 whitespace-nowrap">
                             {pkg.duration}
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[12px] font-[500] bg-sky-50 text-sky-700 border border-sky-100">
-                              {pkg.status || "Active"}
-                            </span>
+                          {/* Module 6: Status removed — Client Date shown */}
+                          <td className="px-4 py-3 text-[13px] text-slate-600 whitespace-nowrap">
+                            {pkg.client_date || "—"}
                           </td>
                           <td className="px-4 py-3 text-right pr-4 whitespace-nowrap">
                             <div className="flex items-center justify-end gap-2">
@@ -1138,6 +1171,7 @@ const Settings = () => {
                       <option value="superadmin">Super Admin</option>
                     )}
                     <option value="counselor">Counselor</option>
+                    <option value="academic_counsellor">Academic Counsellor</option>
                   </select>
                   <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>

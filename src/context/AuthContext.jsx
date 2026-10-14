@@ -83,6 +83,26 @@ export const AuthProvider = ({ children }) => {
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
+  // Handle token expiry / 401 from api.js — clears React state in the same tab
+  // and redirects to login, stopping the re-fetch loop.
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("user");
+      localStorage.removeItem("username");
+      localStorage.removeItem("role");
+      localStorage.removeItem("userId");
+      localStorage.removeItem("email");
+      setAuthToken(null);
+      setUser(null);
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
+    };
+    window.addEventListener("crm:authExpired", handleAuthExpired);
+    return () => window.removeEventListener("crm:authExpired", handleAuthExpired);
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{ authToken, user, login, setUserProfile, logout }}

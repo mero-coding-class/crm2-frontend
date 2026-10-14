@@ -1,391 +1,428 @@
-// src/pages/Reports.jsx
-
+// src/pages/Reports.jsx — connected to crm2-backend /api/reports/*
 import React, { useState, useEffect, useCallback } from "react";
-import Loader from "../components/common/Loader";
-import { PDFDownloadLink } from "@react-pdf/renderer";
-import ReportDocument from "../components/ReportDocument";
-import DelayedLoader from "../components/common/DelayedLoader";
 import { useAuth } from "../context/AuthContext.jsx";
-import { leadService } from "../services/api";
+import { reportService } from "../services/api";
+import {
+  BarChart2,
+  TrendingUp,
+  Users,
+  CheckCircle2,
+  AlertTriangle,
+  Download,
+  Loader2,
+  RefreshCw,
+  Filter,
+} from "lucide-react";
 
-// Display helper
-const formatDate = (dateString) => {
-  if (!dateString) return "";
-  const d = new Date(dateString);
-  return isNaN(d.getTime()) ? "" : d.toISOString().split("T")[0];
-};
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const fmt = (n) => (n == null ? "—" : Number(n).toLocaleString());
 
-// Columns for the Converted Students table
-const convertedStudentsTableColumns = [
-  { header: "Name", accessor: "studentName" },
-  { header: "Parents", accessor: "parentsName" },
-  { header: "Email", accessor: "email" },
-  { header: "Phone", accessor: "phone" },
-  { header: "WhatsApp", accessor: "contactWhatsapp" },
-  { header: "Age/Grade", accessor: "ageGrade" },
-  { header: "Course", accessor: "course" },
-  { header: "Source", accessor: "source" },
-  { header: "Add Date", accessor: "addDate" },
-  { header: "Recent Call", accessor: "recentCall" },
-  { header: "Next Call", accessor: "nextCall" },
-  { header: "Status", accessor: "status" },
-  { header: "Address", accessor: "address" },
-  { header: "City", accessor: "city" },
-  { header: "County", accessor: "county" },
-  { header: "Post Code", accessor: "postCode" },
-  { header: "Class Type", accessor: "classType" },
-  { header: "Value", accessor: "value" },
-  { header: "Adset Name", accessor: "adsetName" },
-  { header: "Remarks", accessor: "remarks" },
-  { header: "Shift", accessor: "shift" },
-  { header: "Payment Type", accessor: "paymentType" },
-  { header: "Device", accessor: "device" },
-  { header: "Course Type", accessor: "courseType" },
-  { header: "Prev Coding Exp", accessor: "previousCodingExp" },
-  { header: "Workshop Batch", accessor: "workshopBatch" },
-];
+// ─── Sub-components ───────────────────────────────────────────────────────────
+const MetricCard = ({ title, value, sub, icon: Icon, color }) => (
+  <div className={`rounded-[12px] border p-5 bg-white flex items-start gap-4 shadow-sm ${color}`}>
+    <div className="w-10 h-10 rounded-[10px] flex items-center justify-center bg-current/10 shrink-0">
+      <Icon className="w-5 h-5" />
+    </div>
+    <div>
+      <div className="text-[11px] font-[600] uppercase tracking-wide text-current/70">{title}</div>
+      <div className="text-[22px] font-[700] mt-0.5">{value}</div>
+      {sub && <div className="text-[11px] opacity-70 mt-0.5">{sub}</div>}
+    </div>
+  </div>
+);
 
+const FunnelRow = ({ label, count, max }) => (
+  <div className="flex items-center gap-3 py-1.5">
+    <span className="text-[12px] text-slate-600 w-[180px] shrink-0 truncate">{label || "—"}</span>
+    <div className="flex-1 bg-slate-100 rounded-full h-2">
+      <div
+        className="h-2 rounded-full bg-[#4F46E5]"
+        style={{ width: max > 0 ? `${Math.min(100, (count / max) * 100)}%` : "0%" }}
+      />
+    </div>
+    <span className="text-[12px] font-[600] text-slate-700 w-8 text-right">{count}</span>
+  </div>
+);
+
+const ExportBtn = ({ label, loading, onClick }) => (
+  <button
+    onClick={onClick}
+    disabled={loading}
+    className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-[8px] text-[12px] font-[500] text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+  >
+    {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+    {label}
+  </button>
+);
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
 const Reports = () => {
-  const { authToken } = useAuth();
+  const { authToken, user } = useAuth();
+  const isAdmin = ["admin", "superadmin"].includes((user?.role || "").toLowerCase());
 
-  const [allLeads, setAllLeads] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // ── Filters ────────────────────────────────────────────────────────────────
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [district, setDistrict] = useState("");
+
+  // ── Data ───────────────────────────────────────────────────────────────────
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Filters
-  const [filterType, setFilterType] = useState("none"); // 'none' | 'dateRange'
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  // ── Export ─────────────────────────────────────────────────────────────────
+  const [exporting, setExporting] = useState({});
 
-  // Computed report data
-  const [filteredReportData, setFilteredReportData] = useState(null);
-
-  // Load real leads from API
-  useEffect(() => {
-    const fetchLeads = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        if (!authToken) throw new Error("You are not logged in.");
-        const leads = await leadService.getLeads(authToken);
-        setAllLeads(Array.isArray(leads) ? leads : []);
-      } catch (e) {
-        setError(e.message || "Failed to fetch leads");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchLeads();
-  }, [authToken]);
-
-  // Build the report from current leads + filters
-  const generateReportData = useCallback(() => {
-    let leadsToProcess = allLeads;
-
-    // Date range filter (by addDate)
-    if (filterType === "dateRange" && startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      leadsToProcess = leadsToProcess.filter((lead) => {
-        const d = new Date(lead.addDate);
-        return !isNaN(d.getTime()) && d >= start && d <= end;
-      });
+  // ── Fetch Summary ──────────────────────────────────────────────────────────
+  const fetchSummary = useCallback(async () => {
+    if (!authToken) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const params = {};
+      if (from) params.from = from;
+      if (to) params.to = to;
+      if (district) params.district = district;
+      const data = await reportService.getSummary(authToken, params);
+      setSummary(data);
+    } catch (e) {
+      setError(e.message || "Failed to load report.");
+    } finally {
+      setLoading(false);
     }
+  }, [authToken, from, to, district]);
 
-    // Stats
-    let total = 0;
-    let lost = 0;
-    let active = 0;
-    let converted = 0;
+  useEffect(() => { fetchSummary(); }, [fetchSummary]);
 
-    const convertedStudents = [];
-
-    leadsToProcess.forEach((lead) => {
-      total++;
-      const st = (lead.status || "").trim();
-      if (st === "Lost") lost++;
-      else if (st === "Active") active++;
-      else if (st === "Converted") {
-        converted++;
-        // Prepare a rich row for table/PDF
-        convertedStudents.push({
-          _id: lead._id,
-          studentName: lead.studentName || "",
-          parentsName: lead.parentsName || "",
-          email: lead.email || "",
-          phone: lead.phone || "",
-          contactWhatsapp: lead.contactWhatsapp || "",
-          ageGrade: `${lead.age || ""}${lead.age || lead.grade ? "/" : ""}${lead.grade || ""
-            }`,
-          course: lead.courseName || lead.course || "", // show string if possible
-          source: lead.source || "",
-          addDate: formatDate(lead.addDate),
-          recentCall: formatDate(lead.recentCall),
-          nextCall: formatDate(lead.nextCall),
-          status: st || "",
-          address: lead.permanentAddress || "",
-          city: lead.city || "",
-          county: lead.county || "",
-          postCode: lead.postCode || "",
-          classType: lead.classType || "",
-          value: lead.value || "",
-          adsetName: lead.adsetName || "",
-          remarks: lead.remarks || "",
-          shift: lead.shift || "",
-          paymentType: lead.paymentType || "",
-          device: lead.device || "",
-          courseType: lead.classType || "", // alias to fit column
-          previousCodingExp: lead.previousCodingExp || "",
-          workshopBatch: lead.workshopBatch || "",
-        });
-      }
-    });
-
-    const missed = Math.max(0, total - (lost + active + converted));
-
-    return {
-      totalLeads: total,
-      lostLeads: lost,
-      activeLeads: active,
-      convertedLeads: converted,
-      missedLeads: missed,
-      convertedStudentsList: convertedStudents,
-    };
-  }, [allLeads, filterType, startDate, endDate]);
-
-  const handleGenerateReport = () => {
-    setFilteredReportData(generateReportData());
+  // ── Export helpers ─────────────────────────────────────────────────────────
+  const handleExportSummary = async (fmt_) => {
+    const key = `summary-${fmt_}`;
+    setExporting((e) => ({ ...e, [key]: true }));
+    try {
+      const params = { export: fmt_ };
+      if (from) params.from = from;
+      if (to) params.to = to;
+      if (district) params.district = district;
+      const blob = await reportService.getSummary(authToken, params);
+      reportService.downloadBlob(blob, `summary.${fmt_}`);
+    } catch (e) {
+      alert("Export failed: " + (e.message || "Unknown error"));
+    } finally {
+      setExporting((e) => ({ ...e, [key]: false }));
+    }
   };
 
-  // Initial report build
-  useEffect(() => {
-    if (allLeads.length > 0 && !filteredReportData) {
-      handleGenerateReport();
+  const handleExportLeads = async (fmt_) => {
+    const key = `leads-${fmt_}`;
+    setExporting((e) => ({ ...e, [key]: true }));
+    try {
+      const params = { export: fmt_ };
+      if (from) params.from = from;
+      if (to) params.to = to;
+      if (district) params.district = district;
+      const blob = await reportService.getLeadRows(authToken, params);
+      reportService.downloadBlob(blob, `leads.${fmt_}`);
+    } catch (e) {
+      alert("Export failed: " + (e.message || "Unknown error"));
+    } finally {
+      setExporting((e) => ({ ...e, [key]: false }));
     }
-  }, [allLeads, filteredReportData]);
+  };
 
-  if (loading)
-    return <DelayedLoader message="Loading reports..." minMs={2000} />;
+  const handleExportDataset = async (dataset, fmt_) => {
+    const key = `${dataset}-${fmt_}`;
+    setExporting((e) => ({ ...e, [key]: true }));
+    try {
+      const blob = await reportService.exportDataset(authToken, dataset, fmt_);
+      reportService.downloadBlob(blob, `${dataset}.${fmt_}`);
+    } catch (e) {
+      alert("Export failed: " + (e.message || "Unknown error"));
+    } finally {
+      setExporting((e) => ({ ...e, [key]: false }));
+    }
+  };
 
-  if (error)
-    return (
-      <div className="flex items-center justify-center min-h-[400px] p-8">
-        <div className="text-center max-w-sm">
-          <div className="w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center mx-auto mb-4">
-            <svg className="w-6 h-6 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-          </div>
-          <h3 className="text-[16px] font-[600] text-slate-900 mb-1">Failed to load reports</h3>
-          <p className="text-[13px] text-slate-500 mb-4">{error}</p>
-        </div>
-      </div>
-    );
+  // ── Funnel max ─────────────────────────────────────────────────────────────
+  const funnelMax = summary?.funnel?.reduce((m, f) => Math.max(m, f.count), 0) || 1;
 
-  if (!filteredReportData) return <Loader />;
-
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="bg-[#F8FAFC] min-h-full">
-      {/* Page header */}
-      <div className="px-6 py-4 border-b border-slate-200 bg-white">
-        <h1 className="text-[20px] font-[600] leading-[28px] tracking-[-0.015em] text-slate-900">Reports</h1>
-        <p className="text-[13px] text-slate-500 leading-[18px] mt-0.5">Generate and export CRM analytics reports</p>
-      </div>
-      <div className="p-6">
-        {/* Filters Card */}
-        <div className="bg-white rounded-[12px] border border-slate-200 p-6 mb-6">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-8 h-8 rounded-[8px] bg-[#EDF2FC] text-[#294998] flex items-center justify-center shrink-0">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
-              </svg>
+    <div className="flex flex-col min-h-full bg-[#F8FAFC] font-[Inter,system-ui,sans-serif]">
+      {/* Header */}
+      <div className="px-6 py-5 border-b border-slate-200 bg-white">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-[10px] bg-indigo-50 flex items-center justify-center">
+              <BarChart2 className="w-5 h-5 text-indigo-600" />
             </div>
-            <div className="flex-1 min-w-0">
-              <h2 className="text-[15px] font-[600] text-slate-900 tracking-[-0.01em]">Filter Report Data</h2>
-              <p className="text-[12px] text-slate-400 mt-0.5">Select a date range or view all-time data</p>
+            <div>
+              <h1 className="text-[20px] font-[700] text-slate-900 tracking-[-0.015em]">Reports</h1>
+              <p className="text-[13px] text-slate-500 mt-0.5">
+                {summary?.scope === "all" ? "All scopes (Admin)" : "Own scope"} — live backend metrics
+              </p>
             </div>
-            <button
-              onClick={handleGenerateReport}
-              className="h-9 px-4 bg-[#294998] hover:bg-[#1E3776] text-white text-[13px] font-[500] rounded-[8px] shadow-sm transition-colors flex items-center gap-2 shrink-0"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Generate Report
-            </button>
           </div>
-
-          <div className="flex flex-wrap items-center gap-3 mb-5">
-            <button
-              onClick={() => setFilterType("none")}
-              className={`px-4 py-2 rounded-[8px] text-[13px] font-[500] transition-colors ${filterType === "none"
-                  ? "bg-[#294998] text-white shadow-xs"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-            >
-              All Time
-            </button>
-            <button
-              onClick={() => setFilterType("dateRange")}
-              className={`px-4 py-2 rounded-[8px] text-[13px] font-[500] transition-colors ${filterType === "dateRange"
-                  ? "bg-[#294998] text-white shadow-xs"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-            >
-              Date Range
-            </button>
-          </div>
-
-          {filterType === "dateRange" && (
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
-                  Start Date
-                </label>
-                <input
-                  type="date"
-                  id="startDate"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full h-10 px-3.5 text-[13px] rounded-[10px] bg-slate-100/70 hover:bg-slate-100 border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all text-slate-800"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
-                  End Date
-                </label>
-                <input
-                  type="date"
-                  id="endDate"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full h-10 px-3.5 text-[13px] rounded-[10px] bg-slate-100/70 hover:bg-slate-100 border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all text-slate-800"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
-          <ReportCard title="Total Leads" value={filteredReportData.totalLeads} colorClass="text-[#294998]" bgClass="bg-[#EDF2FC]" />
-          <ReportCard title="Active Leads" value={filteredReportData.activeLeads} colorClass="text-[#B8740C]" bgClass="bg-[#FEF7EB]" />
-          <ReportCard title="Converted" value={filteredReportData.convertedLeads} colorClass="text-emerald-600" bgClass="bg-emerald-50" />
-          <ReportCard title="Lost Leads" value={filteredReportData.lostLeads} colorClass="text-rose-600" bgClass="bg-rose-50" />
-          <ReportCard title="Uncategorized" value={filteredReportData.missedLeads} colorClass="text-slate-500" bgClass="bg-slate-100" />
-        </div>
-
-        {/* PDF Download */}
-        <div className="bg-white rounded-[12px] border border-slate-200 p-5 mb-6 flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-[14px] font-[600] text-slate-900">Export Report PDF</h2>
-            <p className="text-[12px] text-slate-400 mt-0.5">
-              {filterType === "dateRange" && startDate && endDate
-                ? `Filtered: ${formatDate(startDate)} → ${formatDate(endDate)}`
-                : "All-time data"}
-            </p>
-          </div>
-          <PDFDownloadLink
-            document={
-              <ReportDocument
-                reportData={filteredReportData}
-                filterCriteria={{ filterType, startDate, endDate }}
-              />
-            }
-            fileName={`CRM_Report_${filterType === "dateRange"
-                ? `${formatDate(startDate)}_to_${formatDate(endDate)}`
-                : "AllTime"
-              }.pdf`}
+          <button
+            onClick={fetchSummary}
+            disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-2 text-[13px] text-slate-600 border border-slate-200 rounded-[8px] hover:bg-slate-50 disabled:opacity-50 transition-colors"
           >
-            {({ loading: pdfLoading }) =>
-              pdfLoading ? (
-                <button disabled className="h-9 px-4 bg-slate-100 text-slate-400 text-[13px] font-[500] rounded-[8px] cursor-not-allowed flex items-center gap-2">
-                  <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Preparing…
-                </button>
-              ) : (
-                <button className="h-9 px-4 bg-[#294998] hover:bg-[#1E3776] text-white text-[13px] font-[500] rounded-[8px] shadow-sm transition-colors flex items-center gap-2">
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Download PDF
-                </button>
-              )
-            }
-          </PDFDownloadLink>
+            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 p-6 space-y-6">
+        {/* Filters */}
+        <div className="bg-white rounded-[12px] border border-slate-200 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Filter className="w-4 h-4 text-slate-400" />
+            <h2 className="text-[14px] font-[600] text-slate-700">Filters</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-[11px] font-[600] text-slate-500 mb-1 uppercase tracking-wide">From Date</label>
+              <input
+                type="date"
+                value={from}
+                onChange={(e) => setFrom(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-[8px] text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-[600] text-slate-500 mb-1 uppercase tracking-wide">To Date</label>
+              <input
+                type="date"
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-[8px] text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-[600] text-slate-500 mb-1 uppercase tracking-wide">District</label>
+              <input
+                type="text"
+                value={district}
+                onChange={(e) => setDistrict(e.target.value)}
+                placeholder="Filter by district"
+                className="w-full px-3 py-2 border border-slate-200 rounded-[8px] text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-500"
+              />
+            </div>
+          </div>
         </div>
 
-        {/* Converted Students Table */}
-        <div className="bg-white rounded-[12px] border border-slate-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100">
-            <h2 className="text-[14px] font-[600] text-slate-900 tracking-[-0.005em]">
-              Converted Leads
-              <span className="ml-2 px-2 py-0.5 text-[11px] font-[600] bg-emerald-50 text-emerald-700 rounded-full ring-1 ring-emerald-200">
-                {filteredReportData.convertedStudentsList.length}
-              </span>
-            </h2>
-            <p className="text-[12px] text-slate-400 mt-0.5">
-              {filterType === "dateRange" && startDate && endDate
-                ? `From ${formatDate(startDate)} to ${formatDate(endDate)}`
-                : "All time"}
-            </p>
+        {/* Error */}
+        {error && (
+          <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-[10px] p-4 text-red-700 text-[13px]">
+            <AlertTriangle className="w-5 h-5 shrink-0" />
+            {error}
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-[13px]">
-              <thead>
-                <tr className="border-b border-slate-100">
-                  {convertedStudentsTableColumns.map((col, idx) => (
-                    <th
-                      key={col.accessor || idx}
-                      className="px-4 py-3 text-left text-[11px] font-[600] text-slate-400 uppercase tracking-[0.05em] whitespace-nowrap"
-                    >
-                      {col.header}
-                    </th>
+        )}
+
+        {/* Loading skeleton */}
+        {loading && !summary && (
+          <div className="flex items-center justify-center py-20 text-slate-400 gap-2">
+            <Loader2 className="w-5 h-5 animate-spin" /> Loading report…
+          </div>
+        )}
+
+        {summary && (
+          <>
+            {/* Key Metrics */}
+            <div>
+              <h2 className="text-[14px] font-[700] text-slate-700 mb-3">Key Metrics</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                <MetricCard
+                  title="Pipeline Value"
+                  value={`Rs ${fmt(summary.pipeline_value)}`}
+                  sub="Active contract value"
+                  icon={TrendingUp}
+                  color="text-emerald-600 border-emerald-100"
+                />
+                <MetricCard
+                  title="Conversions"
+                  value={fmt(summary.conversions?.count)}
+                  sub="Leads enrolled in period"
+                  icon={CheckCircle2}
+                  color="text-indigo-600 border-indigo-100"
+                />
+                <MetricCard
+                  title="Proposals Sent"
+                  value={fmt(summary.proposals_sent)}
+                  sub="Activities with Proposal sent"
+                  icon={Users}
+                  color="text-violet-600 border-violet-100"
+                />
+                <MetricCard
+                  title="Renewals Due (60d)"
+                  value={fmt(summary.renewals_due_60d)}
+                  sub="Active contracts expiring soon"
+                  icon={BarChart2}
+                  color="text-amber-600 border-amber-100"
+                />
+              </div>
+            </div>
+
+            {/* Demos */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white rounded-[12px] border border-slate-200 p-5">
+                <h2 className="text-[14px] font-[700] text-slate-700 mb-4">Demo Stats</h2>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-blue-50 rounded-[10px] p-4 text-center">
+                    <div className="text-[28px] font-[800] text-blue-700">{fmt(summary.demos?.scheduled)}</div>
+                    <div className="text-[11px] text-blue-500 font-[600] mt-1">Scheduled</div>
+                  </div>
+                  <div className="bg-emerald-50 rounded-[10px] p-4 text-center">
+                    <div className="text-[28px] font-[800] text-emerald-700">{fmt(summary.demos?.completed)}</div>
+                    <div className="text-[11px] text-emerald-500 font-[600] mt-1">Completed</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Transitions */}
+              <div className="bg-white rounded-[12px] border border-slate-200 p-5">
+                <h2 className="text-[14px] font-[700] text-slate-700 mb-4">Status Transitions</h2>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-green-50 rounded-[10px] p-4 text-center">
+                    <div className="text-[28px] font-[800] text-green-700">{fmt(summary.transitions?.won)}</div>
+                    <div className="text-[11px] text-green-500 font-[600] mt-1">Won (Enrolled)</div>
+                  </div>
+                  <div className="bg-red-50 rounded-[10px] p-4 text-center">
+                    <div className="text-[28px] font-[800] text-red-700">{fmt(summary.transitions?.lost)}</div>
+                    <div className="text-[11px] text-red-500 font-[600] mt-1">Lost (Not Interested)</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Funnel */}
+            {summary.funnel?.length > 0 && (
+              <div className="bg-white rounded-[12px] border border-slate-200 p-5">
+                <h2 className="text-[14px] font-[700] text-slate-700 mb-4">Lead Funnel (Active)</h2>
+                <div className="space-y-1">
+                  {summary.funnel.map((f) => (
+                    <FunnelRow key={f.sub_status} label={f.sub_status} count={f.count} max={funnelMax} />
                   ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {filteredReportData.convertedStudentsList.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={convertedStudentsTableColumns.length}
-                      className="px-4 py-12 text-center text-[13px] text-slate-400"
-                    >
-                      No converted leads found for the selected criteria.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredReportData.convertedStudentsList.map((student) => (
-                    <tr key={student._id} className="hover:bg-slate-50 transition-colors">
-                      {convertedStudentsTableColumns.map((col, idx) => (
-                        <td
-                          key={col.accessor + idx}
-                          className="px-4 py-3 whitespace-nowrap text-slate-700"
-                        >
-                          {student[col.accessor] || "—"}
-                        </td>
-                      ))}
-                    </tr>
-                  ))
+                </div>
+                {summary.on_hold_excluded > 0 && (
+                  <p className="text-[11px] text-slate-400 mt-3">
+                    * {fmt(summary.on_hold_excluded)} "On hold" leads excluded from pipeline value.
+                  </p>
                 )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>{/* end p-6 */}
+              </div>
+            )}
+
+            {/* Activities by type */}
+            {summary.activities_by_type?.length > 0 && (
+              <div className="bg-white rounded-[12px] border border-slate-200 p-5">
+                <h2 className="text-[14px] font-[700] text-slate-700 mb-4">Activities by Type</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {summary.activities_by_type.map((a) => (
+                    <div key={a.type} className="rounded-[10px] bg-slate-50 border border-slate-100 p-3 text-center">
+                      <div className="text-[20px] font-[700] text-slate-800">{fmt(a.count)}</div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">{a.type}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Conversions by rep */}
+            {summary.conversions?.by_converter?.length > 0 && (
+              <div className="bg-white rounded-[12px] border border-slate-200 p-5">
+                <h2 className="text-[14px] font-[700] text-slate-700 mb-4">Conversions by Rep</h2>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[13px]">
+                    <thead>
+                      <tr className="border-b border-slate-100">
+                        <th className="text-left py-2 px-3 text-[11px] font-[600] text-slate-400 uppercase">Rep</th>
+                        <th className="text-right py-2 px-3 text-[11px] font-[600] text-slate-400 uppercase">Count</th>
+                        <th className="text-right py-2 px-3 text-[11px] font-[600] text-slate-400 uppercase">Value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {summary.conversions.by_converter.map((c) => (
+                        <tr key={c.mcc_rep_name} className="border-b border-slate-50 hover:bg-slate-50">
+                          <td className="py-2 px-3 text-slate-700">{c.mcc_rep_name || "—"}</td>
+                          <td className="py-2 px-3 text-right font-[600] text-indigo-700">{fmt(c.count)}</td>
+                          <td className="py-2 px-3 text-right text-emerald-700">Rs {fmt(c.value)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Exports */}
+            <div className="bg-white rounded-[12px] border border-slate-200 p-5">
+              <h2 className="text-[14px] font-[700] text-slate-700 mb-4">Exports</h2>
+              <div className="space-y-4">
+                {/* Summary */}
+                <div>
+                  <h3 className="text-[12px] font-[600] text-slate-500 uppercase tracking-wide mb-2">Summary Report</h3>
+                  <div className="flex gap-2 flex-wrap">
+                    <ExportBtn
+                      label="CSV"
+                      loading={exporting["summary-csv"]}
+                      onClick={() => handleExportSummary("csv")}
+                    />
+                    <ExportBtn
+                      label="Excel"
+                      loading={exporting["summary-xlsx"]}
+                      onClick={() => handleExportSummary("xlsx")}
+                    />
+                  </div>
+                </div>
+                {/* Lead Rows */}
+                <div>
+                  <h3 className="text-[12px] font-[600] text-slate-500 uppercase tracking-wide mb-2">Lead Rows (Filtered)</h3>
+                  <div className="flex gap-2 flex-wrap">
+                    <ExportBtn
+                      label="CSV"
+                      loading={exporting["leads-csv"]}
+                      onClick={() => handleExportLeads("csv")}
+                    />
+                    <ExportBtn
+                      label="Excel"
+                      loading={exporting["leads-xlsx"]}
+                      onClick={() => handleExportLeads("xlsx")}
+                    />
+                  </div>
+                </div>
+                {/* Full Datasets (Admin) */}
+                {isAdmin && (
+                  <div>
+                    <h3 className="text-[12px] font-[600] text-slate-500 uppercase tracking-wide mb-2">Full Datasets</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                      {["leads", "activities", "tasks", "clients", "contracts"].map((ds) => (
+                        <div key={ds} className="flex flex-col gap-1.5">
+                          <span className="text-[11px] font-[600] text-slate-500 capitalize">{ds}</span>
+                          <div className="flex gap-1">
+                            <ExportBtn
+                              label="CSV"
+                              loading={exporting[`${ds}-csv`]}
+                              onClick={() => handleExportDataset(ds, "csv")}
+                            />
+                            <ExportBtn
+                              label="XLS"
+                              loading={exporting[`${ds}-xlsx`]}
+                              onClick={() => handleExportDataset(ds, "xlsx")}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 };
-
-const ReportCard = ({ title, value, colorClass, bgClass }) => (
-  <div className="bg-white rounded-[12px] border border-slate-200 p-5 hover:border-slate-300 transition-colors">
-    <p className="text-[11px] font-[600] text-slate-400 uppercase tracking-[0.05em] mb-2">{title}</p>
-    <p className={`text-[32px] font-[700] tracking-[-0.02em] tabular-nums ${colorClass || "text-slate-900"}`}>{value ?? 0}</p>
-  </div>
-);
 
 export default Reports;

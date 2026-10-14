@@ -8,7 +8,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, on
   const [error, setError] = useState(null);
 
   const [packages, setPackages] = useState([]);
-  const [syllabi, setSyllabi] = useState([]);
+  // syllabi removed — syllabus_type field removed per requirement #5
 
   const [formData, setFormData] = useState({
     principal_name: "",
@@ -25,12 +25,10 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, on
     pricing_basis: "per_month",
     classes_per_week: 2,
     package_type: "",
-    syllabus_type: "",
+    // syllabus_type removed per requirement
     exams_count: 0,
     events_count: 0,
-    last_pay_date: "",
-    next_pay_date: "",
-    payment_completed: false,
+    // Payment fields removed per requirement #5
   });
 
   useEffect(() => {
@@ -54,27 +52,19 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, on
       pricing_basis: client.pricing_basis || "per_month",
       classes_per_week: client.classes_per_week || 2,
       package_type: client.package_type || "",
-      syllabus_type: client.syllabus_type || "",
       exams_count: client.exams_count || 0,
       events_count: client.events_count || 0,
-      last_pay_date: client.last_pay_date ? String(client.last_pay_date).split("T")[0] : "",
-      next_pay_date: client.next_pay_date ? String(client.next_pay_date).split("T")[0] : "",
-      payment_completed: Boolean(client.payment_completed),
     });
 
     Promise.all([
       catalogService.getPackages(authToken).catch(() => []),
-      catalogService.getSyllabi(authToken).catch(() => []),
+      // syllabi no longer needed after syllabus_type removal
     ])
-      .then(([pkgs, syls]) => {
+      .then(([pkgs]) => {
         if (!mounted) return;
         setPackages(pkgs);
-        setSyllabi(syls);
         if (!client.package_type && pkgs[0]) {
           setFormData((prev) => ({ ...prev, package_type: pkgs[0].id }));
-        }
-        if (!client.syllabus_type && syls[0]) {
-          setFormData((prev) => ({ ...prev, syllabus_type: syls[0].id }));
         }
       })
       .finally(() => {
@@ -122,12 +112,10 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, on
         pricing_basis: formData.pricing_basis,
         classes_per_week: Number(formData.classes_per_week),
         package_type: Number(formData.package_type),
-        syllabus_type: Number(formData.syllabus_type),
+        // syllabus_type removed per requirement
         exams_count: Number(formData.exams_count || 0),
         events_count: Number(formData.events_count || 0),
-        last_pay_date: formData.last_pay_date || null,
-        next_pay_date: formData.next_pay_date || null,
-        payment_completed: Boolean(formData.payment_completed),
+        // Payment fields removed per requirement #5
       };
 
       const updated = await clientService.updateClient(client.id, payload, authToken);
@@ -356,54 +344,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, on
             </div>
           </div>
 
-          {/* Section 4: Payment Tracking */}
-          <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
-              <DollarSign className="w-4 h-4 text-emerald-500" /> Payment Tracking
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">
-                  Last Payment Date
-                </label>
-                <input
-                  type="date"
-                  name="last_pay_date"
-                  value={formData.last_pay_date}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">
-                  Next Payment Date
-                </label>
-                <input
-                  type="date"
-                  name="next_pay_date"
-                  value={formData.next_pay_date}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
-                />
-              </div>
-              <div className="flex items-center pt-5">
-                <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    name="payment_completed"
-                    checked={formData.payment_completed}
-                    onChange={handleChange}
-                    className="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500"
-                  />
-                  <span className="text-xs font-semibold text-slate-700">
-                    Payment Fully Completed
-                  </span>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          {/* Section 5: Academic Program */}
+          {/* Section 4: Academic Program — Syllabus Type removed per requirement */}
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
               <BookOpen className="w-4 h-4 text-[#294998]" /> Package & Program
@@ -422,23 +363,6 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, on
                   {packages.map((pkg) => (
                     <option key={pkg.id} value={pkg.id}>
                       {pkg.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">
-                  Syllabus Type
-                </label>
-                <select
-                  name="syllabus_type"
-                  value={formData.syllabus_type}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none bg-white capitalize"
-                >
-                  {syllabi.map((syl) => (
-                    <option key={syl.id} value={syl.id}>
-                      {syl.name}
                     </option>
                   ))}
                 </select>

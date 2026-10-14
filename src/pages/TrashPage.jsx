@@ -14,6 +14,7 @@ import { trashService, leadService, courseService } from "../services/api.js";
 import { BASE_URL } from "../config";
 import DelayedLoader from "../components/common/DelayedLoader";
 import { exportsStore } from "../services/exportsStore";
+import { apiFetch } from "../services/api";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -122,15 +123,15 @@ const TrashPage = () => {
     async (page = 1) => {
       setLoading(true);
       setError(null);
-      const baseUrl = `${BASE_URL}/trash/`;
+      const baseUrl = `${BASE_URL}/archived-leads/`;
       try {
         const url = `${baseUrl}?page=${page}&page_size=${PAGE_SIZE}`;
-        const resp = await fetch(url, {
+        const resp = await apiFetch(url, {
           headers: { Authorization: `Token ${authToken}` },
           credentials: "include",
         });
         if (!resp.ok) {
-          throw new Error(`Failed to fetch trash: ${resp.status}`);
+          throw new Error(`Failed to fetch archived leads: ${resp.status}`);
         }
         const json = await resp.json();
         // If API returns paginated object with results and count

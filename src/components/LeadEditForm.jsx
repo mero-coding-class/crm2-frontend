@@ -311,10 +311,10 @@ const LeadEditForm = ({
         />
       </div>
 
-      {/* Alt Number */}
+      {/* Alt Number (Landline) */}
       <div className="flex flex-col">
         <label htmlFor="alt_number" className={labelClass}>
-          Alt. Number
+          Landline Number
         </label>
         <input
           type="tel"
@@ -323,7 +323,7 @@ const LeadEditForm = ({
           value={formData.alt_number || ""}
           onChange={onChange}
           className={inputClass}
-          placeholder="+977 98XXXXXXXX"
+          placeholder="01-XXXXXXX"
         />
       </div>
 
@@ -343,30 +343,24 @@ const LeadEditForm = ({
         />
       </div>
 
-      {/* ── PIPELINE ── */}
+      {/* ── ACTIVITY LOG ── */}
       <div className="col-span-1 sm:col-span-2 lg:col-span-3 text-sm font-semibold text-gray-700 border-t pt-3 mt-1 uppercase tracking-wider">
-        Pipeline
+        Activity Log
       </div>
 
-      {/* Sub Status */}
+      {/* Sub Status — read-only, only editable via Activity Log modal */}
       <div className="flex flex-col">
-        <label htmlFor="sub_status" className={labelClass}>
-          Sub Status
-        </label>
-        <select
-          id="sub_status"
-          name="sub_status"
-          value={formData.sub_status || "New"}
-          onChange={onChange}
-          className={inputClass}
-        >
-          {SUB_STATUS_CHOICES.map((opt) => (
-            <option key={opt} value={opt}>{opt}</option>
-          ))}
-        </select>
+        <label className={labelClass}>Sub Status</label>
+        <div className="mt-1 flex items-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded-md">
+          <span className="text-sm font-semibold text-slate-700">
+            {formData.sub_status || "New"}
+          </span>
+          <span className="text-xs text-gray-400">— editable via Activity Log</span>
+        </div>
       </div>
 
-      {/* Source */}
+      {/* Source — admin only */}
+      {isAdmin && (
       <div className="flex flex-col">
         <label htmlFor="source" className={labelClass}>
           Source
@@ -384,6 +378,7 @@ const LeadEditForm = ({
           ))}
         </select>
       </div>
+      )}
 
       {/* Course Interest */}
       <div className="flex flex-col">

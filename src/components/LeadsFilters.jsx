@@ -1,3 +1,7 @@
+// src/components/LeadsFilters.jsx
+// Global Filter Changes per task list:
+// REMOVE: Filter by Status, Class filter, Device filter, By Age filter, By Grade filter
+// ADD: Followup Date filter, Followup From date filter, Followup To date filter
 import React from "react";
 import { X, ChevronDown, Search } from "lucide-react";
 
@@ -21,6 +25,7 @@ const FilterPill = ({ label, value, onChange, options, placeholder }) => (
 
 const LeadsFilters = ({
   showFilters,
+  // Kept but NOT rendered: filterStatus, filterAge, filterGrade, filterClassType, filterDevice
   filterStatus,
   setFilterStatus,
   filterAge,
@@ -41,6 +46,13 @@ const LeadsFilters = ({
   setFilterPrevCodingExp,
   filterAssignedTo,
   setFilterAssignedTo,
+  // New: Followup Date filters
+  filterFollowupDate,
+  setFilterFollowupDate,
+  filterFollowupFrom,
+  setFilterFollowupFrom,
+  filterFollowupTo,
+  setFilterFollowupTo,
   onClearFilters,
   users,
   usersLoading,
@@ -61,7 +73,7 @@ const LeadsFilters = ({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search leads, students…"
+              placeholder="Search leads, schools…"
               value={searchTerm || ""}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full h-8 pl-9 pr-3 text-[13px] rounded-[9999px] border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#294998] focus:ring-[3px] focus:ring-[#294998]/15 hover:border-slate-300 transition-colors"
@@ -73,43 +85,14 @@ const LeadsFilters = ({
           Filter by:
         </span>
 
-        {/* Status pill */}
-        <FilterPill
-          value={filterStatus}
-          onChange={setFilterStatus}
-          options={["All", "Active", "Converted", "Lost"]}
-          placeholder="Status"
-        />
-
-        {/* Sub-status */}
+        {/* Sub-status — KEPT */}
         <FilterPill
           value={filterSubStatus}
           onChange={setFilterSubStatus}
           options={subStatusOptions}
         />
 
-        {/* Class type */}
-        <FilterPill
-          value={filterClassType}
-          onChange={setFilterClassType}
-          options={classTypeOptions}
-        />
-
-        {/* Device */}
-        <FilterPill
-          value={filterDevice}
-          onChange={setFilterDevice}
-          options={deviceOptions}
-        />
-
-        {/* Coding exp */}
-        <FilterPill
-          value={filterPrevCodingExp}
-          onChange={setFilterPrevCodingExp}
-          options={previousCodingExpOptions}
-        />
-
-        {/* Assigned to */}
+        {/* Assigned to — KEPT */}
         <div className="relative">
           <select
             value={filterAssignedTo}
@@ -129,31 +112,45 @@ const LeadsFilters = ({
           <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400 pointer-events-none" />
         </div>
 
-        {/* Age text filter */}
-        <input
-          type="text"
-          placeholder="Age…"
-          value={filterAge}
-          onChange={(e) => setFilterAge(e.target.value)}
-          className="h-8 px-3 text-[13px] rounded-[9999px] border border-slate-200 bg-white text-slate-700 placeholder:text-slate-400 w-20 focus:outline-none focus:border-[#294998] focus:ring-[3px] focus:ring-[#294998]/15 hover:border-slate-300 transition-colors"
-        />
+        {/* ─── ADD: Followup Date filters ─── */}
+        {/* Exact followup date */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] font-[500] text-slate-500 whitespace-nowrap">Followup:</span>
+          <input
+            type="date"
+            value={filterFollowupDate || ""}
+            onChange={(e) => setFilterFollowupDate && setFilterFollowupDate(e.target.value)}
+            className="h-8 px-2 text-[12px] rounded-[9999px] border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-[#294998] focus:ring-[3px] focus:ring-[#294998]/15 hover:border-slate-300 transition-colors"
+            title="Filter by exact followup date"
+          />
+        </div>
 
-        {/* Grade text filter */}
-        <input
-          type="text"
-          placeholder="Grade…"
-          value={filterGrade}
-          onChange={(e) => setFilterGrade(e.target.value)}
-          className="h-8 px-3 text-[13px] rounded-[9999px] border border-slate-200 bg-white text-slate-700 placeholder:text-slate-400 w-24 focus:outline-none focus:border-[#294998] focus:ring-[3px] focus:ring-[#294998]/15 hover:border-slate-300 transition-colors"
-        />
+        {/* Followup From */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] font-[500] text-slate-500 whitespace-nowrap">From:</span>
+          <input
+            type="date"
+            value={filterFollowupFrom || ""}
+            onChange={(e) => setFilterFollowupFrom && setFilterFollowupFrom(e.target.value)}
+            className="h-8 px-2 text-[12px] rounded-[9999px] border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-[#294998] focus:ring-[3px] focus:ring-[#294998]/15 hover:border-slate-300 transition-colors"
+            title="Followup date from"
+          />
+        </div>
 
-        {/* Date filter */}
-        <input
-          type="date"
-          value={filterLastCall}
-          onChange={(e) => setFilterLastCall(e.target.value)}
-          className="h-8 px-3 text-[13px] rounded-[9999px] border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-[#294998] focus:ring-[3px] focus:ring-[#294998]/15 hover:border-slate-300 transition-colors"
-        />
+        {/* Followup To */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] font-[500] text-slate-500 whitespace-nowrap">To:</span>
+          <input
+            type="date"
+            value={filterFollowupTo || ""}
+            onChange={(e) => setFilterFollowupTo && setFilterFollowupTo(e.target.value)}
+            className="h-8 px-2 text-[12px] rounded-[9999px] border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-[#294998] focus:ring-[3px] focus:ring-[#294998]/15 hover:border-slate-300 transition-colors"
+            title="Followup date to"
+          />
+        </div>
+
+        {/* ─── REMOVED: Status filter, Class filter, Device filter, Age filter, Grade filter ─── */}
+        {/* These filters have been intentionally removed per project requirements */}
 
         {/* Clear */}
         <button

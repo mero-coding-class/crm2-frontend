@@ -23,10 +23,14 @@ window.fetch = function (resource, init = {}) {
     const match = document.cookie.match(/(^|;)\s*csrftoken=([^;]+)/);
     const csrfToken = match ? decodeURIComponent(match[2]) : null;
     if (csrfToken) {
-      options.headers = {
-        ...(options.headers || {}),
-        'X-CSRFToken': csrfToken,
-      };
+      if (options.headers instanceof Headers) {
+        options.headers.set('X-CSRFToken', csrfToken);
+      } else {
+        options.headers = {
+          ...(options.headers || {}),
+          'X-CSRFToken': csrfToken,
+        };
+      }
     }
   }
 

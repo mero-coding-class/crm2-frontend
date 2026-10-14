@@ -33,7 +33,7 @@ const NEPAL_DISTRICTS = [
   "Kanchanpur", "Bardiya",
 ];
 
-const AddLeadModal = ({ onClose, onSave, authToken }) => {
+const AddLeadModal = ({ onClose, onSave, authToken, courses }) => {
   const { user } = useAuth();
   const isAdmin =
     user &&
@@ -77,6 +77,20 @@ const AddLeadModal = ({ onClose, onSave, authToken }) => {
 
   const currentUsername = user?.username || "User";
   const currentUserRole = user?.role || "Staff";
+
+  // Task 2.2: Build course choices from Settings dynamically
+  // courses prop comes from parent (fetched from backend settings)
+  const courseChoices = Array.isArray(courses) && courses.length > 0
+    ? courses
+    : [];
+
+  // Task 2.2: Render user display name without email in parentheses
+  const formatUserLabel = (u) => {
+    // Show only name/username, no email or role in parentheses
+    return u.first_name && u.last_name
+      ? `${u.first_name} ${u.last_name}`
+      : u.username || u.email || String(u.id);
+  };
 
   return (
     <div
@@ -254,10 +268,10 @@ const AddLeadModal = ({ onClose, onSave, authToken }) => {
                   )}
                 </div>
 
-                {/* Contact Number */}
+                {/* Task 2.2: Contact Number — now optional (no required attribute) */}
                 <div className="space-y-1.5">
                   <label htmlFor="contact_number" className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider">
-                    CONTACT NUMBER <span className="text-rose-500">*</span>
+                    CONTACT NUMBER
                   </label>
                   <div className="relative">
                     <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
@@ -265,7 +279,6 @@ const AddLeadModal = ({ onClose, onSave, authToken }) => {
                       id="contact_number"
                       name="contact_number"
                       type="text"
-                      required
                       value={formData.contact_number}
                       onChange={handleChange}
                       placeholder="+977 98XXXXXXXX"
@@ -295,10 +308,10 @@ const AddLeadModal = ({ onClose, onSave, authToken }) => {
                   />
                 </div>
 
-                {/* Alt Number */}
+                {/* Task 2.2: Alt Number renamed to "Landline Number" */}
                 <div className="space-y-1.5">
                   <label htmlFor="alt_number" className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider">
-                    ALT. NUMBER
+                    LANDLINE NUMBER
                   </label>
                   <div className="relative">
                     <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
@@ -308,7 +321,7 @@ const AddLeadModal = ({ onClose, onSave, authToken }) => {
                       type="text"
                       value={formData.alt_number}
                       onChange={handleChange}
-                      placeholder="+977 98XXXXXXXX"
+                      placeholder="01-XXXXXXX"
                       className="w-full h-11 pl-10 pr-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all placeholder:text-slate-400"
                     />
                   </div>
@@ -360,7 +373,7 @@ const AddLeadModal = ({ onClose, onSave, authToken }) => {
               </div>
             </div>
 
-            {/* 3. Course Interest */}
+            {/* 3. Course Interest — Task 2.2: Dynamic dropdown from Settings */}
             <div className="space-y-3.5">
               <div className="flex items-center gap-2 text-[#294998]">
                 <BookOpen className="w-4 h-4 stroke-[2.2]" />
@@ -372,15 +385,36 @@ const AddLeadModal = ({ onClose, onSave, authToken }) => {
                 <label htmlFor="course_interest" className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider">
                   COURSE / PROGRAMME INTEREST
                 </label>
-                <input
-                  id="course_interest"
-                  name="course_interest"
-                  type="text"
-                  value={formData.course_interest}
-                  onChange={handleChange}
-                  placeholder="e.g. Robotics, Coding Bootcamp, AI for Schools..."
-                  className="w-full h-11 px-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all placeholder:text-slate-400"
-                />
+                {courseChoices.length > 0 ? (
+                  <div className="relative">
+                    <select
+                      id="course_interest"
+                      name="course_interest"
+                      value={formData.course_interest}
+                      onChange={handleChange}
+                      className="w-full h-11 pl-3.5 pr-8 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none appearance-none cursor-pointer transition-all text-slate-800"
+                    >
+                      <option value="">Select course interest</option>
+                      {courseChoices.map((c) => (
+                        // API returns course_name field from /courses/ endpoint
+                        <option key={c.id} value={c.course_name || c.name || String(c.id)}>
+                          {c.course_name || c.name || String(c.id)}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  </div>
+                ) : (
+                  <input
+                    id="course_interest"
+                    name="course_interest"
+                    type="text"
+                    value={formData.course_interest}
+                    onChange={handleChange}
+                    placeholder="e.g. Robotics, Coding Bootcamp, AI for Schools..."
+                    className="w-full h-11 px-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all placeholder:text-slate-400"
+                  />
+                )}
               </div>
             </div>
 
@@ -390,15 +424,15 @@ const AddLeadModal = ({ onClose, onSave, authToken }) => {
                 <div className="flex items-center gap-2 text-[#294998]">
                   <Headphones className="w-4 h-4 stroke-[2.2]" />
                   <h3 className="text-[14px] font-[700] text-slate-900 tracking-[-0.01em]">
-                    4. Lead & Counselor Assignment
+                    4. Lead &amp; Counselor Assignment
                   </h3>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Owner (Lead Assigned) */}
+                  {/* Owner (Lead Assigned) — Task 2.2: show name only, no email in parens */}
                   <div className="space-y-1.5">
                     <label htmlFor="owner" className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider">
-                      LEAD OWNER (B2B)
+                      LEAD OWNER
                     </label>
                     <div className="relative">
                       <select
@@ -411,7 +445,7 @@ const AddLeadModal = ({ onClose, onSave, authToken }) => {
                         <option value="">Assign to self (default)</option>
                         {!usersLoading && Array.isArray(users) && users.map((u) => (
                           <option key={u.id} value={u.id}>
-                            {u.username || u.email} {u.role ? `(${u.role})` : ""}
+                            {formatUserLabel(u)}
                           </option>
                         ))}
                       </select>
@@ -419,10 +453,10 @@ const AddLeadModal = ({ onClose, onSave, authToken }) => {
                     </div>
                   </div>
 
-                  {/* Call Assignee */}
+                  {/* Call Assignee — Task 2.2: show name only, no email in parens */}
                   <div className="space-y-1.5">
                     <label htmlFor="call_assignee" className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider">
-                      CALL ASSIGNEE (B2C)
+                      CALL ASSIGNEE
                     </label>
                     <div className="relative">
                       <select
@@ -435,7 +469,7 @@ const AddLeadModal = ({ onClose, onSave, authToken }) => {
                         <option value="">None</option>
                         {!usersLoading && Array.isArray(users) && users.map((u) => (
                           <option key={u.id} value={u.id}>
-                            {u.username || u.email} {u.role ? `(${u.role})` : ""}
+                            {formatUserLabel(u)}
                           </option>
                         ))}
                       </select>
@@ -446,17 +480,18 @@ const AddLeadModal = ({ onClose, onSave, authToken }) => {
               </div>
             )}
 
-            {/* 5. Pipeline Status */}
+            {/* 5. Activity Log Status (formerly Pipeline Status) */}
             <div className="space-y-3.5">
               <div className="flex items-center gap-2 text-[#294998]">
                 <TrendingUp className="w-4 h-4 stroke-[2.2]" />
                 <h3 className="text-[14px] font-[700] text-slate-900 tracking-[-0.01em]">
-                  {isAdmin ? "5." : "4."} Pipeline Status
+                  {isAdmin ? "5." : "4."} Activity Log Status
                 </h3>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Source */}
+                {/* Source — admin only */}
+                {isAdmin && (
                 <div className="space-y-1.5">
                   <label htmlFor="source" className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider">
                     SOURCE
@@ -477,26 +512,24 @@ const AddLeadModal = ({ onClose, onSave, authToken }) => {
                     <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
                   </div>
                 </div>
+                )}
 
-                {/* Sub-Status */}
+                {/* Sub-Status — always locked to "New" when adding a lead */}
+                {/* Sub-status can only be changed via Activity Log after creation */}
                 <div className="space-y-1.5">
-                  <label htmlFor="sub_status" className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider">
+                  <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider">
                     SUB-STATUS
                   </label>
-                  <div className="relative">
-                    <select
-                      id="sub_status"
-                      name="sub_status"
-                      value={formData.sub_status}
-                      onChange={handleChange}
-                      className="w-full h-11 pl-3 pr-7 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none appearance-none cursor-pointer transition-all text-slate-800"
-                    >
-                      {SUB_STATUS_CHOICES.map((opt) => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                  <div className="h-11 px-3 flex items-center gap-2 rounded-[10px] bg-[#F1F5F9]/50 border border-transparent">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[12px] font-[600] bg-slate-100 text-slate-600 border border-slate-200">
+                      New
+                    </span>
+                    <span className="text-[11px] text-slate-400">
+                      Changes after first activity log
+                    </span>
                   </div>
+                  {/* Hidden input keeps sub_status = "New" in form state */}
+                  <input type="hidden" name="sub_status" value="New" />
                 </div>
               </div>
             </div>

@@ -9,7 +9,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
 
   // Catalog options from backend
   const [packages, setPackages] = useState([]);
-  const [syllabi, setSyllabi] = useState([]);
+  // syllabi removed — syllabus_type field removed per requirement
   const [classesList, setClassesList] = useState([]);
 
   // Form state
@@ -27,7 +27,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
     pricing_basis: "per_month",
     classes_per_week: 2,
     package_type: "",
-    syllabus_type: "",
+    // syllabus_type removed per requirement
     included_classes: [],
     exams_count: 0,
     events_count: 0,
@@ -66,7 +66,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
       pricing_basis: "per_month",
       classes_per_week: 2,
       package_type: "",
-      syllabus_type: "",
+      // syllabus_type removed
       included_classes: [],
       exams_count: 0,
       events_count: 0,
@@ -74,20 +74,19 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
 
     Promise.all([
       catalogService.getPackages(authToken).catch(() => []),
-      catalogService.getSyllabi(authToken).catch(() => []),
+      // syllabi no longer needed
       catalogService.getClasses(authToken).catch(() => []),
     ])
-      .then(([pkgs, syls, cls]) => {
+      .then(([pkgs, cls]) => {
         if (!mounted) return;
         setPackages(pkgs);
-        setSyllabi(syls);
         setClassesList(cls);
 
         setFormData((prev) => ({
           ...prev,
           package_type: pkgs[0]?.id || "",
-          syllabus_type: syls[0]?.id || "",
-          included_classes: cls.map((c) => c.id), // select all classes by default
+          // syllabus_type removed
+          included_classes: cls.map((c) => c.id),
         }));
       })
       .finally(() => {
@@ -153,10 +152,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
       setError("Please select a package.");
       return;
     }
-    if (!formData.syllabus_type) {
-      setError("Please select a syllabus type.");
-      return;
-    }
+    // syllabus_type validation removed
     if (!formData.included_classes.length) {
       setError("Please select at least one class.");
       return;
@@ -186,7 +182,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
         pricing_basis: formData.pricing_basis,
         classes_per_week: Number(formData.classes_per_week),
         package_type: Number(formData.package_type),
-        syllabus_type: Number(formData.syllabus_type),
+        // syllabus_type removed per requirement
         included_classes: formData.included_classes,
         exams_count: Number(formData.exams_count || 0),
         events_count: Number(formData.events_count || 0),
@@ -436,28 +432,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">
-                  Syllabus Type *
-                </label>
-                <select
-                  name="syllabus_type"
-                  value={formData.syllabus_type}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none bg-white capitalize"
-                >
-                  {syllabi.length === 0 ? (
-                    <option value="">No syllabus types configured</option>
-                  ) : (
-                    syllabi.map((syl) => (
-                      <option key={syl.id} value={syl.id}>
-                        {syl.name}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </div>
+              {/* Syllabus Type removed per requirement */}
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">
                   Classes per Week *

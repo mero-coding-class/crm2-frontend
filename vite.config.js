@@ -17,6 +17,23 @@ export default defineConfig(({ mode }) => {
     server: {
       host: "0.0.0.0",
       port: 3000,
+      proxy: {
+        '/api': {
+          target: backendUrl || 'http://127.0.0.1:8000',
+          changeOrigin: true,
+          secure: false,
+        },
+        '/health': {
+          target: backendUrl || 'http://127.0.0.1:8000',
+          changeOrigin: true,
+          secure: false,
+        },
+        '/media': {
+          target: backendUrl || 'http://127.0.0.1:8000',
+          changeOrigin: true,
+          secure: false,
+        },
+      },
     },
     build: {
       outDir: 'dist',

@@ -162,8 +162,8 @@ const Clients = () => {
     filterScheduledTakenRef.current = filterScheduledTaken;
   }, [filterScheduledTaken]);
 
-  // Use the configured API base for enrollment endpoints
-  const ENROLLMENTS_API_BASE = `${BASE_URL}/enrollments/`;
+  // Use the real backend clients endpoint (replaced old /enrollments/)
+  const ENROLLMENTS_API_BASE = `${BASE_URL}/clients/`;
 
   // Local, client-side filtered view of the current page of students.
   // This lets typing in the search box filter the visible table immediately

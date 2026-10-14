@@ -49,11 +49,12 @@ const navItems = [
   { to: "/demo", icon: MonitorPlay, label: "Demo" },
   { to: "/archive", icon: Archive, label: "Archive" },
   { to: "/report", icon: FileBarChart, label: "Reports" },
+  // Task 3.1: "Pipeline" renamed to "Activity Log" globally
 ];
 
 const bottomNavItems = [
   { to: "/settings", icon: Settings, label: "Settings" },
-  { to: "/help", icon: HelpCircle, label: "Help & Support" },
+  // Help & Support removed per requirement #7
 ];
 
 // Command palette data
@@ -65,7 +66,7 @@ const ALL_COMMANDS = [
   { label: "Archive", to: "/archive", icon: Archive, category: "Navigate" },
   { label: "Reports", to: "/report", icon: FileBarChart, category: "Navigate" },
   { label: "Settings", to: "/settings", icon: Settings, category: "Navigate" },
-  { label: "Help & Support", to: "/help", icon: HelpCircle, category: "Navigate" },
+  // Help & Support removed per requirement #7
   { label: "Downloads", to: "/downloads", icon: Download, category: "Navigate" },
 ];
 

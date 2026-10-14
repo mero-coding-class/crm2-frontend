@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BASE_URL } from "../../config";
+import { apiFetch } from "../../services/api";
 
 export default function useEnrollmentsCore(authToken, ITEMS_PER_PAGE) {
   const [allStudents, setAllStudents] = useState([]);
@@ -34,12 +35,12 @@ export default function useEnrollmentsCore(authToken, ITEMS_PER_PAGE) {
           params.append("scheduled_taken", fDemo === "Yes" ? "true" : "false");
         }
 
-        const url = `${BASE_URL}/enrollments/?${params.toString()}`;
-        const resp = await fetch(url, {
+        const url = `${BASE_URL}/clients/?${params.toString()}`;
+        const resp = await apiFetch(url, {
           headers: { Authorization: `Token ${authToken}` },
           credentials: "include",
         });
-        if (!resp.ok) throw new Error(`Failed to fetch enrollments: ${resp.status}`);
+        if (!resp.ok) throw new Error(`Failed to fetch clients: ${resp.status}`);
         const json = await resp.json();
         let list = [];
         let count = null;

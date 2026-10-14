@@ -1,4 +1,6 @@
 // src/components/LeadLogDisplay.jsx
+// Task 3.3: Activity Log display — show Substatus, Followup Date, Remarks
+// After saving, only show the latest contact log in the front/preview (collapse older)
 import React, { useState, useEffect, useCallback } from "react";
 import { getFormattedDate, formatTimestamp } from "./helpers";
 
@@ -26,23 +28,18 @@ const LeadLogDisplay = ({
         const sorted = (
           Array.isArray(fetchedLogs) ? fetchedLogs : fetchedLogs?.results || []
         ).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        // If we have optimistic synthetic logs (recent, client-created) then
-        // merge them on top unless the server now contains the same entry.
         const synths = syntheticRef.current || [];
         if (synths.length === 0) {
           setLogs(sorted);
         } else {
-          // If the top server log matches any synthetic (by new_value), drop synths
           const topServer = sorted[0];
           const matched =
             topServer &&
             synths.some((s) => s.new_value === topServer.new_value);
           if (matched) {
-            // Server has persisted the change — clear synthetic cache and show server logs
             syntheticRef.current = [];
             setLogs(sorted);
           } else {
-            // Keep synths at the top followed by server logs
             setLogs([...synths, ...sorted]);
           }
         }
@@ -55,14 +52,12 @@ const LeadLogDisplay = ({
     if (leadId && authToken && changeLogService) fetchLogs();
   }, [leadId, authToken, changeLogService, refreshKey]);
 
-  // Listen for optimistic remark updates so we can show the new log entry immediately
+  // Listen for optimistic remark updates
   useEffect(() => {
     const onRemarkUpdated = (e) => {
       try {
         const { id, remarks } = e?.detail || {};
-        // match by backend id or fallback to provided leadId
         if (!id || String(id) !== String(leadId)) return;
-
         const now = new Date().toISOString();
         const synthetic = {
           id: `local-${Date.now()}`,
@@ -72,11 +67,8 @@ const LeadLogDisplay = ({
           old_value: null,
           new_value: remarks,
           description: `Remarks updated.`,
-          // mark it so we can filter/replace later
           __synthetic: true,
         };
-
-        // Keep a short-lived cache of synthetic entries to reconcile with server logs
         syntheticRef.current = [
           synthetic,
           ...(syntheticRef.current || []),
@@ -87,13 +79,10 @@ const LeadLogDisplay = ({
       }
     };
 
-    window.addEventListener("crm:remarkUpdated", onRemarkUpdated);
-    // Listen for generic lead update events (non-remark) to show synthetic logs
     const onLeadUpdated = (e) => {
       try {
         const { id, field_changed, old_value, new_value } = e?.detail || {};
         if (!id || String(id) !== String(leadId)) return;
-
         const now = new Date().toISOString();
         const synthetic = {
           id: `local-update-${Date.now()}`,
@@ -105,7 +94,6 @@ const LeadLogDisplay = ({
           description: `${field_changed} updated to '${new_value}'.`,
           __synthetic: true,
         };
-
         syntheticRef.current = [
           synthetic,
           ...(syntheticRef.current || []),
@@ -116,10 +104,12 @@ const LeadLogDisplay = ({
       }
     };
 
+    window.addEventListener("crm:remarkUpdated", onRemarkUpdated);
     window.addEventListener("crm:leadUpdated", onLeadUpdated);
-    return () =>
+    return () => {
       window.removeEventListener("crm:remarkUpdated", onRemarkUpdated);
-    window.removeEventListener("crm:leadUpdated", onLeadUpdated);
+      window.removeEventListener("crm:leadUpdated", onLeadUpdated);
+    };
   }, [leadId]);
 
   const toggleExpansion = useCallback(() => setIsExpanded((p) => !p), []);
@@ -138,6 +128,7 @@ const LeadLogDisplay = ({
     }
   };
 
+  // Task 3.3: Format log entry showing Substatus, Followup Date, and Remarks prominently
   const formatLogEntry = (log) => {
     const timestamp = formatTimestamp(log.timestamp);
     let descriptionText = log.description;
@@ -160,6 +151,8 @@ const LeadLogDisplay = ({
         descriptionText = `Next Call changed from '${getFormattedDate(
           log.old_value
         )}' to '${getFormattedDate(log.new_value)}'.`;
+      else if (log.field_changed === "followup_at")
+        descriptionText = `Followup Date set to '${getFormattedDate(log.new_value)}'.`;
       else if (log.field_changed === "age")
         descriptionText = `Age changed from '${log.old_value}' to '${log.new_value}'.`;
       else if (log.field_changed === "grade")
@@ -180,35 +173,57 @@ const LeadLogDisplay = ({
   if (!logs.length)
     return <div className="text-gray-500 text-xs">No log entries.</div>;
 
-  // Change here to display only one log entry by default
+  // Task 3.3: Show only latest log entry by default; older logs collapsed
   const logsToDisplay = isExpanded ? logs : logs.slice(0, 1);
   const hasMoreLogs = logs.length > 1;
 
+  // Task 3.3: For the latest log, check if it has activity metadata
+  const latestLog = logs[0];
+  const hasActivityMeta =
+    latestLog?.sub_status || latestLog?.followup_at || latestLog?.remarks;
+
   return (
     <div
-      className="whitespace-pre-wrap max-h-20 overflow-y-auto text-xs"
+      className="whitespace-pre-wrap max-h-24 overflow-y-auto text-xs"
       style={{ minWidth: "200px" }}
     >
-      {logsToDisplay.map((log) => {
+      {logsToDisplay.map((log, idx) => {
         const entryText = formatLogEntry(log);
         return (
           <div
             key={log.id}
-            className={`mb-1 last:mb-0 p-1 rounded-sm border ${getLogEntryClasses(
+            className={`mb-1 last:mb-0 p-1.5 rounded-sm border ${getLogEntryClasses(
               log.changed_by_name
             )}`}
-            title={entryText} // Add a title for hover text
+            title={entryText}
           >
-            {entryText}
+            {/* Task 3.3: Show substatus, followup, remarks for activity logs */}
+            {idx === 0 && log.sub_status && (
+              <div className="font-semibold text-[10px] mb-0.5 text-slate-600">
+                Status: {log.sub_status}
+              </div>
+            )}
+            {idx === 0 && log.followup_at && (
+              <div className="text-[10px] text-slate-500 mb-0.5">
+                Followup: {getFormattedDate(log.followup_at)}
+              </div>
+            )}
+            {idx === 0 && log.remarks && (
+              <div className="text-[10px] text-slate-600 italic mb-0.5 truncate">
+                {log.remarks}
+              </div>
+            )}
+            <div>{entryText}</div>
           </div>
         );
       })}
+      {/* Task 3.3: Collapse/expand older logs */}
       {hasMoreLogs && (
         <button
           onClick={toggleExpansion}
           className="text-blue-600 hover:text-blue-800 text-xs mt-1 block underline"
         >
-          {isExpanded ? "Show Less" : "Show More"}
+          {isExpanded ? "Show Less" : `Show ${logs.length - 1} more log(s)`}
         </button>
       )}
     </div>
