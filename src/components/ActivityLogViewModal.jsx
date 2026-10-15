@@ -24,6 +24,7 @@ const ActivityLogViewModal = ({ lead, authToken, onClose, onEditRequest }) => {
   const [error, setError] = useState(null);
 
   const leadId = lead?.id || lead?._id;
+  console.log(lead?.id);
   const subStatus = lead?.sub_status || lead?.substatus || "New";
 
   useEffect(() => {
@@ -36,7 +37,7 @@ const ActivityLogViewModal = ({ lead, authToken, onClose, onEditRequest }) => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`${BASE_URL}/leads/${leadId}/activities/`, {
+        const res = await fetch(`${BASE_URL}/activities/?lead=${leadId}`, {
           headers: { Authorization: `Token ${authToken}` },
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);

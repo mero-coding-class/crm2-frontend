@@ -362,8 +362,8 @@ export const leadService = {
     return handleResponse(response);
   },
 
-  /** Archive a single lead (soft-delete). Optionally pass a reason. */
-  archiveLead: async (id, authToken, reason = "") => {
+  /** Archive a single lead (soft-delete). Requires reason + next_year_probability (bool). */
+  archiveLead: async (id, authToken, reason = "", nextYearProbability = false) => {
     if (!authToken) throw new Error("Authentication token not found.");
     const response = await apiFetch(`${BASE_URL}/leads/${id}/archive/`, {
       method: "POST",
@@ -371,7 +371,7 @@ export const leadService = {
         Authorization: `Token ${authToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ reason }),
+      body: JSON.stringify({ reason, next_year_probability: !!nextYearProbability }),
     });
     return handleResponse(response);
   },
@@ -390,8 +390,8 @@ export const leadService = {
     return handleResponse(response);
   },
 
-  /** Archive multiple leads in one round-trip. */
-  bulkArchiveLeads: async (ids, authToken, reason = "") => {
+  /** Archive multiple leads in one round-trip. Body: {ids[], reason, next_year_probability}. */
+  bulkArchiveLeads: async (ids, authToken, reason = "", nextYearProbability = false) => {
     if (!authToken) throw new Error("Authentication token not found.");
     const response = await apiFetch(`${BASE_URL}/leads/bulk-archive/`, {
       method: "POST",
@@ -399,7 +399,7 @@ export const leadService = {
         Authorization: `Token ${authToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ ids, reason }),
+      body: JSON.stringify({ ids, reason, next_year_probability: !!nextYearProbability }),
     });
     return handleResponse(response);
   },
@@ -552,16 +552,24 @@ export const trashService = {
     return handleResponse(response);
   },
 
-  /** Permanently delete an archived lead (hard delete via admin, else 403). */
-  deleteTrashedLead: async (id, authToken) => {
+  /**
+   * Delete button handler — backend blocks hard DELETE (405 by design), so the
+   * Delete button maps to soft-archive instead. Keeps the button in the UI.
+   */
+  deleteTrashedLead: async (id, authToken, reason = "Deleted from trash view", nextYearProbability = false) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await apiFetch(`${BASE_URL}/leads/${id}/`, {
-      method: "DELETE",
-      headers: { Authorization: `Token ${authToken}` },
+    const response = await apiFetch(`${BASE_URL}/leads/${id}/archive/`, {
+      method: "POST",
+      headers: {
+        Authorization: `Token ${authToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ reason, next_year_probability: !!nextYearProbability }),
     });
     if (!response.ok) {
-      if (response.status === 404) return {};
-      let errorMsg = "Failed to permanently delete lead";
+      // Already archived -> backend may return 400; treat as success (stays in archive).
+      if (response.status === 400 || response.status === 404) return {};
+      let errorMsg = "Failed to archive lead";
       try {
         const errData = await response.json();
         errorMsg = errData.detail || JSON.stringify(errData);
@@ -570,7 +578,7 @@ export const trashService = {
       }
       throw new Error(errorMsg);
     }
-    return {};
+    return handleResponse(response);
   },
 };
 
@@ -623,13 +631,19 @@ export const courseService = {
   },
 
   deleteCourse: async (id, authToken) => {
+    // Backend blocks DELETE on catalogs (405) — deactivate via active=false instead.
+    // Button label stays "Delete"; behavior becomes deactivate.
     if (!authToken) throw new Error("Authentication token not found.");
     const response = await apiFetch(`${BASE_URL}/catalogs/classes/${id}/`, {
-      method: "DELETE",
-      headers: { Authorization: `Token ${authToken}` },
+      method: "PATCH",
+      headers: {
+        Authorization: `Token ${authToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ active: false }),
     });
     if (!response.ok) {
-      let errorMsg = "Failed to delete course";
+      let errorMsg = "Failed to deactivate course";
       try {
         const data = await response.json();
         errorMsg = data.detail || JSON.stringify(data);
@@ -638,31 +652,22 @@ export const courseService = {
       }
       throw new Error(errorMsg);
     }
-    return {};
+    return handleResponse(response);
   },
 };
 
 export const changeLogService = {
   getLeadLogs: async (leadId, authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    // Try the new audit change-log endpoint first
-    try {
-      const qs = new URLSearchParams({ entity: "leads", record_id: leadId }).toString();
-      const response = await apiFetch(`${BASE_URL}/change-log/?${qs}`, {
-        headers: { Authorization: `Token ${authToken}` },
-      });
-      if (response.ok) {
-        const payload = await handleResponse(response);
-        const logs = Array.isArray(payload) ? payload : payload?.results || [];
-        return logs.sort((a, b) => new Date(b.at || b.timestamp) - new Date(a.at || a.timestamp));
-      }
-    } catch (_) { /* fall through to legacy */ }
-    const response = await apiFetch(`${BASE_URL}/leads/${leadId}/logs/`, {
+    // Canonical audit endpoint: GET /change-log/?entity=&record_id=
+    // (There is no /leads/{id}/logs/ route on the backend.)
+    const qs = new URLSearchParams({ entity: "leads", record_id: leadId }).toString();
+    const response = await apiFetch(`${BASE_URL}/change-log/?${qs}`, {
       headers: { Authorization: `Token ${authToken}` },
     });
     const payload = await handleResponse(response);
     const logs = Array.isArray(payload) ? payload : payload?.results || [];
-    return logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    return logs.sort((a, b) => new Date(b.at || b.timestamp) - new Date(a.at || a.timestamp));
   },
 };
 
@@ -713,17 +718,17 @@ export const approvalService = {
   },
 };
 
-// ─── Import Service (B2B CSV import) ──────────────────────────────────────────
+// ─── Import Service (bulk lead import: preview → confirm) ─────────────────────
 export const importService = {
   /**
-   * Upload a CSV/XLSX file for bulk lead import.
-   * Returns { batch_id, queued, errors } on success.
+   * Bulk import step 1 (admin+B2B): upload csv/xlsx as 'file' -> mapping +
+   * per-row valid/invalid/duplicate_in_file/duplicate_in_db + batch_key.
    */
   uploadBatch: async (file, authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
     const fd = new FormData();
     fd.append("file", file);
-    const response = await apiFetch(`${BASE_URL}/leads/import/`, {
+    const response = await apiFetch(`${BASE_URL}/leads/import/preview/`, {
       method: "POST",
       headers: { Authorization: `Token ${authToken}` },
       body: fd,
@@ -731,24 +736,35 @@ export const importService = {
     return handleResponse(response);
   },
 
-  /** Get status/results of a past import batch by ID. */
-  getBatch: async (batchId, authToken) => {
+  /**
+   * Bulk import step 2: create only selected valid rows from batch_key
+   * (admin may set owner; B2B -> pending). Links ImportBatch.
+   */
+  confirmImport: async ({ batch_key, rows, owner } = {}, authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await apiFetch(`${BASE_URL}/leads/import/${batchId}/`, {
-      headers: { Authorization: `Token ${authToken}` },
+    const body = { batch_key };
+    if (rows !== undefined) body.rows = rows;
+    if (owner !== undefined) body.owner = owner;
+    const response = await apiFetch(`${BASE_URL}/leads/import/confirm/`, {
+      method: "POST",
+      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     });
     return handleResponse(response);
   },
 
-  /** List all import batches for the current user. */
+  /** No dedicated batch detail endpoint in backend spec; kept as stub. */
+  getBatch: async (batchId, authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    console.warn(`importService.getBatch(${batchId}): no backend route; returning null.`);
+    return null;
+  },
+
+  /** No batch-list endpoint in backend spec; kept as stub. */
   listBatches: async (authToken, page = 1) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const qs = new URLSearchParams({ page }).toString();
-    const response = await apiFetch(`${BASE_URL}/leads/import/?${qs}`, {
-      headers: { Authorization: `Token ${authToken}` },
-    });
-    const data = await handleResponse(response);
-    return { results: Array.isArray(data) ? data : data?.results || [], count: data?.count || 0 };
+    console.warn("importService.listBatches: no backend route; returning empty list.");
+    return { results: [], count: 0 };
   },
 };
 

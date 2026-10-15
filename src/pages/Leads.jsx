@@ -208,7 +208,9 @@ const Leads = () => {
       updateLeadField(leadId, "status", newStatus);
     },
     [updateLeadField, allLeads]
+
   );
+ 
   const handleSubStatusChange = useCallback(
     (leadId, newSubStatus) =>
       updateLeadField(leadId, "sub_status", newSubStatus),

@@ -168,6 +168,7 @@ export default function useLeadsHandlers(ctx) {
 
   const handleActivitySave = useCallback(
     async (leadId, activityData) => {
+      console.log(leadId, "This is the leadId")
       const prevLeads = (allLeads || []).slice();
       try {
         let leadObj = (allLeads || []).find((l) => matchId(l, leadId));

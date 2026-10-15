@@ -198,49 +198,57 @@ const Archive = () => {
     }
   };
 
-  // Permanently delete a single archived lead
+  // Delete button kept in UI — backend blocks hard DELETE (405), so this
+  // maps to soft-archive (record stays in archive, never hard-deleted).
   const handleDelete = async (id) => {
     setDeleting(true);
     try {
-      // Use DELETE on the archived-lead endpoint (permanent delete)
+      // Already-archived record: re-archive is a safe no-op that retains it.
       const resp = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8000/api"}/leads/${id}/`,
+        `${import.meta.env.VITE_API_URL || "http://localhost:8000/api"}/leads/${id}/archive/`,
         {
-          method: "DELETE",
-          headers: { Authorization: `Token ${authToken}` },
+          method: "POST",
+          headers: {
+            Authorization: `Token ${authToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ reason: "Retained in archive", next_year_probability: false }),
         }
       );
-      if (!resp.ok && resp.status !== 204 && resp.status !== 200) {
-        throw new Error(`Failed to delete: ${resp.status}`);
+      // 400 (already archived) still means "retained" — not an error for UI purposes.
+      if (!resp.ok && resp.status !== 400 && resp.status !== 404) {
+        throw new Error(`Failed to archive: ${resp.status}`);
       }
-      setArchivedList((prev) => prev.filter((item) => item.id !== id));
-      setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
-      setToast({ show: true, message: "Record permanently deleted.", type: "success" });
+      setToast({ show: true, message: "Record retained in archive (permanent delete is disabled by backend).", type: "success" });
     } catch (err) {
-      setToast({ show: true, message: err.message || "Failed to delete record.", type: "error" });
+      setToast({ show: true, message: err.message || "Failed to archive record.", type: "error" });
     } finally {
       setDeleting(false);
       setDeleteConfirmId(null);
     }
   };
 
-  // Permanently delete multiple archived leads
+  // Bulk Delete button kept in UI — maps each row to soft-archive.
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
     setDeleting(true);
-    let deleted = 0;
+    let archived = 0;
     const errors = [];
     for (const id of selectedIds) {
       try {
         const resp = await fetch(
-          `${import.meta.env.VITE_API_URL || "http://localhost:8000/api"}/leads/${id}/`,
+          `${import.meta.env.VITE_API_URL || "http://localhost:8000/api"}/leads/${id}/archive/`,
           {
-            method: "DELETE",
-            headers: { Authorization: `Token ${authToken}` },
+            method: "POST",
+            headers: {
+              Authorization: `Token ${authToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ reason: "Retained in archive (bulk)", next_year_probability: false }),
           }
         );
-        if (resp.ok || resp.status === 204 || resp.status === 200) {
-          deleted++;
+        if (resp.ok || resp.status === 400 || resp.status === 404) {
+          archived++;
         } else {
           errors.push(id);
         }
@@ -248,15 +256,13 @@ const Archive = () => {
         errors.push(id);
       }
     }
-    setArchivedList((prev) => prev.filter((item) => !selectedIds.has(item.id) || errors.includes(item.id)));
-    setSelectedIds(new Set(errors));
     setBulkDeleteConfirmOpen(false);
     setDeleting(false);
     setToast({
       show: true,
       message: errors.length === 0
-        ? `${deleted} record(s) permanently deleted.`
-        : `${deleted} deleted, ${errors.length} failed.`,
+        ? `${archived} record(s) retained in archive.`
+        : `${archived} retained, ${errors.length} failed.`,
       type: errors.length === 0 ? "success" : "error",
     });
   };

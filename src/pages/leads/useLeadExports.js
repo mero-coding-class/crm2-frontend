@@ -86,7 +86,7 @@ export default function useLeadExports(ctx) {
           if (filterPrevCodingExp && filterPrevCodingExp !== "CodingExp")
             add("previous_coding_experience", filterPrevCodingExp);
 
-          const backendExportUrl = `${BASE_URL}/leads/export-csv/export?${params.toString()}`;
+          const backendExportUrl = `${BASE_URL}/reports/leads/?${params.toString()}${params.toString() ? "&" : ""}export=csv`;
           const resp = await fetch(backendExportUrl, { headers: { Authorization: `Token ${authToken}` } });
           if (resp.ok) {
             const cloned = resp.clone();

@@ -780,44 +780,30 @@ export default function useEnrollmentUpdates({
   const handleDelete = useCallback(
     async (studentId) => {
       try {
-        // Resolve the lead id before deletion (we'll move it to Trash next)
+        // Backend blocks DELETE /clients/* (405) and DELETE /leads/* (405).
+        // Delete button is kept in the UI and maps to archiving the
+        // associated lead instead (soft-archive, never hard delete).
         const current = (allStudents || []).find((s) => String(s.id) === String(studentId));
         const leadId =
           (current &&
             (current.lead?.id ?? current.lead?._id ?? current.leadId ?? current.lead?.lead_id)) ||
           null;
 
-        const resp = await apiFetch(`${BASE_URL}/clients/${studentId}/`, {
-          method: "DELETE",
-          headers: { Authorization: `Token ${authToken}` },
-          credentials: "include",
-        });
-        if (!resp.ok) {
-          let errorBody = null;
-          try { errorBody = await resp.json(); } catch (e) { try { errorBody = await resp.text(); } catch (e2) { errorBody = null; } }
-          const detailMsg = (errorBody && errorBody.detail) || (typeof errorBody === "string" && errorBody) || resp.statusText;
-          setError(`Failed to delete client: ${detailMsg}`);
-          console.error("DELETE error details:", { url: `${BASE_URL}/clients/${studentId}/`, status: resp.status, response: errorBody });
-          return;
-        }
-        setAllStudents((prev) => prev.filter((s) => s.id !== studentId));
-        fetchEnrolledStudents(currentPage);
-
         // After successful enrollment deletion, move the associated lead to Trash (if any)
         if (leadId !== null && leadId !== undefined) {
           try {
-            const trashResp = await apiFetch(`${BASE_URL}/leads/${leadId}/`, {
-              method: "DELETE",
+            const trashResp = await apiFetch(`${BASE_URL}/leads/${leadId}/archive/`, {
+              method: "POST",
               headers: {
                 "Content-Type": "application/json",
                 Authorization: `Token ${authToken}`,
               },
-              body: JSON.stringify({ reason: "Enrollment deleted" }),
+              body: JSON.stringify({ reason: "Enrollment deleted", next_year_probability: false }),
               credentials: "include",
             });
-            if (trashResp.ok) {
-              const trashed = await trashResp.json().catch(() => null);
+            if (trashResp.ok || trashResp.status === 400) {
               try {
+                const trashed = trashResp.ok ? await trashResp.json().catch(() => null) : null;
                 window.dispatchEvent(
                   new CustomEvent("crm:leadMovedToTrash", { detail: { lead: trashed || undefined, leadId } })
                 );
@@ -825,11 +811,21 @@ export default function useEnrollmentUpdates({
                   new CustomEvent("crm:leadArchived", { detail: { leadId } })
                 );
               } catch {}
+            } else {
+              let errorBody = null;
+              try { errorBody = await trashResp.json(); } catch (e) { try { errorBody = await trashResp.text(); } catch (e2) { errorBody = null; } }
+              const detailMsg = (errorBody && errorBody.detail) || (typeof errorBody === "string" && errorBody) || trashResp.statusText;
+              setError(`Failed to archive lead: ${detailMsg}`);
+              console.error("Archive error details:", { url: `${BASE_URL}/leads/${leadId}/archive/`, status: trashResp.status, response: errorBody });
+              return;
             }
           } catch (e) {
             console.debug("Failed to move lead to archive after enrollment delete (non-blocking)", e);
           }
         }
+        // Local-only removal of the enrollment row (backend retains the client record).
+        setAllStudents((prev) => prev.filter((s) => s.id !== studentId));
+        fetchEnrolledStudents(currentPage);
       } catch (err) {
         console.error("Failed to delete enrollment:", err);
         setError(err.message || "Failed to delete enrollment");
@@ -842,39 +838,27 @@ export default function useEnrollmentUpdates({
     async (ids = []) => {
       if (!ids || ids.length === 0) return;
       try {
-        // Delete enrollments first
-        const deleteResults = await Promise.all(
-          ids.map((id) =>
-            fetch(`${BASE_URL}/clients/${id}/`, {
-              method: "DELETE",
-              headers: { Authorization: `Token ${authToken}` },
-              credentials: "include",
-            })
-          )
-        );
-        // Filter out any failed deletions
-        const deletedIds = ids.filter((_, idx) => deleteResults[idx] && deleteResults[idx].ok);
-
-        // Attempt to move corresponding leads to Trash (best-effort)
+        // Backend blocks DELETE /clients/* and DELETE /leads/* (405).
+        // Bulk Delete button maps to archiving each associated lead instead.
         const leadsToTrash = (allStudents || [])
-          .filter((s) => deletedIds.some((id) => String(s.id) === String(id)))
+          .filter((s) => (ids || []).some((id) => String(s.id) === String(id)))
           .map((s) => s && (s.lead?.id ?? s.lead?._id ?? s.leadId ?? s.lead?.lead_id))
           .filter((lid) => lid !== null && lid !== undefined);
 
         await Promise.all(
           leadsToTrash.map((lid) =>
-            fetch(`${BASE_URL}/leads/${lid}/`, {
-              method: "DELETE",
+            fetch(`${BASE_URL}/leads/${lid}/archive/`, {
+              method: "POST",
               headers: {
                 "Content-Type": "application/json",
                 Authorization: `Token ${authToken}`,
               },
-              body: JSON.stringify({ reason: "Bulk enrollment deleted" }),
+              body: JSON.stringify({ reason: "Bulk enrollment deleted", next_year_probability: false }),
               credentials: "include",
             }).then(async (r) => {
               try {
-                if (r.ok) {
-                  const trashed = await r.json().catch(() => null);
+                if (r.ok || r.status === 400) {
+                  const trashed = r.ok ? await r.json().catch(() => null) : null;
                   window.dispatchEvent(
                     new CustomEvent("crm:leadMovedToTrash", { detail: { lead: trashed || undefined, leadId: lid } })
                   );

@@ -318,7 +318,7 @@ const ImportCsvButton = ({
     setProgress(0);
     setStatusMessage(USE_SERVER_IMPORT ? "Attempting backend import..." : "");
 
-    const backendImportUrl = `${BASE_URL}/leads/import-csv/`;
+    const backendImportUrl = `${BASE_URL}/leads/import/preview/`;
     abortControllerRef.current = new AbortController();
     isCancelledRef.current = false;
 

@@ -61,11 +61,13 @@ const Login = () => {
       // 1) Login to get token
       const { data } = await axios.post(
         `${BASE_URL}/auth/login/`,
+        
         {
           username: formData.username,
           password: formData.password,
         },
-        { headers: { "Content-Type": "application/json" } }
+        
+        { withCredentials:true, headers: { "Content-Type": "application/json" } }
       );
 
       // Backend returns user profile directly (session auth) or a token object
