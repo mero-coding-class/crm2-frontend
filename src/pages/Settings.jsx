@@ -139,7 +139,7 @@ const Settings = () => {
     setLoadingUsers(true);
     try {
       const res = await fetch(`${BASE_URL}/users/`, {
-        headers: { Authorization: `Token ${authToken}` },
+        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to fetch users");
       const data = await res.json();
@@ -182,24 +182,45 @@ const Settings = () => {
     e.preventDefault();
     setUserMsg({ type: "", text: "" });
 
+    // Backend UserCreateSerializer: username>=3, email unique required, password>=8, role required.
     if (!userForm.username.trim() || !userForm.password) {
       setUserMsg({ type: "error", text: "Username and password are required." });
+      return;
+    }
+    if (userForm.password.length < 8) {
+      setUserMsg({ type: "error", text: "Password must be at least 8 characters." });
       return;
     }
 
     setUserLoading(true);
     try {
+      // Map legacy UI roles to backend roles (admin|b2b|b2c|academic).
+      const roleMap = {
+        admin: "admin",
+        superadmin: "admin",
+        sales_rep: "b2b",
+        counselor: "b2c",
+        counsellor: "b2c",
+        academic_counsellor: "academic",
+        academic: "academic",
+        b2b: "b2b",
+        b2c: "b2c",
+      };
+      const backendRole = roleMap[userForm.role] || "b2b";
+      const payload = {
+        username: userForm.username.trim(),
+        // Backend requires email; derive a placeholder when UI has no email field.
+        email: userForm.email?.trim() || `${userForm.username.trim()}@example.com`,
+        role: backendRole,
+        password: userForm.password,
+      };
       const res = await fetch(`${BASE_URL}/users/`, {
         method: "POST",
+        credentials: "include",
         headers: {
-          Authorization: `Token ${authToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          username: userForm.username.trim(),
-          role: userForm.role,
-          password: userForm.password,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -208,7 +229,7 @@ const Settings = () => {
           const d = await res.json();
           errText = d.error || d.detail || JSON.stringify(d);
         } catch {
-          errText = await res.text();
+          try { errText = await res.text(); } catch {}
         }
         throw new Error(errText);
       }
@@ -224,17 +245,27 @@ const Settings = () => {
   };
 
   const handleDeleteUser = async (id) => {
+    // Backend has no DELETE /users/ (405) — deactivate via PATCH {is_active:false}.
     setDeleteProcessing(true);
     setDeleteError("");
     try {
       const res = await fetch(`${BASE_URL}/users/${id}/`, {
-        method: "DELETE",
-        headers: { Authorization: `Token ${authToken}` },
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active: false }),
       });
-      if (!res.ok) throw new Error("Failed to delete user.");
+      if (!res.ok) {
+        let msg = "Failed to deactivate user.";
+        try {
+          const d = await res.json();
+          msg = d.detail || JSON.stringify(d);
+        } catch {}
+        throw new Error(msg);
+      }
       setUsers((prev) => prev.filter((u) => u.id !== id));
     } catch (err) {
-      setDeleteError(err.message || "Could not delete user.");
+      setDeleteError(err.message || "Could not deactivate user.");
     } finally {
       setDeleteProcessing(false);
       setDeleteUserConfirmId(null);
@@ -255,9 +286,20 @@ const Settings = () => {
     if (!editingUser) return;
     setEditUserLoading(true);
     try {
+      const roleMap = {
+        admin: "admin",
+        superadmin: "admin",
+        sales_rep: "b2b",
+        counselor: "b2c",
+        counsellor: "b2c",
+        academic_counsellor: "academic",
+        academic: "academic",
+        b2b: "b2b",
+        b2c: "b2c",
+      };
       const payload = {
         username: editUserForm.username.trim(),
-        role: editUserForm.role,
+        role: roleMap[editUserForm.role] || editUserForm.role,
       };
       if (editUserForm.password && editUserForm.password.trim().length > 0) {
         payload.password = editUserForm.password;
@@ -265,8 +307,8 @@ const Settings = () => {
 
       const res = await fetch(`${BASE_URL}/users/${editingUser.id}/`, {
         method: "PATCH",
+        credentials: "include",
         headers: {
-          Authorization: `Token ${authToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),

@@ -9,7 +9,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
 
   // Catalog options from backend
   const [packages, setPackages] = useState([]);
-  // syllabi removed — syllabus_type field removed per requirement
+  const [syllabi, setSyllabi] = useState([]);
   const [classesList, setClassesList] = useState([]);
 
   // Form state
@@ -27,10 +27,13 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
     pricing_basis: "per_month",
     classes_per_week: 2,
     package_type: "",
-    // syllabus_type removed per requirement
+    syllabus_type: "",
     included_classes: [],
     exams_count: 0,
     events_count: 0,
+    signed_date: "",
+    start_date: "",
+    end_date: "",
   });
 
   // Load catalogs on open
@@ -66,26 +69,30 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
       pricing_basis: "per_month",
       classes_per_week: 2,
       package_type: "",
-      // syllabus_type removed
+      syllabus_type: "",
       included_classes: [],
       exams_count: 0,
       events_count: 0,
+      signed_date: today,
+      start_date: today,
+      end_date: nextYear,
     }));
 
     Promise.all([
       catalogService.getPackages(authToken).catch(() => []),
-      // syllabi no longer needed
+      catalogService.getSyllabi(authToken).catch(() => []),
       catalogService.getClasses(authToken).catch(() => []),
     ])
-      .then(([pkgs, cls]) => {
+      .then(([pkgs, syl, cls]) => {
         if (!mounted) return;
         setPackages(pkgs);
+        setSyllabi(syl);
         setClassesList(cls);
 
         setFormData((prev) => ({
           ...prev,
           package_type: pkgs[0]?.id || "",
-          // syllabus_type removed
+          syllabus_type: "",
           included_classes: cls.map((c) => c.id),
         }));
       })
@@ -152,7 +159,14 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
       setError("Please select a package.");
       return;
     }
-    // syllabus_type validation removed
+    if (!formData.signed_date || !formData.start_date || !formData.end_date) {
+      setError("Contract signed/start/end dates are required.");
+      return;
+    }
+    if (new Date(formData.end_date) < new Date(formData.start_date)) {
+      setError("Contract end date must be on or after start date.");
+      return;
+    }
     if (!formData.included_classes.length) {
       setError("Please select at least one class.");
       return;
@@ -182,11 +196,14 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
         pricing_basis: formData.pricing_basis,
         classes_per_week: Number(formData.classes_per_week),
         package_type: Number(formData.package_type),
-        // syllabus_type removed per requirement
+        ...(formData.syllabus_type ? { syllabus_type: Number(formData.syllabus_type) } : {}),
         included_classes: formData.included_classes,
         exams_count: Number(formData.exams_count || 0),
         events_count: Number(formData.events_count || 0),
         first_class_date: formData.first_class_date || null,
+        signed_date: formData.signed_date,
+        start_date: formData.start_date,
+        end_date: formData.end_date,
       };
 
       const result = await clientService.enrollLead(payload, authToken);
@@ -432,7 +449,24 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
                   ))}
                 </select>
               </div>
-              {/* Syllabus Type removed per requirement */}
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Syllabus Type
+                </label>
+                <select
+                  name="syllabus_type"
+                  value={formData.syllabus_type}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none bg-white capitalize"
+                >
+                  <option value="">Select (optional)</option>
+                  {syllabi.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">
                   Classes per Week *
@@ -480,6 +514,45 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
 
           {/* Section 5: Extra Details */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">
+                Signed Date *
+              </label>
+              <input
+                type="date"
+                name="signed_date"
+                value={formData.signed_date}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">
+                Contract Start *
+              </label>
+              <input
+                type="date"
+                name="start_date"
+                value={formData.start_date}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">
+                Contract End *
+              </label>
+              <input
+                type="date"
+                name="end_date"
+                value={formData.end_date}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+              />
+            </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">
                 First Class Date (Optional)

@@ -1,25 +1,26 @@
 import { useCallback, useState } from "react";
-import { BASE_URL } from "../../config";
+import { userService } from "../../services/api";
 
 export default function useTeachers(authToken) {
   const [teachers, setTeachers] = useState([]);
 
   const fetchTeachers = useCallback(async () => {
-    if (!authToken) return;
     try {
-      const res = await fetch(`${BASE_URL}/teachers/`, {
-        headers: { Authorization: `Token ${authToken}` },
-      });
-      if (!res.ok) throw new Error("Failed to fetch teachers");
-      const data = await res.json();
-      let list = [];
-      if (Array.isArray(data)) list = data;
-      else if (data && Array.isArray(data.results)) list = data.results;
-      else if (data && Array.isArray(data.data)) list = data.data;
-      const normalized = (list || [])
+      // Backend has no /teachers/ route — teachers are users with role=academic.
+      // Non-admins cannot list users (403); fall back to empty in that case.
+      const list = await userService.list(authToken).catch(() => []);
+      const academics = (list || []).filter(
+        (u) => (u.role || "").toLowerCase() === "academic"
+      );
+      const normalized = academics
         .map((t) => ({
-          id: t.id || t.pk || t._id || t.teacher_id || t.uuid,
-          name: t.name || t.teacher_name || t.full_name || t.title || "",
+          id: t.id,
+          name:
+            [t.first_name, t.last_name].filter(Boolean).join(" ").trim() ||
+            t.username ||
+            t.email ||
+            String(t.id ?? ""),
+          raw: t,
         }))
         .filter((t) => t.id != null);
       setTeachers(normalized);

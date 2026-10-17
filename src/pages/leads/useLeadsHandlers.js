@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { resolveServerId, leadService } from "../../services/api";
+import { resolveServerId, leadService, activityService } from "../../services/api";
 import { deduplicateLeads, matchId } from "./utils";
 import { SAMPLE_PLACEHOLDER_LEAD } from "./useLeadsCore";
 
@@ -8,7 +8,7 @@ const isSampleLead = (lead) =>
   lead?._id === SAMPLE_PLACEHOLDER_LEAD._id || lead?.id === SAMPLE_PLACEHOLDER_LEAD.id;
 
 export default function useLeadsHandlers(ctx) {
-  const { authToken, allLeads, setAllLeads, setToast, setError, courses } = ctx;
+  const { authToken, allLeads, setAllLeads, setToast, setActionError, courses } = ctx;
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState(null);
@@ -168,7 +168,6 @@ export default function useLeadsHandlers(ctx) {
 
   const handleActivitySave = useCallback(
     async (leadId, activityData) => {
-      console.log(leadId, "This is the leadId")
       const prevLeads = (allLeads || []).slice();
       try {
         let leadObj = (allLeads || []).find((l) => matchId(l, leadId));
@@ -179,6 +178,12 @@ export default function useLeadsHandlers(ctx) {
         if (!leadObj) leadObj = prevLeads.find((l) => matchId(l, serverId));
         const previousSubStatus = leadObj?.sub_status || "";
 
+        const subStatusValue =
+          activityData.sub_status ?? activityData.substatus ?? leadObj?.sub_status ?? "New";
+        const remarksValue = activityData.remarks ?? leadObj?.remarks ?? "";
+        const lastCallValue = activityData.activity_at ?? activityData.last_call ?? null;
+        const nextCallValue = activityData.followup_at ?? activityData.next_call ?? null;
+
         // Optimistically update allLeads
         setAllLeads((prev) =>
           deduplicateLeads(
@@ -186,25 +191,47 @@ export default function useLeadsHandlers(ctx) {
               matchId(l, serverId)
                 ? {
                     ...l,
-                    substatus: activityData.substatus ?? l.substatus,
-                    sub_status: activityData.substatus ?? l.sub_status,
-                    source: activityData.source ?? l.source,
-                    last_call: activityData.last_call ?? l.last_call,
-                    next_call: activityData.next_call ?? l.next_call,
-                    remarks: activityData.remarks ?? l.remarks,
+                    substatus: subStatusValue,
+                    sub_status: subStatusValue,
+                    ...(activityData.source !== undefined ? { source: activityData.source } : {}),
+                    ...(lastCallValue ? { last_call: lastCallValue } : {}),
+                    ...(nextCallValue ? { next_call: nextCallValue } : {}),
+                    remarks: remarksValue,
                   }
                 : l
             )
           )
         );
 
-        const updatesToSend = {
-          source: activityData.source,
-          sub_status: activityData.sub_status || activityData.substatus,
-          last_call: activityData.last_call,
-          next_call: activityData.next_call,
-          remarks: activityData.remarks,
+        // 1) Create the activity record with the lead reference so it
+        // appears in GET /activities/?lead=<id>.
+        const activityPayload = {
+          lead: serverId,
+          ...(activityData.activity_at ? { activity_at: activityData.activity_at } : {}),
+          ...(activityData.type ? { type: activityData.type } : {}),
+          sub_status: subStatusValue,
+          ...(remarksValue ? { remarks: remarksValue } : {}),
+          ...(activityData.followup_at ? { followup_at: activityData.followup_at } : {}),
+          ...(activityData.details ? { details: activityData.details } : {}),
         };
+        // Backward compat for legacy callers still sending next_call/last_call.
+        if (!activityPayload.followup_at && activityData.next_call) {
+          activityPayload.followup_at = activityData.next_call;
+        }
+        if (!activityPayload.activity_at && activityData.last_call) {
+          activityPayload.activity_at = activityData.last_call;
+        }
+
+        await activityService.createActivity(activityPayload, authToken);
+
+        // 2) Patch the lead so the table stays in sync.
+        const updatesToSend = {
+          sub_status: subStatusValue,
+          remarks: remarksValue,
+        };
+        if (activityData.source !== undefined) updatesToSend.source = activityData.source;
+        if (lastCallValue) updatesToSend.last_call = lastCallValue;
+        if (nextCallValue) updatesToSend.next_call = nextCallValue;
 
         const serverResp = await leadService.updateLead(
           serverId,
@@ -226,11 +253,10 @@ export default function useLeadsHandlers(ctx) {
                     ...l,
                     ...serverResp,
                     _id: l._id || serverResp.id,
-                    sub_status:
-                      serverResp.sub_status ??
-                      activityData.sub_status ??
-                      activityData.substatus,
-                    source: serverResp.source ?? activityData.source,
+                    sub_status: serverResp.sub_status ?? subStatusValue,
+                    substatus: serverResp.sub_status ?? subStatusValue,
+                    source: serverResp.source ?? activityData.source ?? l.source,
+                    remarks: serverResp.remarks ?? remarksValue,
                   }
                 : l
             )
@@ -238,7 +264,7 @@ export default function useLeadsHandlers(ctx) {
         );
 
         // If sub_status changed, dispatch event
-        const newSub = serverResp?.sub_status ?? activityData.sub_status ?? activityData.substatus ?? "";
+        const newSub = serverResp?.sub_status ?? subStatusValue ?? "";
         if (previousSubStatus !== newSub) {
           try {
             window.dispatchEvent(
@@ -366,10 +392,10 @@ export default function useLeadsHandlers(ctx) {
           window.dispatchEvent(new CustomEvent("crm:leadArchived", { detail: { leadId: serverId } }));
         } catch {}
       } catch (err) {
-        setError(err.message || "Failed to archive lead");
+        setActionError(err.message || "Failed to archive lead");
       }
     },
-    [authToken, allLeads, setAllLeads, setError, setToast]
+    [authToken, allLeads, setAllLeads, setActionError, setToast]
   );
 
   /**
@@ -391,10 +417,10 @@ export default function useLeadsHandlers(ctx) {
         );
         setToast({ show: true, message: `${realIds.length} lead(s) moved to Archive`, type: "success" });
       } catch (err) {
-        setError(err.message || "Failed to archive selected leads");
+        setActionError(err.message || "Failed to archive selected leads");
       }
     },
-    [authToken, allLeads, setAllLeads, setError, setToast]
+    [authToken, allLeads, setAllLeads, setActionError, setToast]
   );
 
   const handleSaveEdit = useCallback(

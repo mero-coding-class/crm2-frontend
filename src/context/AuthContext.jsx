@@ -54,8 +54,10 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     try {
+      // Session auth: destroy server session; fire-and-forget but with cookies.
       fetch(`${BASE_URL}/auth/logout/`, {
         method: "POST",
+        credentials: "include",
       }).catch(() => {});
     } catch (_) {}
     localStorage.removeItem("authToken");

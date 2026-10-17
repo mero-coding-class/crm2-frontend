@@ -2,24 +2,52 @@
 
 import { BASE_URL } from "../config";
 
+const AUTH_EXPIRED_PATTERNS = [
+  "Authentication credentials were not provided",
+  "Authentication credentials",
+  "Not authenticated",
+  "Invalid token",
+  "Session expired",
+  "SessionExpired",
+];
+
+const isAuthExpiredMessage = (msg) => {
+  if (typeof msg !== "string" || !msg) return false;
+  return AUTH_EXPIRED_PATTERNS.some((p) => msg.includes(p));
+};
+
+const readErrorBody = async (response) => {
+  try {
+    const errData = await response.clone().json();
+    if (errData && typeof errData === "object") {
+      if (typeof errData.detail === "string") return errData.detail;
+      // DRF field errors: {field: [msg]} -> flatten for UI
+      const parts = [];
+      for (const [k, v] of Object.entries(errData)) {
+        if (Array.isArray(v)) parts.push(`${k}: ${v.join(", ")}`);
+        else if (typeof v === "string") parts.push(k === "detail" ? v : `${k}: ${v}`);
+        else parts.push(`${k}: ${JSON.stringify(v)}`);
+      }
+      if (parts.length) return parts.join(" | ");
+      return JSON.stringify(errData);
+    }
+    return String(errData);
+  } catch {
+    try {
+      const t = await response.clone().text();
+      return t || `HTTP ${response.status}`;
+    } catch {
+      return `HTTP ${response.status}`;
+    }
+  }
+};
+
 const handleResponse = async (response) => {
   if (!response.ok) {
-    let errorMsg = "An error occurred";
-    try {
-      const errData = await response.json();
-      errorMsg = errData.detail || JSON.stringify(errData);
-    } catch {
-      try {
-        errorMsg = await response.text();
-      } catch {
-        // ignore
-      }
-    }
+    const errorMsg = await readErrorBody(response);
     if (
       response.status === 401 ||
-      (response.status === 403 &&
-        typeof errorMsg === "string" &&
-        (errorMsg.includes("Authentication credentials") || errorMsg.includes("Invalid token")))
+      (response.status === 403 && isAuthExpiredMessage(errorMsg))
     ) {
       // Dispatch a custom event so AuthContext can clear React state properly
       // (direct localStorage.removeItem won't trigger re-render in the same tab)
@@ -43,16 +71,53 @@ const handleResponse = async (response) => {
 };
 
 /**
- * apiFetch — thin wrapper around fetch() that always sends session cookies
- * (credentials: "include"). Required because the backend uses Django session
- * auth (not DRF Token auth). Pass the same args as fetch().
+ * apiFetch — thin wrapper around fetch() for Django session auth.
+ * Backend is session-only (no Token/JWT). Auth = HttpOnly sessionid cookie
+ * + csrftoken for unsafe methods (injected globally in main.jsx).
+ * authToken params are kept for backward-compat but intentionally ignored:
+ * do NOT send `Authorization: Token ...` — backend has no such scheme.
+ * Pass the same args as fetch().
  */
+export const sessionHeaders = (extra = {}) => ({ ...(extra || {}) });
+
 export const apiFetch = (url, options = {}) => {
   return fetch(url, {
     credentials: "include",
     ...options,
     headers: options.headers || {},
   });
+};
+
+/**
+ * Auth endpoints (session-only). Login issues the session cookie;
+ * no token is returned by design — callers should treat any truthy
+ * marker as "logged in" and rely on /auth/me/ for the profile.
+ */
+export const authService = {
+  ensureCsrf: async () => {
+    try {
+      await fetch(`${BASE_URL}/auth/csrf/`, { credentials: "include" });
+    } catch (_) {}
+  },
+  login: async ({ username, password }) => {
+    await authService.ensureCsrf();
+    const response = await apiFetch(`${BASE_URL}/auth/login/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    return handleResponse(response);
+  },
+  getMe: async () => {
+    const response = await apiFetch(`${BASE_URL}/auth/me/`);
+    return handleResponse(response);
+  },
+  logout: async () => {
+    try {
+      const response = await apiFetch(`${BASE_URL}/auth/logout/`, { method: "POST" });
+      await handleResponse(response);
+    } catch (_) {}
+  },
 };
 
 
@@ -102,7 +167,7 @@ const sanitizeShift = (s) => {
 
 export const leadService = {
   getLeads: async (authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/leads/`, {
       headers: {
         Authorization: `Token ${authToken}`,
@@ -153,9 +218,23 @@ export const leadService = {
   },
 
   // Fetch a specific page of leads from the backend (supports paginated API)
-  getLeadsPage: async (authToken, page = 1, pageSize = 20) => {
-    if (!authToken) throw new Error("Authentication token not found.");
-    const url = `${BASE_URL}/leads/?page=${page}&page_size=${pageSize}`;
+  // Supported backend filters: municipality, district, owner, call_assignee,
+  // demo, sub_status, followup_from/to, created_from/to, search, ordering.
+  getLeadsPage: async (authToken, page = 1, pageSize = 20, filters = {}) => {
+    // session auth: authToken marker optional, backend uses session cookie.
+    const allowed = [
+      "municipality", "district", "owner", "call_assignee", "demo",
+      "sub_status", "followup_from", "followup_to", "created_from",
+      "created_to", "search", "ordering",
+    ];
+    const qs = new URLSearchParams({ page, page_size: pageSize });
+    for (const k of allowed) {
+      const v = filters?.[k];
+      if (v !== undefined && v !== null && String(v).trim() !== "" && String(v) !== "All") {
+        qs.append(k, String(v).trim());
+      }
+    }
+    const url = `${BASE_URL}/leads/?${qs.toString()}`;
     const resp = await apiFetch(url, {
       headers: { Authorization: `Token ${authToken}` },
     });
@@ -206,13 +285,14 @@ export const leadService = {
   },
 
   updateLead: async (id, updates, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
 
     // Only send fields that are writable by LeadUpdateSerializer
+    // Must match backend LEAD_WRITABLE_FIELDS exactly.
     const WRITABLE_FIELDS = [
       "school_name", "district", "municipality", "address",
       "contact_person", "contact_number", "alt_number", "alt_contact_person",
-      "email", "source", "course_interest", "social_media", "sub_status",
+      "landline", "email", "source", "course_interest", "social_media", "sub_status",
     ];
 
     const backendUpdates = {};
@@ -237,37 +317,23 @@ export const leadService = {
       backendUpdates.sub_status = updates.substatus;
     if (updates.alt_contact_person !== undefined) backendUpdates.alt_contact_person = updates.alt_contact_person;
     if (updates.alt_number !== undefined) backendUpdates.alt_number = updates.alt_number;
+    if (updates.landline !== undefined) backendUpdates.landline = updates.landline;
 
     const doPatch = async (payload) => {
-      const hasInvoiceFile =
-        updates && updates.first_invoice && updates.first_invoice instanceof File;
+      // Backend has no first_invoice field — never send files to /leads/.
+      // Strip any legacy invoice key so PATCH validates against LeadUpdateSerializer.
+      const clean = { ...(payload || {}) };
+      delete clean.first_invoice;
 
       let resp;
-      if (hasInvoiceFile) {
-        const fd = new FormData();
-        Object.entries(payload || {}).forEach(([k, v]) => {
-          if (k === "first_invoice") return;
-          if (v === undefined || v === null) return;
-          if (typeof v === "object") {
-            try { fd.append(k, JSON.stringify(v)); } catch { fd.append(k, String(v)); }
-          } else {
-            fd.append(k, String(v));
-          }
-        });
-        fd.append("first_invoice", updates.first_invoice);
-        resp = await apiFetch(`${BASE_URL}/leads/${id}/`, {
-          method: "PATCH",
-          headers: { Authorization: `Token ${authToken}` },
-          body: fd,
-        });
-      } else {
+      {
         resp = await apiFetch(`${BASE_URL}/leads/${id}/`, {
           method: "PATCH",
           headers: {
             Authorization: `Token ${authToken}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(clean),
         });
       }
 
@@ -332,7 +398,7 @@ export const leadService = {
   },
 
   addLead: async (newLeadData, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
 
     const backendData = {
       school_name: newLeadData.school_name || newLeadData.school_college_name || "",
@@ -364,11 +430,11 @@ export const leadService = {
 
   /** Archive a single lead (soft-delete). Requires reason + next_year_probability (bool). */
   archiveLead: async (id, authToken, reason = "", nextYearProbability = false) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth only — backend uses HttpOnly session cookie + CSRF token.
+    // Do NOT send Authorization header; backend has no Token auth scheme.
     const response = await apiFetch(`${BASE_URL}/leads/${id}/archive/`, {
       method: "POST",
       headers: {
-        Authorization: `Token ${authToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ reason, next_year_probability: !!nextYearProbability }),
@@ -378,7 +444,7 @@ export const leadService = {
 
   /** Restore an archived lead back to the active pipeline. */
   restoreLead: async (id, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/leads/${id}/restore/`, {
       method: "POST",
       headers: {
@@ -392,7 +458,7 @@ export const leadService = {
 
   /** Archive multiple leads in one round-trip. Body: {ids[], reason, next_year_probability}. */
   bulkArchiveLeads: async (ids, authToken, reason = "", nextYearProbability = false) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/leads/bulk-archive/`, {
       method: "POST",
       headers: {
@@ -406,7 +472,7 @@ export const leadService = {
 
   /** Assign owner and/or call_assignee to a lead. */
   assignLead: async (id, { owner, call_assignee, reason } = {}, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const body = {};
     if (owner !== undefined) body.owner = owner;
     if (call_assignee !== undefined) body.call_assignee = call_assignee;
@@ -437,7 +503,7 @@ export const leadService = {
 
   /** Fetch paginated archived leads. */
   getArchivedLeads: async (authToken, page = 1, pageSize = 20, params = {}) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const qs = new URLSearchParams({ page, page_size: pageSize, ...params }).toString();
     const response = await apiFetch(`${BASE_URL}/archived-leads/?${qs}`, {
       headers: { Authorization: `Token ${authToken}` },
@@ -499,7 +565,7 @@ export const resolveServerId = (leadOrId, prevLeads = []) => {
 export const trashService = {
   /** Fetch paginated archived/trashed leads from the new backend. */
   getTrashedLeads: async (authToken, page = 1, pageSize = 50) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     try {
       const qs = new URLSearchParams({ page, page_size: pageSize }).toString();
       const response = await apiFetch(`${BASE_URL}/archived-leads/?${qs}`, {
@@ -540,7 +606,7 @@ export const trashService = {
 
   /** Restore an archived lead back to the active pipeline. */
   restoreTrashedLead: async (id, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/leads/${id}/restore/`, {
       method: "POST",
       headers: {
@@ -557,7 +623,7 @@ export const trashService = {
    * Delete button maps to soft-archive instead. Keeps the button in the UI.
    */
   deleteTrashedLead: async (id, authToken, reason = "Deleted from trash view", nextYearProbability = false) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/leads/${id}/archive/`, {
       method: "POST",
       headers: {
@@ -585,7 +651,7 @@ export const trashService = {
 export const courseService = {
   /** Fetch all catalog classes (replaces old /api/courses/). */
   getCourses: async (authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     try {
       const response = await apiFetch(`${BASE_URL}/catalogs/classes/`, {
         headers: { Authorization: `Token ${authToken}` },
@@ -605,27 +671,27 @@ export const courseService = {
   },
 
   createCourse: async (courseName, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/catalogs/classes/`, {
       method: "POST",
       headers: {
         Authorization: `Token ${authToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ class_name: courseName, name: courseName }),
+      body: JSON.stringify({ name: courseName }),
     });
     return handleResponse(response);
   },
 
   updateCourse: async (id, courseName, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/catalogs/classes/${id}/`, {
       method: "PATCH",
       headers: {
         Authorization: `Token ${authToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ class_name: courseName, name: courseName }),
+      body: JSON.stringify({ name: courseName }),
     });
     return handleResponse(response);
   },
@@ -633,7 +699,7 @@ export const courseService = {
   deleteCourse: async (id, authToken) => {
     // Backend blocks DELETE on catalogs (405) — deactivate via active=false instead.
     // Button label stays "Delete"; behavior becomes deactivate.
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/catalogs/classes/${id}/`, {
       method: "PATCH",
       headers: {
@@ -658,7 +724,7 @@ export const courseService = {
 
 export const changeLogService = {
   getLeadLogs: async (leadId, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     // Canonical audit endpoint: GET /change-log/?entity=&record_id=
     // (There is no /leads/{id}/logs/ route on the backend.)
     const qs = new URLSearchParams({ entity: "leads", record_id: leadId }).toString();
@@ -675,7 +741,7 @@ export const changeLogService = {
 export const approvalService = {
   /** Get pending approval queue (admin only). */
   getQueue: async (authToken, page = 1, pageSize = 20) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const qs = new URLSearchParams({ page, page_size: pageSize }).toString();
     const response = await apiFetch(`${BASE_URL}/approvals/?${qs}`, {
       headers: { Authorization: `Token ${authToken}` },
@@ -686,7 +752,7 @@ export const approvalService = {
 
   /** Approve a pending lead submission. */
   approveLead: async (id, reason, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/leads/${id}/approve/`, {
       method: "POST",
       headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
@@ -697,7 +763,7 @@ export const approvalService = {
 
   /** Reject a pending lead submission. */
   rejectLead: async (id, reason, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/leads/${id}/reject/`, {
       method: "POST",
       headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
@@ -708,7 +774,7 @@ export const approvalService = {
 
   /** Batch approve or reject. action = 'approve' | 'reject'. */
   batchReview: async (ids, action, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/approvals/batch/`, {
       method: "POST",
       headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
@@ -725,7 +791,7 @@ export const importService = {
    * per-row valid/invalid/duplicate_in_file/duplicate_in_db + batch_key.
    */
   uploadBatch: async (file, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const fd = new FormData();
     fd.append("file", file);
     const response = await apiFetch(`${BASE_URL}/leads/import/preview/`, {
@@ -740,10 +806,12 @@ export const importService = {
    * Bulk import step 2: create only selected valid rows from batch_key
    * (admin may set owner; B2B -> pending). Links ImportBatch.
    */
-  confirmImport: async ({ batch_key, rows, owner } = {}, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+  confirmImport: async ({ batch_key, rows, selected, owner } = {}, authToken) => {
+    // session auth: authToken marker optional, backend uses session cookie.
+    // Backend expects {batch_key, selected:[indexes], owner?}; accept legacy `rows` alias.
     const body = { batch_key };
-    if (rows !== undefined) body.rows = rows;
+    const sel = selected !== undefined ? selected : rows;
+    if (sel !== undefined) body.selected = sel;
     if (owner !== undefined) body.owner = owner;
     const response = await apiFetch(`${BASE_URL}/leads/import/confirm/`, {
       method: "POST",
@@ -755,14 +823,14 @@ export const importService = {
 
   /** No dedicated batch detail endpoint in backend spec; kept as stub. */
   getBatch: async (batchId, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     console.warn(`importService.getBatch(${batchId}): no backend route; returning null.`);
     return null;
   },
 
   /** No batch-list endpoint in backend spec; kept as stub. */
   listBatches: async (authToken, page = 1) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     console.warn("importService.listBatches: no backend route; returning empty list.");
     return { results: [], count: 0 };
   },
@@ -772,7 +840,7 @@ export const importService = {
 export const activityService = {
   /** List activities for a lead (paginated). */
   getActivities: async (leadId, authToken, page = 1) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const qs = new URLSearchParams({ lead: leadId, page }).toString();
     const response = await apiFetch(`${BASE_URL}/activities/?${qs}`, {
       headers: { Authorization: `Token ${authToken}` },
@@ -783,7 +851,7 @@ export const activityService = {
 
   /** Log a new activity on a lead. */
   createActivity: async (payload, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/activities/`, {
       method: "POST",
       headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
@@ -794,7 +862,7 @@ export const activityService = {
 
   /** Edit an existing activity (patch). */
   updateActivity: async (id, updates, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/activities/${id}/`, {
       method: "PATCH",
       headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
@@ -808,7 +876,7 @@ export const activityService = {
 export const taskService = {
   /** Get tasks (optionally filtered by lead, status, due range). */
   getTasks: async (authToken, params = {}) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const qs = new URLSearchParams(
       Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ""))
     ).toString();
@@ -821,7 +889,7 @@ export const taskService = {
 
   /** Update a task status/due date. */
   updateTask: async (id, updates, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/tasks/${id}/`, {
       method: "PATCH",
       headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
@@ -835,7 +903,7 @@ export const taskService = {
 export const demoService = {
   /** List demos (role-scoped). Supports params: lead, demo_status, academic, from, to, unassigned */
   getDemos: async (authToken, params = {}) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const qs = new URLSearchParams(
       Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ""))
     ).toString();
@@ -849,7 +917,7 @@ export const demoService = {
 
   /** Schedule a new demo. */
   createDemo: async (payload, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/demos/`, {
       method: "POST",
       headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
@@ -860,7 +928,7 @@ export const demoService = {
 
   /** Update a demo (reschedule, status, etc.). */
   updateDemo: async (id, updates, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/demos/${id}/`, {
       method: "PATCH",
       headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
@@ -871,7 +939,7 @@ export const demoService = {
 
   /** Admin-only: assign an academic to a demo. */
   assignDemo: async (id, { academic, reason }, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/demos/${id}/assign/`, {
       method: "POST",
       headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
@@ -882,7 +950,7 @@ export const demoService = {
 
   /** Submit feedback for a completed demo (academic or admin). */
   submitFeedback: async (id, feedbackData, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/demos/${id}/feedback/`, {
       method: "POST",
       headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
@@ -896,7 +964,7 @@ export const demoService = {
 export const dashboardService = {
   /** Dashboard payload: today/tomorrow/next7days/overdue tasks, demo_queue, notifications count. */
   getDashboard: async (authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/dashboard/`, {
       headers: { Authorization: `Token ${authToken}` },
     });
@@ -905,7 +973,7 @@ export const dashboardService = {
 
   /** Calendar data for a date range (?from=YYYY-MM-DD&to=YYYY-MM-DD). */
   getCalendar: async (authToken, from, to) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const qs = new URLSearchParams(
       Object.fromEntries(Object.entries({ from, to }).filter(([, v]) => v))
     ).toString();
@@ -920,7 +988,7 @@ export const dashboardService = {
 export const notificationService = {
   /** Get notifications (own only). Pass { unread: true } to filter unread. */
   getNotifications: async (authToken, params = {}) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const qs = new URLSearchParams(
       Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ""))
     ).toString();
@@ -933,7 +1001,7 @@ export const notificationService = {
 
   /** Mark a single notification as read. */
   markRead: async (id, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/notifications/${id}/`, {
       method: "PATCH",
       headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
@@ -947,7 +1015,7 @@ export const notificationService = {
 export const auditService = {
   /** Query change-log. Params: entity, record_id, actor, from, to */
   getChangeLogs: async (authToken, params = {}) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const qs = new URLSearchParams(
       Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ""))
     ).toString();
@@ -970,7 +1038,7 @@ export const reportService = {
    * Returns JSON by default; Blob when export param is set.
    */
   getSummary: async (authToken, params = {}) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const qs = new URLSearchParams(
       Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ""))
     ).toString();
@@ -986,7 +1054,7 @@ export const reportService = {
    * Params: from, to, district, municipality, owner, export ('csv'|'xlsx')
    */
   getLeadRows: async (authToken, params = {}) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const qs = new URLSearchParams(
       Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ""))
     ).toString();
@@ -1003,7 +1071,7 @@ export const reportService = {
    * format:  'csv' | 'xlsx'
    */
   exportDataset: async (authToken, dataset, format = "csv") => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(
       `${BASE_URL}/reports/export/${dataset}/?export=${format}`,
       { headers: { Authorization: `Token ${authToken}` } }
@@ -1027,7 +1095,7 @@ export const reportService = {
 
 export const catalogService = {
   getPackages: async (authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/catalogs/packages/`, {
       headers: { Authorization: `Token ${authToken}` },
     });
@@ -1035,7 +1103,7 @@ export const catalogService = {
     return Array.isArray(data) ? data : data?.results || [];
   },
   getSyllabi: async (authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/catalogs/syllabi/`, {
       headers: { Authorization: `Token ${authToken}` },
     });
@@ -1043,7 +1111,7 @@ export const catalogService = {
     return Array.isArray(data) ? data : data?.results || [];
   },
   getClasses: async (authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/catalogs/classes/`, {
       headers: { Authorization: `Token ${authToken}` },
     });
@@ -1052,7 +1120,7 @@ export const catalogService = {
   },
   // Fetch dynamic activity types from DropdownOption (group=activity_type)
   getActivityTypes: async (authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/catalogs/dropdowns/?group=activity_type`, {
       headers: { Authorization: `Token ${authToken}` },
     });
@@ -1068,7 +1136,7 @@ export const catalogService = {
 
 export const clientService = {
   getClients: async (authToken, params = {}) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const searchParams = new URLSearchParams();
     if (params.page) searchParams.append("page", params.page);
     if (params.pageSize) searchParams.append("page_size", params.pageSize);
@@ -1086,7 +1154,7 @@ export const clientService = {
   },
 
   getClient: async (id, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/clients/${id}/`, {
       headers: { Authorization: `Token ${authToken}` },
     });
@@ -1094,7 +1162,7 @@ export const clientService = {
   },
 
   enrollLead: async (enrollData, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/clients/enroll/`, {
       method: "POST",
       headers: {
@@ -1107,7 +1175,7 @@ export const clientService = {
   },
 
   updateClient: async (id, updates, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/clients/${id}/`, {
       method: "PATCH",
       headers: {
@@ -1120,10 +1188,68 @@ export const clientService = {
   },
 
   getContracts: async (leadId, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
+    // session auth: authToken marker optional, backend uses session cookie.
     const response = await apiFetch(`${BASE_URL}/contracts/?lead=${leadId}`, {
       headers: { Authorization: `Token ${authToken}` },
     });
     return handleResponse(response);
   },
+};
+
+// ─── Users (admin list/create, self-or-admin update, deactivate not delete) ──
+export const userService = {
+  list: async (authToken) => {
+    const response = await apiFetch(`${BASE_URL}/users/`, {
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    const data = await handleResponse(response);
+    return Array.isArray(data) ? data : data?.results || [];
+  },
+  create: async (payload, authToken) => {
+    // Backend requires {username>=3, email unique, password>=8, role:admin|b2b|b2c|academic}
+    const response = await apiFetch(`${BASE_URL}/users/`, {
+      method: "POST",
+      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(response);
+  },
+  update: async (id, payload, authToken) => {
+    const response = await apiFetch(`${BASE_URL}/users/${id}/`, {
+      method: "PATCH",
+      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(response);
+  },
+  deactivate: async (id, reassign_to, authToken) => {
+    // Backend has no DELETE — deactivation via PATCH {is_active:false}.
+    const body = { is_active: false };
+    if (reassign_to !== undefined && reassign_to !== null && reassign_to !== "") {
+      body.reassign_to = reassign_to;
+    }
+    const response = await apiFetch(`${BASE_URL}/users/${id}/`, {
+      method: "PATCH",
+      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return handleResponse(response);
+  },
+};
+
+// Bulk edit leads in one atomic request: {ids, field, value}
+export const bulkEditLeads = async (ids, field, value, authToken) => {
+  const response = await apiFetch(`${BASE_URL}/leads/bulk-edit/`, {
+    method: "POST",
+    headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ ids, field, value }),
+  });
+  return handleResponse(response);
+};
+
+export const getLead = async (id, authToken) => {
+  const response = await apiFetch(`${BASE_URL}/leads/${id}/`, {
+    headers: { Authorization: `Token ${authToken}` },
+  });
+  return handleResponse(response);
 };

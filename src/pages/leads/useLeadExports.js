@@ -10,7 +10,7 @@ export default function useLeadExports(ctx) {
     allLeadsFullRef,
     setAllLeads,
     fetchAllLeads,
-    setError,
+    setActionError,
   } = ctx;
 
   const [exportConfirmVisible, setExportConfirmVisible] = useState(false);
@@ -24,29 +24,15 @@ export default function useLeadExports(ctx) {
       const params = new URLSearchParams();
       const add = (k, v) => params.append(k, v);
       const {
-        filterStatus,
         searchTerm,
-        filterAge,
-        filterGrade,
-        filterClassType,
-        filterShift,
-        filterDevice,
         filterSubStatus,
-        filterPrevCodingExp,
       } = filters;
-      if (filterStatus && filterStatus !== "All") add("status", filterStatus);
+      // Only send backend-supported filters (others are client-side legacy UI).
       if (searchTerm && searchTerm.trim()) add("search", searchTerm.trim());
-      if (filterAge && filterAge.trim()) add("age", filterAge.trim());
-      if (filterGrade && filterGrade.trim()) add("grade", filterGrade.trim());
-      if (filterClassType && filterClassType !== "Class") add("class_type", filterClassType);
-      if (filterShift && filterShift.trim() !== "") add("shift", filterShift.trim());
-      if (filterDevice && filterDevice !== "Device") add("device", filterDevice);
-      if (filterSubStatus && filterSubStatus !== "SubStatus") add("substatus", filterSubStatus);
-      if (filterPrevCodingExp && filterPrevCodingExp !== "CodingExp")
-        add("previous_coding_experience", filterPrevCodingExp);
+      if (filterSubStatus && filterSubStatus !== "SubStatus" && filterSubStatus !== "All") add("sub_status", filterSubStatus);
 
       const url = `${BASE_URL}/leads/?page=1&page_size=1&${params.toString()}`;
-      const resp = await fetch(url, { headers: { Authorization: `Token ${authToken}` } });
+      const resp = await fetch(url, { credentials: "include" });
       if (!resp.ok) return null;
       const json = await resp.json();
       if (json && typeof json.count === "number") return json.count;
@@ -63,31 +49,13 @@ export default function useLeadExports(ctx) {
       if (authToken) {
         try {
           const params = new URLSearchParams();
-          const add = (k, v) => params.append(k, v);
-          const {
-            filterStatus,
-            searchTerm,
-            filterAge,
-            filterGrade,
-            filterClassType,
-            filterShift,
-            filterDevice,
-            filterSubStatus,
-            filterPrevCodingExp,
-          } = filters;
-          if (filterStatus && filterStatus !== "All") add("status", filterStatus);
-          if (searchTerm && searchTerm.trim()) add("search", searchTerm.trim());
-          if (filterAge && filterAge.trim()) add("age", filterAge.trim());
-          if (filterGrade && filterGrade.trim()) add("grade", filterGrade.trim());
-          if (filterClassType && filterClassType !== "Class") add("class_type", filterClassType);
-          if (filterShift && filterShift.trim() !== "") add("shift", filterShift.trim());
-          if (filterDevice && filterDevice !== "Device") add("device", filterDevice);
-          if (filterSubStatus && filterSubStatus !== "SubStatus") add("substatus", filterSubStatus);
-          if (filterPrevCodingExp && filterPrevCodingExp !== "CodingExp")
-            add("previous_coding_experience", filterPrevCodingExp);
+          if (filters?.searchTerm?.trim()) params.append("search", filters.searchTerm.trim());
+          if (filters?.filterSubStatus && filters.filterSubStatus !== "SubStatus" && filters.filterSubStatus !== "All") {
+            params.append("sub_status", filters.filterSubStatus);
+          }
 
           const backendExportUrl = `${BASE_URL}/reports/leads/?${params.toString()}${params.toString() ? "&" : ""}export=csv`;
-          const resp = await fetch(backendExportUrl, { headers: { Authorization: `Token ${authToken}` } });
+          const resp = await fetch(backendExportUrl, { credentials: "include" });
           if (resp.ok) {
             const cloned = resp.clone();
             const blob = await resp.blob();
@@ -238,9 +206,9 @@ export default function useLeadExports(ctx) {
       a.click();
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err.message || "Failed to export CSV");
+      setActionError(err.message || "Failed to export CSV");
     }
-  }, [authToken, allLeads, allLeadsFullRef, fetchAllLeads, setError]);
+  }, [authToken, allLeads, allLeadsFullRef, fetchAllLeads, setActionError]);
 
   const openExportAllConfirm = useCallback(async (filters) => {
     setExportEstimateCount(null);
@@ -364,9 +332,9 @@ export default function useLeadExports(ctx) {
       a.click();
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err.message || "Failed to export CSV");
+      setActionError(err.message || "Failed to export CSV");
     }
-  }, [allLeads, fetchAllLeads, setError]);
+  }, [allLeads, fetchAllLeads, setActionError]);
 
   return {
     exportConfirmVisible,

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BASE_URL } from "../../config";
-import { leadService, courseService } from "../../services/api";
+import { leadService } from "../../services/api";
 import { deduplicateLeads, ensureLeadIds } from "./utils";
 
 export const SAMPLE_PLACEHOLDER_LEAD = {
@@ -48,7 +47,8 @@ export default function useLeadsCore(authToken, pageSize) {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [error, setError] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+  const [actionError, setActionError] = useState(null);
   const [fetchingAll, setFetchingAll] = useState(false);
   const allLeadsFullRef = useRef(false);
 
@@ -58,7 +58,7 @@ export default function useLeadsCore(authToken, pageSize) {
       if (!authToken) return;
       allLeadsFullRef.current = false;
       setLoading(true);
-      setError(null);
+      setLoadError(null);
       try {
         const pageResp = await leadService.getLeadsPage(authToken, pageNum, pageSize);
         const leadsData = pageResp?.results || [];
@@ -104,7 +104,7 @@ export default function useLeadsCore(authToken, pageSize) {
         setAllLeads(deduplicateLeads(processedLeads));
         return pageResp;
       } catch (err) {
-        setError(err.message || "Failed to refresh leads");
+        setLoadError(err.message || "Failed to refresh leads");
         throw err;
       } finally {
         setLoading(false);
@@ -114,26 +114,17 @@ export default function useLeadsCore(authToken, pageSize) {
   );
 
   const fetchAllLeads = useCallback(async () => {
+
     if (!authToken) return [];
     setFetchingAll(true);
-    const pageSizeForFetch = 200;
-    const baseUrl = `${BASE_URL}/leads/`;
+    // Use centralized service (session auth + consistent error/auth-expired handling).
+    const pageSizeForFetch = 100;
     let page = 1;
     let accumulated = [];
     try {
       while (true) {
-        const url = `${baseUrl}?page=${page}&page_size=${pageSizeForFetch}`;
-        const resp = await fetch(url, {
-          headers: { Authorization: `Token ${authToken}` },
-          credentials: "include",
-        });
-        if (!resp.ok) throw new Error(`Failed to fetch leads page ${page}: ${resp.status}`);
-        const json = await resp.json();
-        let list = [];
-        if (Array.isArray(json)) list = json;
-        else if (Array.isArray(json.results)) list = json.results;
-        else list = json.data || [];
-
+        const pageResp = await leadService.getLeadsPage(authToken, page, pageSizeForFetch);
+        const list = pageResp?.results || [];
         if (!list || list.length === 0) break;
 
         const normalized = ensureLeadIds(list || []);
@@ -141,6 +132,8 @@ export default function useLeadsCore(authToken, pageSize) {
 
         if (list.length < pageSizeForFetch) break;
         page += 1;
+        // Safety cap: backend max is 20000 rows for exports; paginate reasonably here.
+        if (page > 200) break;
       }
       setAllLeads(deduplicateLeads(accumulated));
       allLeadsFullRef.current = true;
@@ -171,8 +164,10 @@ export default function useLeadsCore(authToken, pageSize) {
     allLeads,
     setAllLeads,
     loading,
-    error,
-    setError,
+    loadError,
+    setLoadError,
+    actionError,
+    setActionError,
     fetchingAll,
     setFetchingAll,
     allLeadsFullRef,

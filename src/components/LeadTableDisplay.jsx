@@ -11,7 +11,7 @@ import {
 } from "@heroicons/react/24/outline";
 import DraggableRow from "./DraggableRow";
 import ColumnToggler from "./ColumnToggler";
-import { leadService } from "../services/api";
+import { leadService, activityService } from "../services/api";
 import { Folder, Plus, FileUp, ChevronLeft, ChevronRight, Building2 } from "lucide-react";
 import ImportCsvButton from "./ImportCsvButton";
 import ActivityModal from "./ActivityModal";
@@ -99,14 +99,30 @@ const LeadTableDisplay = ({
     if (onActivitySave) {
       await onActivitySave(leadId, activityData);
     } else {
+      const subStatusValue = activityData.sub_status ?? activityData.substatus;
+      // Create the activity record with the lead reference.
+      await activityService.createActivity(
+        {
+          lead: leadId,
+          ...(activityData.activity_at ? { activity_at: activityData.activity_at } : {}),
+          ...(activityData.type ? { type: activityData.type } : {}),
+          ...(subStatusValue ? { sub_status: subStatusValue } : {}),
+          ...(activityData.remarks ? { remarks: activityData.remarks } : {}),
+          ...(activityData.followup_at ? { followup_at: activityData.followup_at } : {}),
+          ...(activityData.details ? { details: activityData.details } : {}),
+        },
+        authToken
+      );
       const updates = {
         source: activityData.source,
-        substatus: activityData.substatus,
-        sub_status: activityData.substatus,
-        last_call: activityData.last_call,
-        next_call: activityData.next_call,
+        substatus: activityData.substatus ?? activityData.sub_status,
+        sub_status: activityData.sub_status ?? activityData.substatus,
+        last_call: activityData.activity_at ?? activityData.last_call,
+        next_call: activityData.followup_at ?? activityData.next_call,
         remarks: activityData.remarks,
       };
+      // Drop undefined so we don't null out lead fields.
+      Object.keys(updates).forEach((k) => updates[k] === undefined && delete updates[k]);
       await leadService.updateLead(leadId, updates, authToken);
       if (onSubStatusChange) onSubStatusChange(leadId, activityData.substatus);
       if (onRemarkChange && activityData.remarks)

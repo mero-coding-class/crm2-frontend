@@ -1,11 +1,13 @@
 import React, { useState, useRef } from "react";
 import Papa from "papaparse";
-import { leadService } from "../services/api";
+import { leadService, importService } from "../services/api";
 import { BASE_URL } from "../config";
 import { FileUp } from "lucide-react";
 
 
-const USE_SERVER_IMPORT = false;
+// Server-side import is the backend contract: preview -> confirm with batch_key.
+// Client-side per-row POST is kept only as a last-resort fallback.
+const USE_SERVER_IMPORT = true;
 
 const headerMapping = {
   "Student Name": "student_name",
@@ -322,78 +324,50 @@ const ImportCsvButton = ({
     abortControllerRef.current = new AbortController();
     isCancelledRef.current = false;
 
-    // Try server-side import first
+    // Try server-side import first (backend preview -> confirm contract)
     if (authToken && USE_SERVER_IMPORT) {
       try {
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const resp = await fetch(backendImportUrl, {
-          method: "POST",
-          headers: { Authorization: `Token ${authToken}` },
-          body: formData,
-          signal: abortControllerRef.current.signal,
-        });
-
-        if (resp.ok) {
-          let body = null;
-          try {
-            body = await resp.json();
-          } catch {
-            console.debug("Server import responded without JSON body");
-          }
-          const created = Array.isArray(body?.created)
-            ? body.created.map((c) => ({ ...c, _id: c.id || c._id }))
-            : [];
-          const createdCount = created.length;
-          setImportedCount(createdCount);
-          setTotalCount(createdCount);
-          setProgress(100);
-          setStatusMessage("Import successful (server-side)");
-          setImporting(false);
-
-          try {
-            if (onImported) onImported(created);
-          } catch (e) {
-            console.warn("onImported callback failed", e);
-          }
-          try {
-            window.dispatchEvent(
-              new CustomEvent("crm:imported", { detail: { created } })
-            );
-          } catch (e) {
-            console.warn("Failed to dispatch crm:imported event", e);
-          }
-          return;
+        const preview = await importService.uploadBatch(file, authToken);
+        const rows = preview?.rows || [];
+        const validIndexes = rows
+          .filter((r) => r.status === "valid")
+          .map((r) => r.index);
+        let created = [];
+        if (validIndexes.length) {
+          const confirm = await importService.confirmImport(
+            { batch_key: preview.batch_key, selected: validIndexes },
+            authToken
+          );
+          created = (confirm?.results || [])
+            .filter((r) => r.result === "created")
+            .map((c) => ({ ...c, _id: c.id || c._id }));
         }
+        const createdCount = created.length;
+        setImportedCount(createdCount);
+        setTotalCount(preview?.total_rows || createdCount);
+        setProgress(100);
+        setStatusMessage(
+          `Import complete: ${createdCount} created (${JSON.stringify(preview?.summary || {})})`
+        );
+        setImporting(false);
 
         try {
-          const errBody = await resp.json();
-          console.error("Backend CSV import error body:", errBody);
+          if (onImported) onImported(created);
         } catch (e) {
-          try {
-            const txt = await resp.text();
-            console.error("Backend CSV import error text:", txt, e);
-          } catch (e2) {
-            console.error(
-              "Backend CSV import failed with status",
-              resp.status,
-              e2
-            );
-          }
+          console.warn("onImported callback failed", e);
         }
-        console.warn(
-          "Backend CSV import failed, falling back to client-side import",
-          resp.status
-        );
-        setStatusMessage(
-          "Backend import failed; falling back to client-side import..."
-        );
-        setProgress(10);
+        try {
+          window.dispatchEvent(
+            new CustomEvent("crm:imported", { detail: { created } })
+          );
+        } catch (e) {
+          console.warn("Failed to dispatch crm:imported event", e);
+        }
+        return;
       } catch (err) {
         console.warn("Backend import attempt failed:", err);
         setStatusMessage(
-          "Backend import attempt failed; using client-side fallback"
+          `Backend import failed (${err.message || "error"}); using client-side fallback`
         );
         setProgress(10);
       }

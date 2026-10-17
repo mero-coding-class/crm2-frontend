@@ -204,24 +204,16 @@ const Archive = () => {
     setDeleting(true);
     try {
       // Already-archived record: re-archive is a safe no-op that retains it.
-      const resp = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8000/api"}/leads/${id}/archive/`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Token ${authToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ reason: "Retained in archive", next_year_probability: false }),
-        }
-      );
-      // 400 (already archived) still means "retained" — not an error for UI purposes.
-      if (!resp.ok && resp.status !== 400 && resp.status !== 404) {
-        throw new Error(`Failed to archive: ${resp.status}`);
-      }
+      await leadService.archiveLead(id, authToken, "Retained in archive", false);
       setToast({ show: true, message: "Record retained in archive (permanent delete is disabled by backend).", type: "success" });
     } catch (err) {
-      setToast({ show: true, message: err.message || "Failed to archive record.", type: "error" });
+      // 400 (already archived) still means "retained" — not an error for UI purposes.
+      const msg = err.message || "";
+      if (msg.toLowerCase().includes("already archived")) {
+        setToast({ show: true, message: "Record retained in archive (permanent delete is disabled by backend).", type: "success" });
+      } else {
+        setToast({ show: true, message: msg || "Failed to archive record.", type: "error" });
+      }
     } finally {
       setDeleting(false);
       setDeleteConfirmId(null);
@@ -232,39 +224,29 @@ const Archive = () => {
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
     setDeleting(true);
-    let archived = 0;
-    const errors = [];
-    for (const id of selectedIds) {
-      try {
-        const resp = await fetch(
-          `${import.meta.env.VITE_API_URL || "http://localhost:8000/api"}/leads/${id}/archive/`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Token ${authToken}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ reason: "Retained in archive (bulk)", next_year_probability: false }),
-          }
-        );
-        if (resp.ok || resp.status === 400 || resp.status === 404) {
-          archived++;
-        } else {
-          errors.push(id);
-        }
-      } catch {
-        errors.push(id);
-      }
+    try {
+      const res = await leadService.bulkArchiveLeads(
+        Array.from(selectedIds),
+        authToken,
+        "Retained in archive (bulk)",
+        false
+      );
+      const archived = (res?.results || []).filter((r) => r.result === "archived").length;
+      setToast({
+        show: true,
+        message: `${archived} record(s) retained in archive.`,
+        type: "success",
+      });
+    } catch (err) {
+      setToast({
+        show: true,
+        message: err.message || "Failed to archive records.",
+        type: "error",
+      });
+    } finally {
+      setBulkDeleteConfirmOpen(false);
+      setDeleting(false);
     }
-    setBulkDeleteConfirmOpen(false);
-    setDeleting(false);
-    setToast({
-      show: true,
-      message: errors.length === 0
-        ? `${archived} record(s) retained in archive.`
-        : `${archived} retained, ${errors.length} failed.`,
-      type: errors.length === 0 ? "success" : "error",
-    });
   };
 
   // Smooth scroll helper for wide tables

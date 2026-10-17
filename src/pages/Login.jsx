@@ -1,20 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import axios from "axios";
 import { useAuth } from "../context/AuthContext.jsx";
-import { BASE_URL } from "../config";
+import { authService } from "../services/api";
 
-async function fetchUserProfile(token, fallbackUsername) {
+async function fetchUserProfile(fallbackUsername) {
+  // Session auth: single source of truth is /auth/me/ (session cookie).
+  // Do NOT fall back to /users/ list — non-admins get 403 there and
+  // list[0] would return the wrong user.
   try {
-    const { data } = await axios.get(`${BASE_URL}/auth/me/`);
+    const data = await authService.getMe();
     if (data && data.username) return data;
-  } catch (_) {}
-  try {
-    const { data } = await axios.get(`${BASE_URL}/users/`);
-    const list = Array.isArray(data) ? data : data.results || [];
-    const found =
-      list.find((u) => u?.username === fallbackUsername) ?? list[0] ?? null;
-    if (found) return found;
   } catch (_) {}
   return { username: fallbackUsername };
 }
@@ -58,21 +53,16 @@ const Login = () => {
     setLoading(true);
 
     try {
-      // 1) Login to get token
-      const { data } = await axios.post(
-        `${BASE_URL}/auth/login/`,
-        
-        {
-          username: formData.username,
-          password: formData.password,
-        },
-        
-        { withCredentials:true, headers: { "Content-Type": "application/json" } }
-      );
+      // Session-only backend: POST creates the session cookie, response is the profile.
+      const data = await authService.login({
+        username: formData.username,
+        password: formData.password,
+      });
 
-      // Backend returns user profile directly (session auth) or a token object
-      const token = data.key || data.token || "session-auth";
-      const me = data?.role ? data : await fetchUserProfile(token, formData.username);
+      // No token mechanism on backend — keep a lightweight session marker
+      // for route guarding; real auth is the HttpOnly sessionid cookie.
+      const token = "session";
+      const me = data?.role ? data : await fetchUserProfile(formData.username);
 
       // 3) Persist token + user profile in context so AuthContext has full user info
       login(token, me);
@@ -89,11 +79,10 @@ const Login = () => {
       navigate("/dashboard", { replace: true });
     } catch (err) {
       setError(
-        err.response?.data?.detail ||
         err.message ||
         "Login failed. Please check your credentials."
       );
-      console.error("Login error:", err.response?.data || err.message);
+      console.error("Login error:", err.message);
     } finally {
       setLoading(false);
     }

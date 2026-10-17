@@ -54,8 +54,10 @@ const Leads = () => {
     allLeads,
     setAllLeads,
     loading,
-    error,
-    setError,
+    loadError,
+    setLoadError,
+    actionError,
+    setActionError,
     fetchingAll,
     setFetchingAll,
     allLeadsFullRef,
@@ -137,7 +139,7 @@ const Leads = () => {
     allLeadsFullRef,
     setAllLeads,
     fetchAllLeads,
-    setError,
+    setActionError,
   });
 
   const {
@@ -160,7 +162,7 @@ const Leads = () => {
     allLeads,
     setAllLeads,
     setToast,
-    setError,
+    setActionError,
     courses,
   });
 
@@ -309,7 +311,7 @@ const Leads = () => {
     return <DelayedLoader message="Loading leads..." minMs={2000} />;
   }
 
-  if (error) {
+  if (loadError) {
     return (
       <div className="flex items-center justify-center min-h-[400px] p-8">
         <div className="text-center max-w-sm">
@@ -319,7 +321,7 @@ const Leads = () => {
             </svg>
           </div>
           <h3 className="text-[16px] font-[600] text-slate-900 mb-1">Failed to load leads</h3>
-          <p className="text-[13px] text-slate-500 mb-4">{error}</p>
+          <p className="text-[13px] text-slate-500 mb-4">{loadError}</p>
           <button
             onClick={handleRefresh}
             className="inline-flex items-center gap-2 px-4 py-2 bg-[#294998] text-white text-[13px] font-[500] rounded-[8px] hover:bg-[#1E3776] transition-colors"
@@ -555,8 +557,8 @@ const Leads = () => {
       {/* Advanced filters handled by `LeadsFilters` component above. Duplicate block removed. */}
 
       <div className="flex-1 overflow-x-auto bg-white">
-        {error ? (
-          <div className="text-red-500 text-center">{error}</div>
+        {actionError ? (
+          <div className="text-red-500 text-center">{actionError}</div>
         ) : (
           <LeadTableDisplay
             leads={currentLeads}

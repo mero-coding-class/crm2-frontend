@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BASE_URL } from "../../config";
+import { leadService } from "../../services/api";
 import { getTodayDate } from "./helpers.jsx";
 
 // Status choices matching crm2-backend Lead model
@@ -70,14 +70,15 @@ export default function useAddLeadForm({ authToken, onClose, onSave, isAdmin }) 
   };
 
   const handleSubmit = async () => {
-    // Validate required fields per LeadCreateSerializer
-    // Task 2.2: contact_number is now optional
+    // Validate required fields per backend LeadCreateSerializer (all compulsory
+    // incl. contact_number + email; source defaults to Nagarpalika server-side).
     const requiredFields = [
       "school_name",
       "district",
       "municipality",
       "address",
       "contact_person",
+      "contact_number",
       "email",
     ];
 
@@ -96,16 +97,15 @@ export default function useAddLeadForm({ authToken, onClose, onSave, isAdmin }) 
     }
 
     // Build payload matching LeadCreateSerializer fields exactly
-    // Task 2.2: contact_number is optional
     const backendPayload = {
       school_name: formData.school_name.trim(),
       district: formData.district.trim(),
       municipality: formData.municipality.trim(),
       address: formData.address.trim(),
       contact_person: formData.contact_person.trim(),
+      contact_number: (formData.contact_number || "").trim(),
       email: formData.email.trim(),
     };
-    if (formData.contact_number?.trim()) backendPayload.contact_number = formData.contact_number.trim();
 
     // Optional fields — only include if non-empty
     if (formData.alt_number?.trim()) backendPayload.alt_number = formData.alt_number.trim();
@@ -126,26 +126,13 @@ export default function useAddLeadForm({ authToken, onClose, onSave, isAdmin }) 
     try { onSave({ ...backendPayload, _id: `optimistic-${Date.now()}` }); } catch (_) {}
     try { onClose(); } catch (_) {}
 
-    const requestOptions = {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Token ${authToken}`,
-      },
-      body: JSON.stringify(backendPayload),
-    };
-
-    const response = await fetch(`${BASE_URL}/leads/`, requestOptions);
-    if (!response.ok) {
-      let bodyJson = null;
-      let bodyText = null;
-      try { bodyJson = await response.json(); } catch { try { bodyText = await response.text(); } catch (_) {} }
-      const userMessage = bodyJson ? JSON.stringify(bodyJson) : bodyText || `Status ${response.status}`;
-      alert(`Failed to add lead. ${userMessage}`);
-      return { ok: false, status: response.status };
+    let result;
+    try {
+      result = await leadService.addLead(backendPayload, authToken);
+    } catch (err) {
+      alert(`Failed to add lead. ${err.message || ""}`);
+      return { ok: false, status: 400 };
     }
-
-    const result = await response.json();
     const serverLead = {
       ...backendPayload,
       id: result.id,
