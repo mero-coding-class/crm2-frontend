@@ -289,7 +289,7 @@ const MainLayout = () => {
                 © 2026 MeroCoding
               </span>
               <span className="text-[9.5px] font-[600] px-1.5 py-0.5 rounded-[5px] bg-white text-slate-500 border border-slate-200/70 uppercase tracking-wider shadow-2xs shrink-0">
-                LMS
+                CRM
               </span>
             </div>
           </div>

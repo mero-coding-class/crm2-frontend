@@ -1,129 +1,102 @@
 import { useCallback, useState } from "react";
-import { BASE_URL } from "../../config";
+import { clientService } from "../../services/api";
 import { exportsStore } from "../../services/exportsStore";
-import { apiFetch } from "../../services/api";
+import { filterReturnedClients } from "./returnedToLeadsStore";
+
+const EXPORT_COLUMNS = [
+  "id",
+  "lead_id",
+  "system_id",
+  "school_name",
+  "district",
+  "municipality",
+  "principal_name",
+  "principal_number",
+  "principal_email",
+  "contact_name",
+  "contact_number",
+  "contact_email",
+  "mou_start",
+  "mou_end",
+  "agreed_price",
+  "pricing_basis",
+  "classes_per_week",
+  "package_name",
+  "syllabus_name",
+  "exams_count",
+  "events_count",
+  "assigned_to_name",
+  "mcc_rep_name",
+  "enrolled_at",
+  "enrolled_by_name",
+];
+
+const escapeCsv = (value) => {
+  if (value === null || value === undefined) return "";
+  const text = String(value);
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+};
 
 export default function useEnrollmentExport(authToken) {
   const [exporting, setExporting] = useState(false);
 
   const handleExportEnrollments = useCallback(
-    async ({ searchQuery, searchLastPaymentDate, filterPaymentNotCompleted, filterScheduledTaken }) => {
+    async ({ searchQuery = "" } = {}) => {
       if (!authToken || exporting) return;
       setExporting(true);
       try {
-        const baseParams = new URLSearchParams();
-        if (searchQuery && searchQuery.trim()) baseParams.append("search", searchQuery.trim());
-        if (searchLastPaymentDate && searchLastPaymentDate.trim()) baseParams.append("last_pay_date", searchLastPaymentDate.trim());
-        if (filterPaymentNotCompleted) baseParams.append("payment_completed", "false");
-        if (filterScheduledTaken && (filterScheduledTaken === "Yes" || filterScheduledTaken === "No")) {
-          baseParams.append("scheduled_taken", filterScheduledTaken === "Yes" ? "true" : "false");
-        }
-
-        let page = 1;
         const pageSize = 100;
-        let all = [];
+        let page = 1;
+        let clients = [];
+
         while (true) {
-          const params = new URLSearchParams(baseParams.toString());
-          params.set("page", String(page));
-          params.set("page_size", String(pageSize));
-          const url = `${BASE_URL}/clients/?${params.toString()}`;
-          const resp = await apiFetch(url, {
-            headers: { Authorization: `Token ${authToken}` },
-            credentials: "include",
+          const response = await clientService.getClients(authToken, {
+            page,
+            pageSize,
+            search: searchQuery.trim(),
           });
-          if (!resp.ok) throw new Error(`Failed to fetch clients: ${resp.status}`);
-          const json = await resp.json();
-          let list = [];
-          let count = null;
-          if (Array.isArray(json)) list = json;
-          else if (Array.isArray(json.results)) { list = json.results; count = json.count ?? null; }
-          else if (Array.isArray(json.data)) list = json.data;
-          all = all.concat(list || []);
+          const results = Array.isArray(response)
+            ? response
+            : response?.results || response?.data || [];
+          clients = clients.concat(results);
+
+          const count = Array.isArray(response)
+            ? null
+            : response?.count ?? response?.total ?? null;
           if (count != null) {
-            const pages = Math.max(1, Math.ceil(count / pageSize));
-            if (page >= pages) break;
-          } else {
-            if (!list || list.length < pageSize) break;
+            if (page >= Math.max(1, Math.ceil(count / pageSize))) break;
+          } else if (results.length < pageSize) {
+            break;
           }
           page += 1;
         }
 
-        if (!all || all.length === 0) throw new Error("No enrollments to export");
+        clients = filterReturnedClients(clients);
+        if (!clients.length) throw new Error("No clients to export.");
 
-        const columns = [
-          "id",
-          "student_name",
-          "parents_name",
-          "email",
-          "phone_number",
-          "whatsapp_number",
-          "course_name",
-          "course",
-          "batchname",
-          "assigned_teacher",
-          "scheduled_taken",
-          "payment_type",
-          "total_payment",
-          "first_installment",
-          "second_installment",
-          "third_installment",
-          "last_pay_date",
-          "payment_completed",
-          "starting_date",
-          "enrollment_date",
-          "created_at",
-          "updated_at",
-          "invoice",
-          "remarks",
-        ];
-        const escapeCsv = (v) => {
-          if (v === null || v === undefined) return "";
-          let s = Array.isArray(v)
-            ? v.map((i) => i?.name || i?.url || "").join(" | ")
-            : String(v);
-          if (/[",\n]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
-          return s;
-        };
-        const val = (r, c) => {
-          switch (c) {
-            case "course_name":
-              return r.course_name ?? r.course?.course_name ?? r.course ?? "";
-            case "invoice":
-              return r.invoice?.url ?? r.invoice ?? "";
-            case "whatsapp_number":
-              return r.whatsapp_number ?? r.lead?.whatsapp_number ?? "";
-            default:
-              if (r[c] !== undefined) return r[c];
-              if (r.lead && r.lead[c] !== undefined) return r.lead[c];
-              return "";
-          }
-        };
-        const rows = [columns.join(",")];
-        all.forEach((r) => {
-          const row = columns.map((c) => escapeCsv(val(r, c)));
-          rows.push(row.join(","));
+        const csv = [
+          EXPORT_COLUMNS.join(","),
+          ...clients.map((client) => EXPORT_COLUMNS.map((column) => escapeCsv(client[column])).join(",")),
+        ].join("\r\n");
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const fileName = `clients-export-${timestamp}.csv`;
+
+        exportsStore.save({
+          fileName,
+          mimeType: "text/csv",
+          content: csv,
+          source: "Clients",
+          meta: { searchQuery },
         });
-        const csv = rows.join("\n");
 
-        // Save to Downloads
-        try {
-          const ts = new Date().toISOString().replace(/[:.]/g, "-");
-          exportsStore.save({
-            fileName: `enrollments-export-${ts}.csv`,
-            mimeType: "text/csv",
-            content: csv,
-            source: "Enrollments",
-            meta: { searchQuery, searchLastPaymentDate, filterPaymentNotCompleted, filterScheduledTaken },
-          });
-        } catch {}
-
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = "enrollments-export.csv";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
+        const blobUrl = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
       } finally {
         setExporting(false);
       }

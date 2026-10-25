@@ -1,8 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import useAddLeadForm, {
-  STATUS_CHOICES,
-  SUB_STATUS_CHOICES,
   SOURCE_CHOICES,
 } from "./addLead/useAddLeadForm";
 import useUsers from "../pages/leads/useUsers";
@@ -15,23 +13,13 @@ import {
   Phone,
   Mail,
   Link2,
-  Headphones,
   TrendingUp,
   BookOpen,
   ShieldCheck,
   Check,
   ChevronDown,
+  Headphones,
 } from "lucide-react";
-
-const NEPAL_DISTRICTS = [
-  "Kathmandu", "Lalitpur", "Bhaktapur", "Kaski (Pokhara)", "Chitwan",
-  "Rupandehi (Butwal)", "Morang (Biratnagar)", "Jhapa", "Sunsari (Dharan)",
-  "Banke (Nepalgunj)", "Kailali (Dhangadhi)", "Dhanusha (Janakpur)",
-  "Parsa (Birgunj)", "Makwanpur (Hetauda)", "Kavrepalanchok", "Gorkha",
-  "Tanahun", "Nawalparasi", "Dang", "Surkhet", "Sindhupalchok",
-  "Nuwakot", "Dhading", "Palpa", "Lamjung", "Syangja", "Ilam",
-  "Kanchanpur", "Bardiya",
-];
 
 const AddLeadModal = ({ onClose, onSave, authToken, courses }) => {
   const { user } = useAuth();
@@ -50,7 +38,7 @@ const AddLeadModal = ({ onClose, onSave, authToken, courses }) => {
   });
 
   const modalContentRef = useRef(null);
-  const { users, usersLoading } = useUsers(authToken);
+  const { users, usersLoading } = useUsers(authToken, isAdmin);
 
   // Prevent background scrolling while modal is open
   useEffect(() => {
@@ -74,9 +62,6 @@ const AddLeadModal = ({ onClose, onSave, authToken, courses }) => {
     e.preventDefault();
     await handleSubmit();
   };
-
-  const currentUsername = user?.username || "User";
-  const currentUserRole = user?.role || "Staff";
 
   // Task 2.2: Build course choices from Settings dynamically
   // courses prop comes from parent (fetched from backend settings)
@@ -134,6 +119,11 @@ const AddLeadModal = ({ onClose, onSave, authToken, courses }) => {
         {/* Modal Body */}
         <form onSubmit={onSubmit} className="flex-1 flex flex-col min-h-0">
           <div className="flex-1 overflow-y-auto px-7 py-6 space-y-6 text-slate-800">
+            {errors?.general && (
+              <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                {errors.general}
+              </div>
+            )}
 
             {/* 1. School / Institution Info */}
             <div className="space-y-3.5">
@@ -173,22 +163,16 @@ const AddLeadModal = ({ onClose, onSave, authToken, courses }) => {
                   <label htmlFor="district" className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider">
                     DISTRICT <span className="text-rose-500">*</span>
                   </label>
-                  <div className="relative">
-                    <select
-                      id="district"
-                      name="district"
-                      value={formData.district}
-                      onChange={handleChange}
-                      required
-                      className="w-full h-11 pl-3.5 pr-8 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none appearance-none cursor-pointer transition-all text-slate-800"
-                    >
-                      <option value="">Select District</option>
-                      {NEPAL_DISTRICTS.map((d) => (
-                        <option key={d} value={d}>{d}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                  </div>
+                  <input
+                    id="district"
+                    name="district"
+                    type="text"
+                    value={formData.district}
+                    onChange={handleChange}
+                    required
+                    placeholder="e.g. Kathmandu"
+                    className="w-full h-11 px-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all placeholder:text-slate-400"
+                  />
                   {errors?.district && (
                     <p className="text-[11px] text-rose-500">{errors.district}</p>
                   )}
@@ -268,10 +252,9 @@ const AddLeadModal = ({ onClose, onSave, authToken, courses }) => {
                   )}
                 </div>
 
-                {/* Task 2.2: Contact Number — now optional (no required attribute) */}
                 <div className="space-y-1.5">
                   <label htmlFor="contact_number" className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider">
-                    CONTACT NUMBER
+                    CONTACT NUMBER <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
                     <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
@@ -279,6 +262,7 @@ const AddLeadModal = ({ onClose, onSave, authToken, courses }) => {
                       id="contact_number"
                       name="contact_number"
                       type="text"
+                      required
                       value={formData.contact_number}
                       onChange={handleChange}
                       placeholder="+977 98XXXXXXXX"
@@ -424,12 +408,11 @@ const AddLeadModal = ({ onClose, onSave, authToken, courses }) => {
                 <div className="flex items-center gap-2 text-[#294998]">
                   <Headphones className="w-4 h-4 stroke-[2.2]" />
                   <h3 className="text-[14px] font-[700] text-slate-900 tracking-[-0.01em]">
-                    4. Lead &amp; Counselor Assignment
+                    4. Lead Owner
                   </h3>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Owner (Lead Assigned) — Task 2.2: show name only, no email in parens */}
+                <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-1.5">
                     <label htmlFor="owner" className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider">
                       LEAD OWNER
@@ -453,29 +436,6 @@ const AddLeadModal = ({ onClose, onSave, authToken, courses }) => {
                     </div>
                   </div>
 
-                  {/* Call Assignee — Task 2.2: show name only, no email in parens */}
-                  <div className="space-y-1.5">
-                    <label htmlFor="call_assignee" className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider">
-                      CALL ASSIGNEE
-                    </label>
-                    <div className="relative">
-                      <select
-                        id="call_assignee"
-                        name="call_assignee"
-                        value={formData.call_assignee}
-                        onChange={handleChange}
-                        className="w-full h-11 pl-3.5 pr-8 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none appearance-none cursor-pointer transition-all text-slate-800"
-                      >
-                        <option value="">None</option>
-                        {!usersLoading && Array.isArray(users) && users.map((u) => (
-                          <option key={u.id} value={u.id}>
-                            {formatUserLabel(u)}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                    </div>
-                  </div>
                 </div>
               </div>
             )}

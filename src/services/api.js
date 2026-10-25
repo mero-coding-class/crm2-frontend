@@ -25,7 +25,9 @@ const handleResponse = async (response) => {
       // (direct localStorage.removeItem won't trigger re-render in the same tab)
       try {
         window.dispatchEvent(new CustomEvent("crm:authExpired"));
-      } catch (_) {}
+      } catch {
+        // Authentication state will also be cleared by the next request.
+      }
     }
     throw new Error(errorMsg);
   }
@@ -36,7 +38,7 @@ const handleResponse = async (response) => {
   if (!text) return {};
   try {
     return JSON.parse(text);
-  } catch (e) {
+  } catch {
     // fallback to original behavior
     return text;
   }
@@ -56,106 +58,38 @@ export const apiFetch = (url, options = {}) => {
 };
 
 
-// Format date for API: backend expects YYYY-MM-DD for date fields like last_call/next_call.
-const formatDateForApi = (d) => {
-  if (!d && d !== 0) return null;
-  // Date object -> YYYY-MM-DD
-  if (d instanceof Date) {
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
-  }
-
-  // If already a string in YYYY-MM-DD, return it
-  const s = String(d).trim();
-  const parts = s.split("-");
-  if (parts.length === 3 && parts[0].length === 4) return s;
-
-  // If input was in backend-old format 'YYYY|DD|MM', convert to YYYY-MM-DD
-  if (s.includes("|")) {
-    const parts2 = s.split("|");
-    if (parts2.length === 3) {
-      const [yyyy, dd, mm] = parts2;
-      return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
-    }
-  }
-
-  // Fallback: try Date parse and format
-  const parsed = new Date(s);
-  if (!isNaN(parsed.getTime())) {
-    const yyyy = parsed.getFullYear();
-    const mm = String(parsed.getMonth() + 1).padStart(2, "0");
-    const dd = String(parsed.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
-  }
-
-  return null;
-};
-
-// Accept free-text shift values from the UI. Return undefined only when the
-// incoming value is strictly undefined or null; otherwise return the trimmed string.
-const sanitizeShift = (s) => {
-  if (s === undefined || s === null) return undefined;
-  return String(s).trim();
-};
-
 export const leadService = {
+  getLead: async (id, authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/leads/${id}/`, {
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    return handleResponse(response);
+  },
+
   getLeads: async (authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await apiFetch(`${BASE_URL}/leads/`, {
-      headers: {
-        Authorization: `Token ${authToken}`,
-        "Content-Type": "application/json",
-      },
-    });
-    const backendLeads = await handleResponse(response);
-    // Normalize backend response to an array. Some backends return
-    // a paginated object like { results: [...] } while others return []
-    const leadsList = Array.isArray(backendLeads)
-      ? backendLeads
-      : backendLeads?.results || [];
-
-    // Normalize crm2-backend LeadSummarySerializer / LeadDetailSerializer fields
-    return leadsList.map((lead) => ({
-      id: lead.id,
-      _id: String(lead.id),
-      system_id: lead.system_id || "",
-      school_name: lead.school_name || "",
-      district: lead.district || "",
-      municipality: lead.municipality || "",
-      address: lead.address || "",
-      contact_person: lead.contact_person || "",
-      contact_number: lead.contact_number || "",
-      alt_number: lead.alt_number || "",
-      alt_contact_person: lead.alt_contact_person || "",
-      email: lead.email || "",
-      source: lead.source || "",
-      course_interest: lead.course_interest || "",
-      social_media: lead.social_media || "",
-      status: lead.status || "active",
-      sub_status: lead.sub_status || "New",
-      approval: lead.approval || "approved",
-      proposal_status: lead.proposal_status ?? false,
-      demo_scheduled: lead.demo_scheduled ?? false,
-      owner: lead.owner ?? null,
-      owner_username: lead.owner_username || "",
-      call_assignee: lead.call_assignee ?? null,
-      call_assignee_username: lead.call_assignee_username || "",
-      created_by: lead.created_by ?? null,
-      created_by_username: lead.created_by_username || "",
-      created_at: lead.created_at || "",
-      updated_at: lead.updated_at || "",
-      archived: lead.archived ?? false,
-      archive_reason: lead.archive_reason || "",
-      next_year_probability: lead.next_year_probability ?? null,
-    }));
+    const leads = [];
+    let page = 1;
+    while (true) {
+      const response = await leadService.getLeadsPage(authToken, page, 100);
+      leads.push(...response.results);
+      if (page >= response.totalPages || response.results.length === 0) break;
+      page += 1;
+    }
+    return leads;
   },
 
   // Fetch a specific page of leads from the backend (supports paginated API)
-  getLeadsPage: async (authToken, page = 1, pageSize = 20) => {
+  getLeadsPage: async (authToken, page = 1, pageSize = 20, filters = {}) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const url = `${BASE_URL}/leads/?page=${page}&page_size=${pageSize}`;
+    const params = new URLSearchParams({ page, page_size: pageSize });
+    Object.entries(filters || {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && String(value).trim() !== "") {
+        params.set(key, String(value).trim());
+      }
+    });
+    const url = `${BASE_URL}/leads/?${params.toString()}`;
     const resp = await apiFetch(url, {
       headers: { Authorization: `Token ${authToken}` },
     });
@@ -163,7 +97,7 @@ export const leadService = {
 
     // Normalize response: backend may return { results: [...], count }
     const list = Array.isArray(json) ? json : json?.results || [];
-    const count = json && typeof json === "object" && (json.count || json.total || null);
+    const count = json && typeof json === "object" ? (json.count ?? json.total ?? null) : null;
     const totalPages = count
       ? Math.max(1, Math.ceil(count / pageSize))
       : Math.max(1, Math.ceil((list.length || 0) / pageSize));
@@ -175,45 +109,41 @@ export const leadService = {
       school_name: lead.school_name || "",
       district: lead.district || "",
       municipality: lead.municipality || "",
-      address: lead.address || "",
       contact_person: lead.contact_person || "",
       contact_number: lead.contact_number || "",
-      alt_number: lead.alt_number || "",
-      alt_contact_person: lead.alt_contact_person || "",
-      email: lead.email || "",
-      source: lead.source || "",
-      course_interest: lead.course_interest || "",
-      social_media: lead.social_media || "",
-      status: lead.status || "active",
       sub_status: lead.sub_status || "New",
-      approval: lead.approval || "approved",
-      proposal_status: lead.proposal_status ?? false,
-      demo_scheduled: lead.demo_scheduled ?? false,
-      owner: lead.owner ?? null,
-      owner_username: lead.owner_username || "",
-      call_assignee: lead.call_assignee ?? null,
-      call_assignee_username: lead.call_assignee_username || "",
-      created_by: lead.created_by ?? null,
-      created_by_username: lead.created_by_username || "",
-      created_at: lead.created_at || "",
-      updated_at: lead.updated_at || "",
-      archived: lead.archived ?? false,
-      archive_reason: lead.archive_reason || "",
-      next_year_probability: lead.next_year_probability ?? null,
     }));
 
-    return { results: mapped, count: count || null, totalPages };
+    return { results: mapped, count: count ?? null, totalPages };
   },
 
-  updateLead: async (id, updates, authToken) => {
+  createLead: async (payload, authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/leads/`, {
+      method: "POST",
+      headers: {
+        Authorization: `Token ${authToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(response);
+  },
+
+  updateLead: async (id, updates = {}, authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
 
-    // Only send fields that are writable by LeadUpdateSerializer
     const WRITABLE_FIELDS = [
       "school_name", "district", "municipality", "address",
       "contact_person", "contact_number", "alt_number", "alt_contact_person",
       "email", "source", "course_interest", "social_media", "sub_status",
     ];
+    const unsupportedFields = Object.keys(updates || {}).filter(
+      (field) => !WRITABLE_FIELDS.includes(field)
+    );
+    if (unsupportedFields.length) {
+      throw new Error(`Unsupported lead fields: ${unsupportedFields.join(", ")}`);
+    }
 
     const backendUpdates = {};
 
@@ -223,147 +153,36 @@ export const leadService = {
       }
     });
 
-    // Support legacy alias mapping from old frontend field names
-    if (updates.school_college_name !== undefined && !backendUpdates.school_name)
-      backendUpdates.school_name = updates.school_college_name;
-    if (updates.contact_number !== undefined) backendUpdates.contact_number = updates.contact_number;
-    if (updates.phone_number !== undefined && !backendUpdates.contact_number)
-      backendUpdates.contact_number = updates.phone_number;
-    if (updates.social_media !== undefined) backendUpdates.social_media = updates.social_media;
-    if (updates.website !== undefined && !backendUpdates.social_media)
-      backendUpdates.social_media = updates.website;
-    if (updates.course_interest !== undefined) backendUpdates.course_interest = updates.course_interest;
-    if (updates.substatus !== undefined && !backendUpdates.sub_status)
-      backendUpdates.sub_status = updates.substatus;
-    if (updates.alt_contact_person !== undefined) backendUpdates.alt_contact_person = updates.alt_contact_person;
-    if (updates.alt_number !== undefined) backendUpdates.alt_number = updates.alt_number;
+    if (Object.keys(backendUpdates).length === 0) {
+      throw new Error("Provide at least one supported lead field to update.");
+    }
 
     const doPatch = async (payload) => {
-      const hasInvoiceFile =
-        updates && updates.first_invoice && updates.first_invoice instanceof File;
+      const resp = await apiFetch(`${BASE_URL}/leads/${id}/`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Token ${authToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-      let resp;
-      if (hasInvoiceFile) {
-        const fd = new FormData();
-        Object.entries(payload || {}).forEach(([k, v]) => {
-          if (k === "first_invoice") return;
-          if (v === undefined || v === null) return;
-          if (typeof v === "object") {
-            try { fd.append(k, JSON.stringify(v)); } catch { fd.append(k, String(v)); }
-          } else {
-            fd.append(k, String(v));
-          }
-        });
-        fd.append("first_invoice", updates.first_invoice);
-        resp = await apiFetch(`${BASE_URL}/leads/${id}/`, {
-          method: "PATCH",
-          headers: { Authorization: `Token ${authToken}` },
-          body: fd,
-        });
-      } else {
-        resp = await apiFetch(`${BASE_URL}/leads/${id}/`, {
-          method: "PATCH",
-          headers: {
-            Authorization: `Token ${authToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        });
-      }
-
-      if (!resp.ok) {
-        let text;
-        try { text = await resp.text(); } catch (e) { text = `<could not read response body: ${e.message}>`; }
-        let parsed;
-        try { parsed = JSON.parse(text); } catch { parsed = text; }
-        console.error("leadService.updateLead -> PATCH failed", {
-          url: `${BASE_URL}/leads/${id}/`,
-          id,
-          payload,
-          status: resp.status,
-          responseBody: parsed,
-        });
-        const errMsg =
-          (parsed && parsed.detail) ||
-          (typeof parsed === "string" && parsed) ||
-          JSON.stringify(parsed);
-        throw new Error(errMsg || `HTTP ${resp.status}`);
-      }
-
-      return await handleResponse(resp);
+      return handleResponse(resp);
     };
 
     const data = await doPatch(backendUpdates);
-
     const serverData = data && typeof data === "object" ? data : {};
-    const merged = { ...(serverData || {}), ...(backendUpdates || {}) };
-    merged.id = serverData.id || serverData._id || id;
-    merged._id = serverData._id || serverData.id || merged._id || id;
-
-    const requestHadLast = "recentCall" in updates || "last_call" in updates;
-    const requestHadNext = "nextCall" in updates || "next_call" in updates;
-    if (!("last_call" in serverData) && !requestHadLast) delete merged.last_call;
-    if (!("next_call" in serverData) && !requestHadNext) delete merged.next_call;
-
-    merged.substatus =
-      merged.substatus ||
-      merged.sub_status ||
-      backendUpdates.substatus ||
-      backendUpdates.sub_status ||
-      "New";
-    merged.sub_status = merged.sub_status || merged.substatus;
-
-    try {
-      window.dispatchEvent(new CustomEvent("crm:leadUpdated", { detail: { lead: merged } }));
-      if (backendUpdates && backendUpdates.remarks !== undefined) {
-        try {
-          window.dispatchEvent(
-            new CustomEvent("crm:remarkUpdated", {
-              detail: { id: merged.id || null, remarks: backendUpdates.remarks },
-            })
-          );
-        } catch (_) {}
-      }
-    } catch (e) {
-      console.warn("Could not dispatch crm:leadUpdated event", e);
-    }
+    const merged = { ...backendUpdates, ...serverData };
+    merged.id = serverData.id ?? id;
+    merged._id = serverData._id ?? String(merged.id);
+    merged.sub_status = merged.sub_status || backendUpdates.sub_status || "New";
+    merged.substatus = merged.sub_status;
 
     return merged;
   },
 
-  addLead: async (newLeadData, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
-
-    const backendData = {
-      school_name: newLeadData.school_name || newLeadData.school_college_name || "",
-      district: newLeadData.district || "",
-      municipality: newLeadData.municipality || "",
-      address: newLeadData.address || "",
-      contact_person: newLeadData.contact_person || "",
-      contact_number: newLeadData.contact_number || newLeadData.phone_number || "",
-      alt_number: newLeadData.alt_number || "",
-      alt_contact_person: newLeadData.alt_contact_person || "",
-      email: newLeadData.email || "",
-      source: newLeadData.source || "",
-      course_interest: newLeadData.course_interest || "",
-      social_media: newLeadData.social_media || "",
-      sub_status: newLeadData.sub_status || newLeadData.substatus || "New",
-      ...(newLeadData.owner !== undefined ? { owner: newLeadData.owner } : {}),
-    };
-
-    const response = await apiFetch(`${BASE_URL}/leads/`, {
-      method: "POST",
-      headers: {
-        Authorization: `Token ${authToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(backendData),
-    });
-    return handleResponse(response);
-  },
-
-  /** Archive a single lead (soft-delete). Optionally pass a reason. */
-  archiveLead: async (id, authToken, reason = "") => {
+  /** Archive a single lead (soft-delete). */
+  archiveLead: async (id, authToken, reason = "", nextYearProbability = false) => {
     if (!authToken) throw new Error("Authentication token not found.");
     const response = await apiFetch(`${BASE_URL}/leads/${id}/archive/`, {
       method: "POST",
@@ -371,7 +190,7 @@ export const leadService = {
         Authorization: `Token ${authToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ reason }),
+      body: JSON.stringify({ reason, next_year_probability: nextYearProbability }),
     });
     return handleResponse(response);
   },
@@ -391,7 +210,7 @@ export const leadService = {
   },
 
   /** Archive multiple leads in one round-trip. */
-  bulkArchiveLeads: async (ids, authToken, reason = "") => {
+  bulkArchiveLeads: async (ids, authToken, reason = "", nextYearProbability = false) => {
     if (!authToken) throw new Error("Authentication token not found.");
     const response = await apiFetch(`${BASE_URL}/leads/bulk-archive/`, {
       method: "POST",
@@ -399,25 +218,7 @@ export const leadService = {
         Authorization: `Token ${authToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ ids, reason }),
-    });
-    return handleResponse(response);
-  },
-
-  /** Assign owner and/or call_assignee to a lead. */
-  assignLead: async (id, { owner, call_assignee, reason } = {}, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
-    const body = {};
-    if (owner !== undefined) body.owner = owner;
-    if (call_assignee !== undefined) body.call_assignee = call_assignee;
-    if (reason) body.reason = reason;
-    const response = await apiFetch(`${BASE_URL}/leads/${id}/assign/`, {
-      method: "POST",
-      headers: {
-        Authorization: `Token ${authToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ids, reason, next_year_probability: nextYearProbability }),
     });
     return handleResponse(response);
   },
@@ -438,140 +239,52 @@ export const leadService = {
   /** Fetch paginated archived leads. */
   getArchivedLeads: async (authToken, page = 1, pageSize = 20, params = {}) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const qs = new URLSearchParams({ page, page_size: pageSize, ...params }).toString();
-    const response = await apiFetch(`${BASE_URL}/archived-leads/?${qs}`, {
+    const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+    Object.entries(params || {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && String(value).trim()) {
+        query.set(key, String(value).trim());
+      }
+    });
+    const response = await apiFetch(`${BASE_URL}/archived-leads/?${query}`, {
       headers: { Authorization: `Token ${authToken}` },
     });
     const json = await handleResponse(response);
     const list = Array.isArray(json) ? json : json?.results || [];
-    const count = json?.count || null;
-    const totalPages = count
-      ? Math.max(1, Math.ceil(count / pageSize))
-      : 1;
-    return { results: list, count, totalPages };
-  },
-};
-
-// Resolve a backend server id for a lead-like object or id value.
-export const resolveServerId = (leadOrId, prevLeads = []) => {
-  if (leadOrId === null || leadOrId === undefined) return null;
-
-  if (typeof leadOrId === "string" || typeof leadOrId === "number") {
-    const s = String(leadOrId);
-    if (s.startsWith("lead-")) return null;
-    if (/^\d+$/.test(s)) return Number(s);
-    return s;
-  }
-
-  const lead = leadOrId || {};
-  if (lead.id !== undefined && lead.id !== null) return lead.id;
-  if (lead._id !== undefined && lead._id !== null) {
-    const s = String(lead._id);
-    if (!s.startsWith("lead-")) {
-      if (/^\d+$/.test(s)) return Number(s);
-      return s;
-    }
-  }
-
-  try {
-    if (Array.isArray(prevLeads) && prevLeads.length) {
-      const match = prevLeads.find(
-        (l) =>
-          (l.email && lead.email && l.email === lead.email) ||
-          (l.phone_number && lead.phone_number && l.phone_number === lead.phone_number) ||
-          (l.phone && lead.phone && l.phone === lead.phone) ||
-          (l.student_name && lead.student_name && l.student_name === lead.student_name)
-      );
-      if (match) {
-        if (match.id !== undefined && match.id !== null) return match.id;
-        if (match._id !== undefined && match._id !== null) {
-          const ms = String(match._id);
-          if (!ms.startsWith("lead-")) return /^\d+$/.test(ms) ? Number(ms) : ms;
-          return match._id;
-        }
-      }
-    }
-  } catch (_) {}
-
-  return null;
-};
-
-export const trashService = {
-  /** Fetch paginated archived/trashed leads from the new backend. */
-  getTrashedLeads: async (authToken, page = 1, pageSize = 50) => {
-    if (!authToken) throw new Error("Authentication token not found.");
-    try {
-      const qs = new URLSearchParams({ page, page_size: pageSize }).toString();
-      const response = await apiFetch(`${BASE_URL}/archived-leads/?${qs}`, {
-        headers: { Authorization: `Token ${authToken}` },
-      });
-      if (response.status === 404) return [];
-      const json = await handleResponse(response);
-      const list = Array.isArray(json) ? json : json?.results || [];
-      return list.map((lead) => ({
+    const count = Array.isArray(json) ? list.length : (json?.count ?? list.length);
+    const totalPages = Math.max(1, Math.ceil(count / pageSize));
+    return {
+      results: list.map((lead) => ({
         id: lead.id,
         _id: String(lead.id),
         system_id: lead.system_id || "",
-        student_name: lead.school_name || lead.student_name || "",
         school_name: lead.school_name || "",
-        parents_name: lead.contact_person || lead.parents_name || "",
-        email: lead.email || "",
-        phone_number: lead.contact_number || lead.phone_number || "",
-        whatsapp_number: lead.alt_number || lead.whatsapp_number || "",
         district: lead.district || "",
         municipality: lead.municipality || "",
-        address: lead.address || "",
-        source: lead.source || "",
-        course_name: lead.course_interest || lead.course_name || "",
-        status: lead.status || "archived",
-        sub_status: lead.sub_status || "",
-        archived: lead.archived ?? true,
+        contact_person: lead.contact_person || "",
+        contact_number: lead.contact_number || "",
+        status: lead.status || "not_interested",
         archive_reason: lead.archive_reason || "",
+        next_year_probability: lead.next_year_probability ?? null,
         created_at: lead.created_at || "",
         updated_at: lead.updated_at || "",
-        owner_username: lead.owner_username || "",
-        assigned_to: lead.call_assignee_username || "",
-        changeLog: [],
-      }));
-    } catch {
-      return [];
-    }
+      })),
+      count,
+      totalPages,
+    };
   },
+};
 
-  /** Restore an archived lead back to the active pipeline. */
-  restoreTrashedLead: async (id, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
-    const response = await apiFetch(`${BASE_URL}/leads/${id}/restore/`, {
-      method: "POST",
-      headers: {
-        Authorization: `Token ${authToken}`,
-        "Content-Type": "application/json",
-      },
-      body: "{}",
-    });
-    return handleResponse(response);
-  },
+// Resolve a backend id without inventing one from client-side lead fields.
+export const resolveServerId = (leadOrId) => {
+  if (leadOrId === null || leadOrId === undefined) return null;
 
-  /** Permanently delete an archived lead (hard delete via admin, else 403). */
-  deleteTrashedLead: async (id, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
-    const response = await apiFetch(`${BASE_URL}/leads/${id}/`, {
-      method: "DELETE",
-      headers: { Authorization: `Token ${authToken}` },
-    });
-    if (!response.ok) {
-      if (response.status === 404) return {};
-      let errorMsg = "Failed to permanently delete lead";
-      try {
-        const errData = await response.json();
-        errorMsg = errData.detail || JSON.stringify(errData);
-      } catch {
-        try { errorMsg = await response.text(); } catch { /* ignore */ }
-      }
-      throw new Error(errorMsg);
-    }
-    return {};
-  },
+  const candidate = typeof leadOrId === "object"
+    ? leadOrId.id ?? leadOrId._id
+    : leadOrId;
+  if (candidate === null || candidate === undefined) return null;
+  const id = String(candidate).trim();
+  if (!id || id.startsWith("lead-")) return null;
+  return /^\d+$/.test(id) ? Number(id) : id;
 };
 
 export const courseService = {
@@ -604,9 +317,10 @@ export const courseService = {
         Authorization: `Token ${authToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ class_name: courseName, name: courseName }),
+      body: JSON.stringify({ name: courseName }),
     });
-    return handleResponse(response);
+    const course = await handleResponse(response);
+    return { ...course, course_name: course.name || course.course_name || "" };
   },
 
   updateCourse: async (id, courseName, authToken) => {
@@ -617,9 +331,10 @@ export const courseService = {
         Authorization: `Token ${authToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ class_name: courseName, name: courseName }),
+      body: JSON.stringify({ name: courseName }),
     });
-    return handleResponse(response);
+    const course = await handleResponse(response);
+    return { ...course, course_name: course.name || course.course_name || "" };
   },
 
   deleteCourse: async (id, authToken) => {
@@ -633,8 +348,12 @@ export const courseService = {
       try {
         const data = await response.json();
         errorMsg = data.detail || JSON.stringify(data);
-      } catch (e) {
-        try { errorMsg = await response.text(); } catch { /* ignore */ }
+      } catch {
+        try {
+          errorMsg = await response.text();
+        } catch {
+          // Keep the default error message when the response body is unavailable.
+        }
       }
       throw new Error(errorMsg);
     }
@@ -642,122 +361,41 @@ export const courseService = {
   },
 };
 
-export const changeLogService = {
-  getLeadLogs: async (leadId, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
-    // Try the new audit change-log endpoint first
-    try {
-      const qs = new URLSearchParams({ entity: "leads", record_id: leadId }).toString();
-      const response = await apiFetch(`${BASE_URL}/change-log/?${qs}`, {
-        headers: { Authorization: `Token ${authToken}` },
-      });
-      if (response.ok) {
-        const payload = await handleResponse(response);
-        const logs = Array.isArray(payload) ? payload : payload?.results || [];
-        return logs.sort((a, b) => new Date(b.at || b.timestamp) - new Date(a.at || a.timestamp));
-      }
-    } catch (_) { /* fall through to legacy */ }
-    const response = await apiFetch(`${BASE_URL}/leads/${leadId}/logs/`, {
-      headers: { Authorization: `Token ${authToken}` },
-    });
-    const payload = await handleResponse(response);
-    const logs = Array.isArray(payload) ? payload : payload?.results || [];
-    return logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  },
-};
-
-// ─── Approval Queue Service (admin only) ──────────────────────────────────────
-export const approvalService = {
-  /** Get pending approval queue (admin only). */
-  getQueue: async (authToken, page = 1, pageSize = 20) => {
-    if (!authToken) throw new Error("Authentication token not found.");
-    const qs = new URLSearchParams({ page, page_size: pageSize }).toString();
-    const response = await apiFetch(`${BASE_URL}/approvals/?${qs}`, {
-      headers: { Authorization: `Token ${authToken}` },
-    });
-    const data = await handleResponse(response);
-    return { results: Array.isArray(data) ? data : data?.results || [], count: data?.count || 0 };
-  },
-
-  /** Approve a pending lead submission. */
-  approveLead: async (id, reason, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
-    const response = await apiFetch(`${BASE_URL}/leads/${id}/approve/`, {
-      method: "POST",
-      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ reason }),
-    });
-    return handleResponse(response);
-  },
-
-  /** Reject a pending lead submission. */
-  rejectLead: async (id, reason, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
-    const response = await apiFetch(`${BASE_URL}/leads/${id}/reject/`, {
-      method: "POST",
-      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ reason }),
-    });
-    return handleResponse(response);
-  },
-
-  /** Batch approve or reject. action = 'approve' | 'reject'. */
-  batchReview: async (ids, action, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
-    const response = await apiFetch(`${BASE_URL}/approvals/batch/`, {
-      method: "POST",
-      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ ids, action }),
-    });
-    return handleResponse(response);
-  },
-};
-
-// ─── Import Service (B2B CSV import) ──────────────────────────────────────────
+// ─── Lead import preview and confirmation ────────────────────────────────────
 export const importService = {
-  /**
-   * Upload a CSV/XLSX file for bulk lead import.
-   * Returns { batch_id, queued, errors } on success.
-   */
-  uploadBatch: async (file, authToken) => {
+  preview: async (file, authToken, signal) => {
     if (!authToken) throw new Error("Authentication token not found.");
     const fd = new FormData();
     fd.append("file", file);
-    const response = await apiFetch(`${BASE_URL}/leads/import/`, {
+    const response = await apiFetch(`${BASE_URL}/leads/import/preview/`, {
       method: "POST",
       headers: { Authorization: `Token ${authToken}` },
       body: fd,
+      signal,
     });
     return handleResponse(response);
   },
 
-  /** Get status/results of a past import batch by ID. */
-  getBatch: async (batchId, authToken) => {
+  confirm: async (batchKey, selected, authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await apiFetch(`${BASE_URL}/leads/import/${batchId}/`, {
-      headers: { Authorization: `Token ${authToken}` },
+    const response = await apiFetch(`${BASE_URL}/leads/import/confirm/`, {
+      method: "POST",
+      headers: {
+        Authorization: `Token ${authToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ batch_key: batchKey, selected }),
     });
     return handleResponse(response);
-  },
-
-  /** List all import batches for the current user. */
-  listBatches: async (authToken, page = 1) => {
-    if (!authToken) throw new Error("Authentication token not found.");
-    const qs = new URLSearchParams({ page }).toString();
-    const response = await apiFetch(`${BASE_URL}/leads/import/?${qs}`, {
-      headers: { Authorization: `Token ${authToken}` },
-    });
-    const data = await handleResponse(response);
-    return { results: Array.isArray(data) ? data : data?.results || [], count: data?.count || 0 };
   },
 };
 
 // ─── Activity Service ────────────────────────────────────────────────────────
 export const activityService = {
   /** List activities for a lead (paginated). */
-  getActivities: async (leadId, authToken, page = 1) => {
+  getActivities: async (leadId, authToken, page = 1, pageSize = 100) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const qs = new URLSearchParams({ lead: leadId, page }).toString();
+    const qs = new URLSearchParams({ lead: leadId, page, page_size: pageSize }).toString();
     const response = await apiFetch(`${BASE_URL}/activities/?${qs}`, {
       headers: { Authorization: `Token ${authToken}` },
     });
@@ -776,43 +414,6 @@ export const activityService = {
     return handleResponse(response);
   },
 
-  /** Edit an existing activity (patch). */
-  updateActivity: async (id, updates, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
-    const response = await apiFetch(`${BASE_URL}/activities/${id}/`, {
-      method: "PATCH",
-      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify(updates),
-    });
-    return handleResponse(response);
-  },
-};
-
-// ─── Task Service ────────────────────────────────────────────────────────────
-export const taskService = {
-  /** Get tasks (optionally filtered by lead, status, due range). */
-  getTasks: async (authToken, params = {}) => {
-    if (!authToken) throw new Error("Authentication token not found.");
-    const qs = new URLSearchParams(
-      Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ""))
-    ).toString();
-    const response = await apiFetch(`${BASE_URL}/tasks/${qs ? `?${qs}` : ""}`, {
-      headers: { Authorization: `Token ${authToken}` },
-    });
-    const data = await handleResponse(response);
-    return { results: Array.isArray(data) ? data : data?.results || [], count: data?.count || 0 };
-  },
-
-  /** Update a task status/due date. */
-  updateTask: async (id, updates, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
-    const response = await apiFetch(`${BASE_URL}/tasks/${id}/`, {
-      method: "PATCH",
-      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify(updates),
-    });
-    return handleResponse(response);
-  },
 };
 
 // ─── Demo Service ────────────────────────────────────────────────────────────
@@ -878,72 +479,56 @@ export const demoService = {
 
 // ─── Dashboard Service ───────────────────────────────────────────────────────
 export const dashboardService = {
-  /** Dashboard payload: today/tomorrow/next7days/overdue tasks, demo_queue, notifications count. */
-  getDashboard: async (authToken) => {
+  /** Dashboard queues and database-aggregated, role-scoped metrics. */
+  getDashboard: async (authToken, params = {}) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await apiFetch(`${BASE_URL}/dashboard/`, {
+    const query = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, value]) => value))
+    ).toString();
+    const response = await apiFetch(`${BASE_URL}/dashboard/${query ? `?${query}` : ""}`, {
+      cache: "no-store",
       headers: { Authorization: `Token ${authToken}` },
     });
     return handleResponse(response);
   },
 
-  /** Calendar data for a date range (?from=YYYY-MM-DD&to=YYYY-MM-DD). */
-  getCalendar: async (authToken, from, to) => {
-    if (!authToken) throw new Error("Authentication token not found.");
-    const qs = new URLSearchParams(
-      Object.fromEntries(Object.entries({ from, to }).filter(([, v]) => v))
-    ).toString();
-    const response = await apiFetch(`${BASE_URL}/calendar/${qs ? `?${qs}` : ""}`, {
-      headers: { Authorization: `Token ${authToken}` },
-    });
-    return handleResponse(response);
-  },
 };
 
-// ─── Notification Service ────────────────────────────────────────────────────
-export const notificationService = {
-  /** Get notifications (own only). Pass { unread: true } to filter unread. */
-  getNotifications: async (authToken, params = {}) => {
+export const approvalService = {
+  getQueue: async (authToken, page = 1, pageSize = 25) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const qs = new URLSearchParams(
-      Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ""))
-    ).toString();
-    const response = await apiFetch(`${BASE_URL}/notifications/${qs ? `?${qs}` : ""}`, {
+    const response = await apiFetch(`${BASE_URL}/approvals/?page=${page}&page_size=${pageSize}`, {
       headers: { Authorization: `Token ${authToken}` },
     });
     const data = await handleResponse(response);
-    return { results: Array.isArray(data) ? data : data?.results || [], count: data?.count || 0 };
+    return {
+      results: Array.isArray(data) ? data : data?.results || [],
+      count: Array.isArray(data) ? data.length : data?.count || 0,
+    };
   },
-
-  /** Mark a single notification as read. */
-  markRead: async (id, authToken) => {
+  decide: async (leadId, decision, reason, authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await apiFetch(`${BASE_URL}/notifications/${id}/`, {
-      method: "PATCH",
+    const response = await apiFetch(`${BASE_URL}/leads/${leadId}/${decision}/`, {
+      method: "POST",
+      headers: {
+        Authorization: `Token ${authToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ reason }),
+    });
+    return handleResponse(response);
+  },
+  approveLead: (id, reason, authToken) => approvalService.decide(id, "approve", reason, authToken),
+  rejectLead: (id, reason, authToken) => approvalService.decide(id, "reject", reason, authToken),
+  batchReview: async (ids, action, authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/approvals/batch/`, {
+      method: "POST",
       headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ is_read: true }),
+      body: JSON.stringify({ ids, action }),
     });
     return handleResponse(response);
   },
-};
-
-// ─── Audit Service ────────────────────────────────────────────────────────────
-export const auditService = {
-  /** Query change-log. Params: entity, record_id, actor, from, to */
-  getChangeLogs: async (authToken, params = {}) => {
-    if (!authToken) throw new Error("Authentication token not found.");
-    const qs = new URLSearchParams(
-      Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ""))
-    ).toString();
-    const response = await apiFetch(`${BASE_URL}/change-log/${qs ? `?${qs}` : ""}`, {
-      headers: { Authorization: `Token ${authToken}` },
-    });
-    const data = await handleResponse(response);
-    return { results: Array.isArray(data) ? data : data?.results || [], count: data?.count || 0 };
-  },
-
-  getLeadChangeLogs: async (leadId, authToken) =>
-    auditService.getChangeLogs(authToken, { entity: "leads", record_id: leadId }),
 };
 
 // ─── Report Service ──────────────────────────────────────────────────────────
@@ -1043,10 +628,21 @@ export const catalogService = {
     const data = await handleResponse(response);
     const list = Array.isArray(data) ? data : data?.results || [];
     // Normalize: [{label, value}]
-    return list.map((item) => ({
-      label: item.label || item.name || item.value,
-      value: item.value || item.label,
-    }));
+    const validValues = new Map([
+      ["phone", "phone"],
+      ["field visit", "field visit"],
+      ["whatsapp", "WhatsApp"],
+      ["email", "email"],
+      ["meeting", "meeting"],
+      ["demo", "demo"],
+    ]);
+    return list
+      .map((item) => {
+        const label = item.label || item.name || item.value || "";
+        const value = item.value || validValues.get(String(label).toLowerCase());
+        return value ? { label, value } : null;
+      })
+      .filter(Boolean);
   },
 };
 
@@ -1060,18 +656,17 @@ export const clientService = {
     if (params.district) searchParams.append("district", params.district);
     if (params.municipality) searchParams.append("municipality", params.municipality);
     if (params.active !== undefined && params.active !== null) searchParams.append("active", params.active);
+    if (params.renewals) searchParams.append("renewals", params.renewals);
+    if (params.enrolled_from) searchParams.append("enrolled_from", params.enrolled_from);
+    if (params.enrolled_to) searchParams.append("enrolled_to", params.enrolled_to);
+    if (params.converted_from) searchParams.append("converted_from", params.converted_from);
+    if (params.converted_to) searchParams.append("converted_to", params.converted_to);
+    if (params.contract_from) searchParams.append("contract_from", params.contract_from);
+    if (params.contract_to) searchParams.append("contract_to", params.contract_to);
 
     const qs = searchParams.toString();
     const url = `${BASE_URL}/clients/${qs ? `?${qs}` : ""}`;
     const response = await apiFetch(url, {
-      headers: { Authorization: `Token ${authToken}` },
-    });
-    return handleResponse(response);
-  },
-
-  getClient: async (id, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
-    const response = await apiFetch(`${BASE_URL}/clients/${id}/`, {
       headers: { Authorization: `Token ${authToken}` },
     });
     return handleResponse(response);
@@ -1107,6 +702,27 @@ export const clientService = {
     if (!authToken) throw new Error("Authentication token not found.");
     const response = await apiFetch(`${BASE_URL}/contracts/?lead=${leadId}`, {
       headers: { Authorization: `Token ${authToken}` },
+    });
+    return handleResponse(response);
+  },
+
+  /** Return a client to Leads through the existing contract transition. */
+  returnToLeads: async (leadId, authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const contractData = await clientService.getContracts(leadId, authToken);
+    const contracts = Array.isArray(contractData)
+      ? contractData
+      : contractData?.results || [];
+    const contract = contracts.find((item) => item?.state === "active") || contracts[0];
+    if (!contract?.id) throw new Error("No contract was found for this client.");
+
+    const response = await apiFetch(`${BASE_URL}/contracts/${contract.id}/renew/`, {
+      method: "POST",
+      headers: {
+        Authorization: `Token ${authToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ decision: "accept" }),
     });
     return handleResponse(response);
   },

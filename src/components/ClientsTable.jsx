@@ -1,16 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
-import {
-  Pencil,
-  Trash2,
-  GripVertical,
-  SlidersHorizontal,
-  ChevronLeft,
-  ChevronRight,
-  CheckCircle2,
-  Clock,
-  Building2,
-  Check,
-} from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Building2, GripVertical, Pencil, SlidersHorizontal, Undo2 } from "lucide-react";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -20,139 +9,73 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-// --- BACKGROUND COLORS FOR FIELDS ---
-const FIELD_BG_CLASSES = {
-  batch_name: "bg-purple-50 text-purple-900 border-purple-200",
-  assigned_teacher: "bg-blue-50 text-blue-900 border-blue-200",
-  course_duration: "bg-emerald-50 text-emerald-900 border-emerald-200",
+const DEFAULT_COLUMNS = {
+  system_id: { label: "System ID", visible: true },
+  school_name: { label: "School", visible: true },
+  principal_name: { label: "Principal Name", visible: true },
+  principal_email: { label: "Principal Email", visible: false },
+  principal_number: { label: "Principal Phone", visible: false },
+  contact_name: { label: "Contact", visible: false },
+  contact_number: { label: "Contact Phone", visible: true },
+  contact_email: { label: "Contact Email", visible: true },
+  package_name: { label: "Package", visible: true },
+  classes_per_week: { label: "Classes / Week", visible: true },
+  assigned_to: { label: "Academic User", visible: true },
+  mou_start: { label: "MOU Start", visible: true },
+  mou_end: { label: "MOU End", visible: true },
+  pricing_basis: { label: "Pricing Basis", visible: true },
+  agreed_price: { label: "Agreed Price", visible: true },
+  actions: { label: "Actions", visible: true },
 };
 
-// Format date display
-const formatDisplayDate = (dateString) => {
-  if (!dateString) return "N/A";
-  try {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return "N/A";
-    return date.toLocaleDateString();
-  } catch (error) {
-    console.error("Error formatting date:", error);
-    return "N/A";
-  }
-};
-
-// Resolve a field from enrollment first, then fallback to nested lead object
-const resolveField = (student, key) => {
-  if (!student) return "";
-  const v = student[key];
-  if (v !== undefined && v !== null) return v;
-  if (student.lead && student.lead[key] !== undefined && student.lead[key] !== null)
-    return student.lead[key];
-  return "";
-};
-
-// Column toggler
-const ColumnToggler = ({ columns, setColumns }) => {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
-
-  const toggleColumn = (key) => {
-    setColumns((prev) => ({
-      ...prev,
-      [key]: { ...prev[key], visible: !prev[key].visible },
-    }));
-  };
+const ColumnToggler = ({ columns, setColumns, canManage }) => {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef(null);
 
   useEffect(() => {
-    const handleOutsideClick = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsDropdownOpen(false);
-      }
+    const closeOnOutsideClick = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) setOpen(false);
     };
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-    };
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
   }, []);
 
   return (
-    <div className="relative inline-block text-left" ref={dropdownRef}>
+    <div className="relative inline-block text-left" ref={menuRef}>
       <button
-        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+        type="button"
+        onClick={() => setOpen((value) => !value)}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-slate-200 bg-white text-[13px] font-[500] text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
       >
         <SlidersHorizontal className="h-3.5 w-3.5 text-slate-500" />
         <span>Columns</span>
       </button>
-
-      {isDropdownOpen && (
-        <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-[10px] shadow-lg bg-white border border-slate-200 z-30 max-h-72 overflow-y-auto p-1.5">
-          <div className="text-[11px] font-[600] text-slate-400 uppercase tracking-[0.04em] px-2.5 py-1">
-            Toggle Columns
-          </div>
-          {Object.entries(columns).map(([key, { label, visible }]) => (
+      {open && (
+        <div className="absolute right-0 z-30 mt-2 max-h-72 w-56 overflow-y-auto rounded-[10px] border border-slate-200 bg-white p-1.5 shadow-lg">
+          {Object.entries(columns)
+            .filter(([key]) => canManage || key !== "actions")
+            .map(([key, column]) => (
             <label
               key={key}
-              className="flex items-center px-2.5 py-1.5 text-[13px] text-slate-700 hover:bg-slate-50 rounded-[6px] cursor-pointer"
+              className="flex cursor-pointer items-center rounded-[6px] px-2.5 py-1.5 text-[13px] text-slate-700 hover:bg-slate-50"
             >
               <input
                 type="checkbox"
-                checked={visible}
-                onChange={() => toggleColumn(key)}
-                className="h-3.5 w-3.5 rounded border-slate-300 text-[#294998] focus:ring-[#294998] mr-2.5 cursor-pointer"
+                checked={column.visible}
+                onChange={() =>
+                  setColumns((previous) => ({
+                    ...previous,
+                    [key]: { ...previous[key], visible: !previous[key].visible },
+                  }))
+                }
+                className="mr-2.5 h-3.5 w-3.5 rounded border-slate-300 text-[#294998] focus:ring-[#294998]"
               />
-              {label}
+              {column.label}
             </label>
-          ))}
+            ))}
         </div>
       )}
     </div>
-  );
-};
-
-// Editable text cell
-const EditableTextCell = ({ value, field, onSave, cellClass = "" }) => {
-  const safeValue = value == null ? "" : String(value);
-  const [text, setText] = useState(safeValue);
-  const [editing, setEditing] = useState(false);
-
-  useEffect(() => {
-    const newSafeValue = value == null ? "" : String(value);
-    setText(newSafeValue);
-  }, [value]);
-
-  const handleBlur = () => {
-    if (editing) {
-      setEditing(false);
-      if (text !== value) {
-        onSave(text);
-      }
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.target.blur();
-    }
-  };
-
-  const handleChange = (e) => {
-    setText(e.target.value);
-    setEditing(true);
-  };
-
-  return (
-    <td className={`px-3 py-2.5 whitespace-nowrap text-[13px] ${cellClass}`}>
-      <input
-        type="text"
-        value={text}
-        onChange={handleChange}
-        onBlur={handleBlur}
-        onKeyDown={handleKeyDown}
-        className={`block w-full rounded-[6px] border border-slate-200 shadow-2xs focus:border-[#294998] focus:ring-2 focus:ring-[#294998]/15 text-[13px] text-slate-800 px-2 py-1 transition-all ${
-          FIELD_BG_CLASSES[field] || "bg-white"
-        }`}
-      />
-    </td>
   );
 };
 
@@ -161,172 +84,108 @@ const ClientsTable = ({
   handleEdit,
   handleDelete,
   handleBulkDelete,
-  onUpdatePaymentStatus,
-  onUpdateField,
-  courses = [],
   teachers = [],
-  currentPage = 1,
-  totalPages = 1,
-  onPageChange,
+  canManage = false,
 }) => {
   const [orderedStudents, setOrderedStudents] = useState([]);
   const [selectedStudents, setSelectedStudents] = useState(new Set());
-  const [columns, setColumns] = useState({
-    student_name: { label: "School Name", visible: true },
-    parents_name: { label: "Principal", visible: true },
-    email: { label: "Email", visible: true },
-    phone_number: { label: "Phone", visible: true },
-    whatsapp_number: { label: "WhatsApp", visible: false },
-    grade: { label: "Grade", visible: false },
-    source: { label: "Source", visible: false },
-    class_type: { label: "Class Type", visible: false },
-    shift: { label: "Shift", visible: false },
-    device: { label: "Device", visible: false },
-    previous_coding_experience: { label: "Prev Coding Exp", visible: false },
-    course_name: { label: "Package", visible: true },
-    batchname: { label: "Classes / Week", visible: true },
-    assigned_teacher: { label: "Assigned Rep", visible: true },
-    course_duration: { label: "MOU Period", visible: true },
-    scheduled_taken: { label: "Demo Taken", visible: false },
-    payment_type: { label: "Pricing Basis", visible: true },
-    starting_date: { label: "MOU Start", visible: true },
-    total_payment: { label: "Agreed Price", visible: true },
-    first_installment: { label: "1st Installment", visible: false },
-    second_installment: { label: "2nd Installment", visible: false },
-    third_installment: { label: "3rd Installment", visible: false },
-    last_pay_date: { label: "Last Pay Date", visible: true },
-    next_pay_date: { label: "Next Pay Date", visible: true },
-    payment_completed: { label: "Payment Status", visible: true },
-    adset_name: { label: "Adset Name", visible: false },
-    remarks: { label: "Remarks", visible: false },
-    address_line_1: { label: "Address 1", visible: false },
-    address_line_2: { label: "Address 2", visible: false },
-    city: { label: "City", visible: false },
-    county: { label: "County", visible: false },
-    post_code: { label: "Post Code", visible: false },
+  const [columns, setColumns] = useState(() => ({
+    ...DEFAULT_COLUMNS,
+    actions: { ...DEFAULT_COLUMNS.actions, visible: canManage },
+  }));
 
-    actions: { label: "Actions", visible: true },
-    created_at: { label: "Enrollment Created", visible: false },
-    updated_at: { label: "Enrollment Updated", visible: false },
-  });
-
-  const scrollContainerRef = useRef(null);
+  useEffect(() => {
+    setColumns((previous) => ({
+      ...previous,
+      actions: { ...previous.actions, visible: canManage },
+    }));
+  }, [canManage]);
 
   useEffect(() => {
     setOrderedStudents(students);
     setSelectedStudents(new Set());
   }, [students]);
 
-  const handleDragEnd = (event) => {
-    const { active, over } = event;
-    if (active && over && active.id !== over.id) {
-      setOrderedStudents((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over.id);
-        return arrayMove(items, oldIndex, newIndex);
-      });
-    }
-  };
-
-  const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      const allIds = new Set(orderedStudents.map((s) => s.id));
-      setSelectedStudents(allIds);
-    } else {
-      setSelectedStudents(new Set());
-    }
-  };
-
-  const handleSelectRow = (studentId) => {
-    setSelectedStudents((prev) => {
-      const newSelection = new Set(prev);
-      if (newSelection.has(studentId)) newSelection.delete(studentId);
-      else newSelection.add(studentId);
-      return newSelection;
+  const handleDragEnd = ({ active, over }) => {
+    if (!active || !over || active.id === over.id) return;
+    setOrderedStudents((items) => {
+      const oldIndex = items.findIndex((item) => item.id === active.id);
+      const newIndex = items.findIndex((item) => item.id === over.id);
+      if (oldIndex < 0 || newIndex < 0) return items;
+      return arrayMove(items, oldIndex, newIndex);
     });
   };
 
-  const handleDeleteSelected = () => {
-    handleBulkDelete([...selectedStudents]);
-  };
+  const visibleColumns = Object.keys(columns).filter((key) => columns[key].visible);
 
-  useEffect(() => {
-    try {
-      if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
-    } catch (e) {}
-  }, [currentPage]);
-
-  if (!students || students.length === 0) {
+  if (!students.length) {
     return (
-      <div className="py-16 text-center border border-slate-200 rounded-[12px] bg-white shadow-2xs">
-        <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
-          <Building2 className="w-6 h-6" />
+      <div className="rounded-[12px] border border-slate-200 bg-white py-16 text-center shadow-2xs">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+          <Building2 className="h-6 w-6" />
         </div>
         <h3 className="text-[15px] font-[600] text-slate-900">No clients found</h3>
-        <p className="text-[13px] text-slate-500 mt-1 max-w-sm mx-auto">
-          No clients match the current criteria. Adjust your search keywords or clear filters.
+        <p className="mx-auto mt-1 max-w-sm text-[13px] text-slate-500">
+          No clients match this search.
         </p>
       </div>
     );
   }
 
-  const visibleKeys = Object.keys(columns).filter((k) => columns[k].visible);
-  const orderedKeys = visibleKeys.includes("actions")
-    ? ["actions", ...visibleKeys.filter((k) => k !== "actions")]
-    : visibleKeys;
-
   return (
-    <div className="border border-slate-200 rounded-[12px] bg-white shadow-2xs overflow-hidden">
-      {/* Table Toolbar Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200 bg-slate-50/70">
+    <div className="overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-2xs">
+      <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/70 px-4 py-2.5">
         <div className="flex items-center gap-3">
-          {selectedStudents.size > 0 && (
+          {canManage && selectedStudents.size > 0 && (
             <button
-              onClick={handleDeleteSelected}
-              className="inline-flex items-center gap-1.5 rounded-[8px] bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 text-[13px] font-[500] shadow-xs transition-colors"
+              type="button"
+              onClick={() => handleBulkDelete([...selectedStudents])}
+              className="inline-flex items-center gap-1.5 rounded-[8px] bg-rose-600 px-3 py-1.5 text-[13px] font-[500] text-white shadow-xs transition-colors hover:bg-rose-700"
             >
-              <Trash2 className="h-3.5 w-3.5" />
-              <span>Delete Selected ({selectedStudents.size})</span>
+              <Undo2 className="h-3.5 w-3.5" />
+              Return to Leads ({selectedStudents.size})
             </button>
           )}
           <span className="text-[12px] font-[500] text-slate-500">
-            {orderedStudents.length} {orderedStudents.length === 1 ? "client" : "clients"} shown
+            {orderedStudents.length} {orderedStudents.length === 1 ? "client" : "clients"} on this page
           </span>
         </div>
-        <ColumnToggler columns={columns} setColumns={setColumns} />
+        <ColumnToggler columns={columns} setColumns={setColumns} canManage={canManage} />
       </div>
 
-      {/* Responsive Table Scroll Container */}
-      <div
-        ref={scrollContainerRef}
-        className="overflow-x-auto custom-scrollbar"
-      >
-        <DndContext
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <table className="min-w-full divide-y divide-slate-200 text-left">
-            <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
+      <div className="overflow-x-auto custom-scrollbar">
+        <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <table className="w-full min-w-[1500px] table-fixed divide-y divide-slate-200 text-left">
+            <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50">
               <tr>
-                <th className="px-3 py-3 w-8 text-center">
-                  <span className="sr-only">Drag</span>
-                </th>
-                <th className="px-3 py-3 w-8 text-center">
+                <th className="w-7 px-1.5 py-2"><span className="sr-only">Reorder</span></th>
+                <th className="w-7 px-1.5 py-2 text-center">
                   <input
                     type="checkbox"
-                    onChange={handleSelectAll}
-                    checked={
-                      selectedStudents.size === orderedStudents.length &&
-                      orderedStudents.length > 0
+                    aria-label="Select all clients on this page"
+                    checked={selectedStudents.size === orderedStudents.length && orderedStudents.length > 0}
+                    onChange={(event) =>
+                      setSelectedStudents(
+                        event.target.checked
+                          ? new Set(orderedStudents.map((student) => student.id))
+                          : new Set()
+                      )
                     }
-                    className="h-3.5 w-3.5 rounded border-slate-300 text-[#294998] focus:ring-[#294998] cursor-pointer"
+                    className="h-3.5 w-3.5 rounded border-slate-300 text-[#294998] focus:ring-[#294998]"
                   />
                 </th>
-                {orderedKeys.map((key) => (
+                {visibleColumns.map((key) => (
                   <th
                     key={key}
-                    className={`px-3.5 py-3 text-[12px] font-[600] text-slate-500 uppercase tracking-[0.03em] ${
-                      key === "actions" ? "text-right pr-4" : "text-left"
+                    title={columns[key].label}
+                    className={`overflow-hidden text-ellipsis px-1.5 py-2 text-left whitespace-nowrap text-[11px] font-[600] uppercase tracking-[0.02em] text-slate-500 ${
+                      key === "principal_name"
+                        ? "w-[200px] min-w-[200px]"
+                        : key === "contact_number"
+                          ? "w-[150px] min-w-[150px]"
+                          : key === "contact_email"
+                            ? "w-[190px] min-w-[190px]"
+                            : ""
                     }`}
                   >
                     {columns[key].label}
@@ -334,25 +193,26 @@ const ClientsTable = ({
                 ))}
               </tr>
             </thead>
-            <SortableContext
-              items={orderedStudents.map((s) => s.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <tbody className="bg-white divide-y divide-slate-100">
+            <SortableContext items={orderedStudents.map((student) => student.id)} strategy={verticalListSortingStrategy}>
+              <tbody className="divide-y divide-slate-100 bg-white">
                 {orderedStudents.map((student) => (
-                  <SortableStudentRow
+                  <SortableClientRow
                     key={student.id}
                     student={student}
-                    columns={columns}
-                    visibleKeys={orderedKeys}
+                    visibleColumns={visibleColumns}
                     isSelected={selectedStudents.has(student.id)}
-                    onSelectRow={handleSelectRow}
+                    onSelect={() =>
+                      setSelectedStudents((selected) => {
+                        const next = new Set(selected);
+                        if (next.has(student.id)) next.delete(student.id);
+                        else next.add(student.id);
+                        return next;
+                      })
+                    }
                     handleEdit={handleEdit}
                     handleDelete={handleDelete}
-                    handlePaymentStatusChange={onUpdatePaymentStatus}
-                    onUpdateField={onUpdateField}
-                    courses={courses}
                     teachers={teachers}
+                    canManage={canManage}
                   />
                 ))}
               </tbody>
@@ -364,465 +224,112 @@ const ClientsTable = ({
   );
 };
 
-// Sortable row
-const SortableStudentRow = ({
+const SortableClientRow = ({
   student,
-  columns,
-  visibleKeys = [],
+  visibleColumns,
   isSelected,
-  onSelectRow,
+  onSelect,
   handleEdit,
   handleDelete,
-  handlePaymentStatusChange,
-  onUpdateField,
-  courses = [],
-  teachers = [],
+  teachers,
+  canManage,
 }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: student.id });
-
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: student.id });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 10 : "auto",
   };
 
+  const renderCell = (field) => {
+    switch (field) {
+      case "system_id":
+        return <span title={student.system_id || "—"}>{student.system_id || "—"}</span>;
+      case "school_name":
+        return <span title={student.school_name || "—"} className="font-[600] text-slate-900">{student.school_name || "—"}</span>;
+      case "assigned_to": {
+        const assignedName = student.assigned_to_name ||
+          teachers.find((teacher) => String(teacher.id) === String(student.assigned_to))?.name;
+        return <span title={assignedName || "Unassigned"}>{assignedName || "Unassigned"}</span>;
+      }
+      case "classes_per_week":
+        return student.classes_per_week ?? "—";
+      case "agreed_price":
+        return student.agreed_price ?? "—";
+      case "mou_start":
+        return student.mou_start || "—";
+      case "mou_end":
+        return student.mou_end || "—";
+      case "pricing_basis":
+        return student.pricing_basis === "per_month"
+          ? "Per Month"
+          : student.pricing_basis === "per_class"
+            ? "Per Class"
+            : "—";
+      case "package_name":
+        return student.package_name || "—";
+      case "principal_name":
+        return <span title={student.principal_name || "—"}>{student.principal_name || "—"}</span>;
+      case "principal_email":
+      case "contact_email":
+        return <span title={student[field] || "—"}>{student[field] || "—"}</span>;
+      case "principal_number":
+      case "contact_number":
+        return <span title={student[field] || "—"}>{student[field] || "—"}</span>;
+      case "contact_name":
+        return <span title={student.contact_name || "—"}>{student.contact_name || "—"}</span>;
+      case "actions":
+        if (!canManage) return null;
+        return (
+          <div className="flex items-center justify-end gap-1">
+            <button
+              type="button"
+              onClick={() => handleEdit(student)}
+              title="Edit client details"
+              className="rounded-[6px] p-1.5 text-slate-400 transition-colors hover:bg-[#EDF2FC] hover:text-[#294998]"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDelete(student.id)}
+              title="Return client to Leads"
+              className="rounded-[6px] p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
+            >
+              <Undo2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        );
+      default:
+        return student[field] ?? "—";
+    }
+  };
+
   return (
     <tr
       ref={setNodeRef}
       style={style}
-      className={`hover:bg-slate-50/70 border-b border-slate-100 transition-colors group ${
-        isDragging ? "bg-[#EDF2FC]/70 shadow-md" : ""
-      } ${isSelected ? "bg-[#EDF2FC]/40" : ""}`}
+      className={`group border-b border-slate-100 transition-colors hover:bg-slate-50/70 ${isDragging ? "bg-[#EDF2FC]/70 shadow-md" : ""} ${isSelected ? "bg-[#EDF2FC]/40" : ""}`}
     >
-      <td className="px-3 py-3 text-center">
-        <button
-          {...attributes}
-          {...listeners}
-          className="cursor-grab active:cursor-grabbing text-slate-300 group-hover:text-slate-400 p-0.5 rounded hover:bg-slate-100 transition-colors"
-        >
+      <td className="px-1.5 py-2 text-center">
+        <button {...attributes} {...listeners} type="button" aria-label="Drag to reorder" className="cursor-grab rounded p-0.5 text-slate-300 transition-colors hover:bg-slate-100 active:cursor-grabbing group-hover:text-slate-400">
           <GripVertical className="h-4 w-4" />
         </button>
       </td>
-      <td className="px-3 py-3 text-center">
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={() => onSelectRow(student.id)}
-          className="h-3.5 w-3.5 rounded border-slate-300 text-[#294998] focus:ring-[#294998] cursor-pointer"
-        />
+      <td className="px-1.5 py-2 text-center">
+        <input type="checkbox" checked={isSelected} onChange={onSelect} aria-label={`Select ${student.school_name || "client"}`} className="h-3.5 w-3.5 rounded border-slate-300 text-[#294998] focus:ring-[#294998]" />
       </td>
-
-      {visibleKeys.map((key) => {
-        if (key.startsWith("lead_")) {
-          const leadKey = key.replace("lead_", "");
-          const val = student.lead ? student.lead[leadKey] : "";
-          if (
-            [
-              "add_date",
-              "last_call",
-              "next_call",
-              "created_at",
-              "updated_at",
-            ].includes(leadKey)
-          ) {
-            return (
-              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700">
-                <input
-                  type="date"
-                  value={val ? val.split("T")[0] : ""}
-                  onChange={(e) =>
-                    onUpdateField(student.id, `lead.${leadKey}`, e.target.value)
-                  }
-                  className="rounded-[6px] border border-slate-200 text-[13px] px-2 py-1 focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998]"
-                />
-              </td>
-            );
-          }
-          if (leadKey === "status") {
-            return (
-              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700">
-                <select
-                  value={val || "Active"}
-                  onChange={(e) =>
-                    onUpdateField(student.id, `lead.${leadKey}`, e.target.value)
-                  }
-                  className="rounded-[6px] border border-slate-200 text-[13px] px-2 py-1 bg-white focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998]"
-                >
-                  {["Active", "Converted", "Lost"].map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
-              </td>
-            );
-          }
-          if (leadKey === "substatus") {
-            return (
-              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700">
-                <select
-                  value={val || "New"}
-                  onChange={(e) =>
-                    onUpdateField(student.id, `lead.${leadKey}`, e.target.value)
-                  }
-                  className="rounded-[6px] border border-slate-200 text-[13px] px-2 py-1 bg-white focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998]"
-                >
-                  {[
-                    "New",
-                    "Open",
-                    "Followup",
-                    "inProgress",
-                    "Average",
-                    "Interested",
-                    "Junk",
-                  ].map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
-              </td>
-            );
-          }
-          if (leadKey === "scheduled_taken" || leadKey === "demo_scheduled") {
-            return (
-              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700">
-                <select
-                  value={val || ""}
-                  onChange={(e) =>
-                    onUpdateField(
-                      student.id,
-                      `lead.${
-                        leadKey === "demo_scheduled"
-                          ? "demo_scheduled"
-                          : "scheduled_taken"
-                      }`,
-                      e.target.value
-                    )
-                  }
-                  className="rounded-[6px] border border-slate-200 text-[13px] px-2 py-1 bg-white focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998]"
-                >
-                  <option value="">Select</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-              </td>
-            );
-          }
-          return (
-            <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700">
-              <input
-                type="text"
-                value={val}
-                onChange={(e) =>
-                  onUpdateField(student.id, `lead.${leadKey}`, e.target.value)
-                }
-                className="rounded-[6px] border border-slate-200 text-[13px] px-2 py-1 focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998]"
-              />
-            </td>
-          );
-        }
-
-        switch (key) {
-          case "student_name":
-            return (
-              <td key={key} className="px-3.5 py-3 whitespace-nowrap">
-                <div className="font-[600] text-[13px] text-slate-900">
-                  {student.student_name ||
-                    (student.lead && student.lead.student_name) ||
-                    "N/A"}
-                </div>
-              </td>
-            );
-          case "parents_name":
-            return (
-              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700">
-                {student.parents_name ||
-                  (student.lead && student.lead.parents_name) ||
-                  "—"}
-              </td>
-            );
-          case "email":
-            return (
-              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-600">
-                {student.email || (student.lead && student.lead.email) || "—"}
-              </td>
-            );
-          case "phone_number":
-            return (
-              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-600">
-                {student.phone_number ||
-                  (student.lead && student.lead.phone_number) ||
-                  "—"}
-              </td>
-            );
-          case "course_name": {
-            const courseDisplay = (() => {
-              if (student.course_name) return student.course_name;
-              const c = student.course;
-              if (c !== undefined && c !== null) {
-                if (typeof c === "number" || typeof c === "string") {
-                  const found = courses.find(
-                    (co) => String(co.id) === String(c)
-                  );
-                  if (found && (found.course_name || found.name))
-                    return found.course_name || found.name;
-                  if (typeof c === "string") return c;
-                }
-                if (typeof c === "object") {
-                  return (
-                    c.course_name || c.name || String(c.id || JSON.stringify(c))
-                  );
-                }
-              }
-              if (student.lead && student.lead.course_name)
-                return student.lead.course_name;
-              return "";
-            })();
-            return (
-              <td key={key} className="px-3.5 py-3 whitespace-nowrap">
-                <span className="inline-flex items-center px-2 py-0.5 rounded-[6px] text-[12px] font-[500] bg-slate-100 text-slate-800 border border-slate-200">
-                  {courseDisplay || "N/A"}
-                </span>
-              </td>
-            );
-          }
-          case "batchname":
-            return (
-              <EditableTextCell
-                key={key}
-                field={key}
-                cellClass="min-w-[130px]"
-                value={student[key] ?? (student.lead ? student.lead[key] : "")}
-                onSave={(v) => onUpdateField(student.id, key, v)}
-              />
-            );
-          case "assigned_teacher": {
-            const currentId = student.assigned_teacher;
-            return (
-              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700 min-w-[160px]">
-                <select
-                  value={currentId || ""}
-                  onChange={(e) => {
-                    const selectedId = e.target.value || null;
-                    if (selectedId) {
-                      const match = teachers.find(
-                        (t) => String(t.id) === String(selectedId)
-                      );
-                      onUpdateField(student.id, "assigned_teacher", {
-                        id: selectedId,
-                        name: match ? match.name : undefined,
-                      });
-                    } else {
-                      onUpdateField(student.id, "assigned_teacher", null);
-                    }
-                  }}
-                  className="block w-full rounded-[6px] border border-slate-200 text-[13px] px-2 py-1 bg-white focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998]"
-                >
-                  <option value="">-- None --</option>
-                  {teachers.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-              </td>
-            );
-          }
-          case "course_duration":
-            return (
-              <EditableTextCell
-                key={key}
-                field={key}
-                value={student[key] ?? (student.lead ? student.lead[key] : "")}
-                onSave={(v) => onUpdateField(student.id, key, v)}
-              />
-            );
-          case "last_pay_date":
-            return (
-              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700">
-                <input
-                  type="date"
-                  value={
-                    student.last_pay_date
-                      ? student.last_pay_date.split("T")[0]
-                      : ""
-                  }
-                  onChange={(e) =>
-                    onUpdateField(student.id, "last_pay_date", e.target.value)
-                  }
-                  className="rounded-[6px] border border-slate-200 text-[13px] px-2 py-1 focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998]"
-                />
-              </td>
-            );
-          case "next_pay_date":
-            return (
-              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700">
-                <input
-                  type="date"
-                  value={
-                    student.next_pay_date
-                      ? student.next_pay_date.split("T")[0]
-                      : ""
-                  }
-                  onChange={(e) =>
-                    onUpdateField(student.id, "next_pay_date", e.target.value)
-                  }
-                  className="rounded-[6px] border border-slate-200 text-[13px] px-2 py-1 focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998]"
-                />
-              </td>
-            );
-          case "course":
-            return (
-              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700">
-                <select
-                  value={student.course || ""}
-                  onChange={(e) =>
-                    onUpdateField(student.id, "course", e.target.value)
-                  }
-                  className="rounded-[6px] border border-slate-200 text-[13px] px-2 py-1 bg-white focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998]"
-                >
-                  <option value="">Select Course</option>
-                  {courses.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.course_name || c.name}
-                    </option>
-                  ))}
-                </select>
-              </td>
-            );
-          case "total_payment":
-            return (
-              <EditableTextCell
-                key={key}
-                field={key}
-                value={student.total_payment || ""}
-                onSave={(v) => onUpdateField(student.id, "total_payment", v)}
-              />
-            );
-          case "first_installment":
-          case "second_installment":
-          case "third_installment":
-            return (
-              <EditableTextCell
-                key={key}
-                field={key}
-                value={student[key] || ""}
-                onSave={(v) => onUpdateField(student.id, key, v)}
-              />
-            );
-          case "starting_date":
-            return (
-              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700">
-                <input
-                  type="date"
-                  value={student.starting_date || ""}
-                  onChange={(e) =>
-                    onUpdateField(student.id, "starting_date", e.target.value)
-                  }
-                  className="rounded-[6px] border border-slate-200 text-[13px] px-2 py-1 focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998]"
-                />
-              </td>
-            );
-          case "payment_completed":
-            return (
-              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px]">
-                <select
-                  value={student.payment_completed ? "Yes" : "No"}
-                  onChange={(e) => {
-                    const newValue = e.target.value === "Yes";
-                    handlePaymentStatusChange(student.id, newValue);
-                    onUpdateField(student.id, "payment_completed", newValue);
-                  }}
-                  className={`text-[12px] font-[600] rounded-full px-2.5 py-0.5 border cursor-pointer focus:outline-none transition-colors ${
-                    student.payment_completed
-                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                      : "bg-amber-50 text-amber-700 border-amber-200"
-                  }`}
-                >
-                  <option value="Yes">✓ Completed</option>
-                  <option value="No">⏳ Pending</option>
-                </select>
-              </td>
-            );
-          case "actions":
-            return (
-              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-right pr-4">
-                <div className="flex items-center justify-end gap-1">
-                  <button
-                    onClick={() => handleEdit(student)}
-                    title="Edit client details"
-                    className="p-1.5 rounded-[6px] text-slate-400 hover:text-[#294998] hover:bg-[#EDF2FC] transition-colors"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(student.id)}
-                    title="Delete client"
-                    className="p-1.5 rounded-[6px] text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </td>
-            );
-          case "scheduled_taken":
-            return (
-              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700 min-w-[100px]">
-                <select
-                  value={
-                    resolveField(student, "scheduled_taken") ||
-                    resolveField(student, "demo_scheduled") ||
-                    ""
-                  }
-                  onChange={(e) =>
-                    onUpdateField(
-                      student.id,
-                      `lead.scheduled_taken`,
-                      e.target.value
-                    )
-                  }
-                  className="rounded-[6px] border border-slate-200 text-[13px] px-2 py-1 bg-white focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998]"
-                >
-                  <option value="">Select</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-              </td>
-            );
-          case "payment_type":
-            return (
-              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700 min-w-[120px]">
-                <select
-                  value={resolveField(student, "payment_type") || ""}
-                  onChange={(e) =>
-                    onUpdateField(student.id, "payment_type", e.target.value)
-                  }
-                  className="rounded-[6px] border border-slate-200 text-[13px] px-2 py-1 bg-white focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998]"
-                >
-                  <option value="">Select</option>
-                  <option value="Cash">Cash</option>
-                  <option value="Office QR">Office QR</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
-                  <option value="Cheque">Cheque</option>
-                </select>
-              </td>
-            );
-          default:
-            return (
-              <td key={key} className="px-3.5 py-3 whitespace-nowrap text-[13px] text-slate-700">
-                {String(resolveField(student, key) ?? "")}
-              </td>
-            );
-        }
-      })}
+      {visibleColumns.map((field) => (
+        <td
+          key={field}
+          title={field === "actions" ? undefined : String(student[field] ?? "—")}
+          className={`overflow-hidden text-ellipsis whitespace-nowrap px-1.5 py-2 text-[12px] text-slate-700 ${
+            field === "principal_name" ? "w-[200px] min-w-[200px] font-[500] text-slate-900" : ""
+          } ${field === "actions" ? "text-right" : ""}`}
+        >
+          {renderCell(field)}
+        </td>
+      ))}
     </tr>
   );
 };

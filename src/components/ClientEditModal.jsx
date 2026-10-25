@@ -2,13 +2,12 @@ import React, { useState, useEffect } from "react";
 import { X, CheckCircle, School, Calendar, DollarSign, BookOpen, User, Phone, Mail, MapPin } from "lucide-react";
 import { clientService, catalogService } from "../services/api";
 
-export default function ClientEditModal({ isOpen, onClose, client, authToken, onSave }) {
+export default function ClientEditModal({ isOpen, onClose, client, authToken, teachers = [], onSave }) {
   const [loading, setLoading] = useState(false);
   const [loadingCatalogs, setLoadingCatalogs] = useState(true);
   const [error, setError] = useState(null);
 
   const [packages, setPackages] = useState([]);
-  // syllabi removed — syllabus_type field removed per requirement #5
 
   const [formData, setFormData] = useState({
     principal_name: "",
@@ -24,17 +23,17 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, on
     agreed_price: "",
     pricing_basis: "per_month",
     classes_per_week: 2,
+    assigned_to: "",
     package_type: "",
-    // syllabus_type removed per requirement
     exams_count: 0,
     events_count: 0,
-    // Payment fields removed per requirement #5
   });
 
   useEffect(() => {
     if (!isOpen || !client) return;
 
     let mounted = true;
+    setLoadingCatalogs(true);
     setError(null);
 
     setFormData({
@@ -51,6 +50,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, on
       agreed_price: client.agreed_price ?? "",
       pricing_basis: client.pricing_basis || "per_month",
       classes_per_week: client.classes_per_week || 2,
+      assigned_to: client.assigned_to?.id ?? client.assigned_to ?? "",
       package_type: client.package_type || "",
       exams_count: client.exams_count || 0,
       events_count: client.events_count || 0,
@@ -58,7 +58,6 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, on
 
     Promise.all([
       catalogService.getPackages(authToken).catch(() => []),
-      // syllabi no longer needed after syllabus_type removal
     ])
       .then(([pkgs]) => {
         if (!mounted) return;
@@ -111,11 +110,10 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, on
         agreed_price: Number(formData.agreed_price),
         pricing_basis: formData.pricing_basis,
         classes_per_week: Number(formData.classes_per_week),
+        assigned_to: formData.assigned_to === "" ? null : Number(formData.assigned_to),
         package_type: Number(formData.package_type),
-        // syllabus_type removed per requirement
         exams_count: Number(formData.exams_count || 0),
         events_count: Number(formData.events_count || 0),
-        // Payment fields removed per requirement #5
       };
 
       const updated = await clientService.updateClient(client.id, payload, authToken);
@@ -130,8 +128,12 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, on
     }
   };
 
-  const schoolName = client.school_name || client.student_name || "School Client";
+  const schoolName = client.school_name || "School Client";
   const systemId = client.system_id || "SCH-000";
+  const currentAssignedId = client.assigned_to?.id ?? client.assigned_to;
+  const hasCurrentTeacher = teachers.some(
+    (teacher) => String(teacher.id) === String(currentAssignedId)
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
@@ -380,6 +382,29 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, on
                   max="14"
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
                 />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Academic User
+                </label>
+                <select
+                  name="assigned_to"
+                  value={formData.assigned_to}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none bg-white"
+                >
+                  <option value="">Unassigned</option>
+                  {currentAssignedId != null && !hasCurrentTeacher && (
+                    <option value={currentAssignedId}>
+                      {client.assigned_to_name || currentAssignedId}
+                    </option>
+                  )}
+                  {teachers.map((teacher) => (
+                    <option key={teacher.id} value={teacher.id}>
+                      {teacher.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 

@@ -3,9 +3,8 @@
 // Shows: Substatus, activity log of each meeting (all historical entries)
 // NO editing allowed — read-only. Editing only after clicking "Edit" button.
 import React, { useState, useEffect } from "react";
-import { XMarkIcon, PencilIcon, EyeIcon } from "@heroicons/react/24/outline";
-import { getFormattedDate } from "./helpers";
-import { BASE_URL } from "../config";
+import { XMarkIcon, EyeIcon } from "@heroicons/react/24/outline";
+import { activityService } from "../services/api";
 
 const SUB_STATUS_BADGE = {
   "New": "bg-slate-100 text-slate-600 border-slate-200",
@@ -18,7 +17,7 @@ const SUB_STATUS_BADGE = {
   "On hold": "bg-rose-50 text-rose-700 border-rose-200",
 };
 
-const ActivityLogViewModal = ({ lead, authToken, onClose, onEditRequest }) => {
+const ActivityLogViewModal = ({ lead, authToken, onClose }) => {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -32,34 +31,37 @@ const ActivityLogViewModal = ({ lead, authToken, onClose, onEditRequest }) => {
       return;
     }
 
+    let cancelled = false;
     const fetchActivities = async () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`${BASE_URL}/leads/${leadId}/activities/`, {
-          headers: { Authorization: `Token ${authToken}` },
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        const list = Array.isArray(data) ? data : data.results || [];
-        // Sort newest first
-        list.sort((a, b) => new Date(b.activity_at || b.created_at) - new Date(a.activity_at || a.created_at));
-        setActivities(list);
+        const pageSize = 100;
+        let page = 1;
+        let rows = [];
+        let expectedCount = null;
+        while (!cancelled) {
+          const data = await activityService.getActivities(leadId, authToken, page, pageSize);
+          rows = rows.concat(data.results);
+          expectedCount = data.count;
+          if ((expectedCount > 0 && rows.length >= expectedCount) || data.results.length < pageSize) break;
+          page += 1;
+        }
+        if (!cancelled) setActivities(rows);
       } catch (err) {
-        setError(err.message || "Failed to load activity log.");
+        if (!cancelled) setError(err.message || "Failed to load activity log.");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     fetchActivities();
+    return () => { cancelled = true; };
   }, [leadId, authToken]);
 
   const contactTitle =
     lead?.school_name ||
-    lead?.school_college_name ||
     lead?.contact_person ||
-    lead?.student_name ||
     "Lead";
 
   const badgeClass = SUB_STATUS_BADGE[subStatus] || "bg-slate-100 text-slate-600 border-slate-200";
@@ -85,17 +87,6 @@ const ActivityLogViewModal = ({ lead, authToken, onClose, onEditRequest }) => {
             <p className="text-xs text-slate-500 font-medium">{contactTitle}</p>
           </div>
           <div className="flex items-center gap-2">
-            {/* Task 3.4: Edit button enables edit mode */}
-            {onEditRequest && (
-              <button
-                type="button"
-                onClick={onEditRequest}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#294998] text-white hover:bg-[#1E3776] transition-colors"
-              >
-                <PencilIcon className="h-3.5 w-3.5" />
-                Edit
-              </button>
-            )}
             <button
               type="button"
               onClick={onClose}
@@ -191,13 +182,6 @@ const ActivityLogViewModal = ({ lead, authToken, onClose, onEditRequest }) => {
                       {activity.remarks && (
                         <p className="text-sm text-slate-700 leading-relaxed mb-2">
                           {activity.remarks}
-                        </p>
-                      )}
-
-                      {/* Details (formerly source) */}
-                      {activity.details && (
-                        <p className="text-xs text-slate-500 mb-2">
-                          <span className="font-semibold">Details:</span> {activity.details}
                         </p>
                       )}
 

@@ -9,8 +9,8 @@ import {
   TagIcon,
   ClockIcon,
 } from "@heroicons/react/24/outline";
-import { getFormattedDate, getSubStatusClasses } from "./helpers.js";
-import { catalogService } from "../services/api";
+import { getSubStatusClasses } from "./helpers.js";
+import { catalogService, leadService } from "../services/api";
 
 /**
  * ActivityModal — renamed from "Pipeline" to "Activity Log" (Task 3.1)
@@ -23,7 +23,7 @@ import { catalogService } from "../services/api";
  * Task 3.6: Activity Type is a dynamic dropdown (DB-driven, not hardcoded)
  * Task 3.7: Outcome option removed entirely
  *
- * POST /leads/{id}/activities/
+ * POST /activities/
  * {
  *   activity_at: datetime (ISO, backdatable, no future),
  *   type: string (from settings/DB),
@@ -33,19 +33,18 @@ import { catalogService } from "../services/api";
  * }
  */
 
-// Backend ACTIVITY_TYPE_CHOICES — Phone, Field Visit, WhatsApp removed per requirement
-// Only Email, Meeting, Demo remain as allowed activity types
 const DEFAULT_ACTIVITY_TYPES = [
+  { label: "Phone", value: "phone", icon: null },
+  { label: "Field visit", value: "field visit", icon: null },
+  { label: "WhatsApp", value: "WhatsApp", icon: null },
   { label: "Email", value: "email", icon: null },
   { label: "Meeting", value: "meeting", icon: null },
   { label: "Demo", value: "demo", icon: null },
 ];
 
-// Quick preset buttons disabled — Phone/Field Visit/WhatsApp removed
 const QUICK_PRESET_VALUES = [];
 
-// Backend SUB_STATUS_CHOICES — Task 3.5: sub-status only editable here, not in view
-const SUB_STATUS_OPTIONS = [
+const DEFAULT_SUB_STATUS_OPTIONS = [
   "New",
   "Contacted",
   "Follow-up",
@@ -54,7 +53,13 @@ const SUB_STATUS_OPTIONS = [
   "Proposal sent",
   "Interested",
   "On hold",
+  "Not interested",
 ];
+
+const toLocalDateTimeInput = (date) =>
+  new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 16);
 
 /**
  * ActivityModal
@@ -92,12 +97,26 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
     dynamicTypes ||
     DEFAULT_ACTIVITY_TYPES;
 
+  const [dynamicSubStatusChoices, setDynamicSubStatusChoices] = useState(null);
+  useEffect(() => {
+    if (!authToken) return;
+    leadService.getSubStatusChoices(authToken).then((choices) => {
+      if (choices.length) setDynamicSubStatusChoices(choices);
+    });
+  }, [authToken]);
+  const subStatusOptions = dynamicSubStatusChoices?.length
+    ? dynamicSubStatusChoices.map((choice) => ({
+        value: choice.value,
+        label: choice.label,
+      }))
+    : DEFAULT_SUB_STATUS_OPTIONS.map((value) => ({ value, label: value }));
+
   const quickPresets = ACTIVITY_TYPES.filter((t) =>
     QUICK_PRESET_VALUES.includes(t.value)
   ).slice(0, 3);
 
   // activity_at — defaults to today (backdatable, no future) — Task 3.2: "Date" field
-  const todayISO = new Date().toISOString().slice(0, 16);
+  const todayISO = toLocalDateTimeInput(new Date());
   const [activityAt, setActivityAt] = useState(todayISO);
 
   // type — backend choice value — Task 3.6: dynamic
@@ -116,8 +135,11 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
     lead?.sub_status || lead?.substatus || "New"
   );
 
-  // Task 3.2: "Details" field (formerly "Source")
-  const [details, setDetails] = useState("");
+  useEffect(() => {
+    if (!subStatusOptions.some((option) => option.value === subStatus)) {
+      setSubStatus(subStatusOptions[0]?.value || "New");
+    }
+  }, [subStatus, subStatusOptions]);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -147,9 +169,6 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
         remarks: remarks.trim(),
         followup_at: new Date(followupAt).toISOString(),
       };
-      // Task 3.2: "Details" (formerly source) as additional notes
-      if (details.trim()) payload.details = details.trim();
-
       await onSave(payload);
       onClose();
     } catch (err) {
@@ -162,21 +181,18 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
   const handleQuickFollowUp = (daysAhead) => {
     const target = new Date();
     target.setDate(target.getDate() + daysAhead);
-    const iso = target.toISOString().slice(0, 16);
-    setFollowupAt(iso);
+    setFollowupAt(toLocalDateTimeInput(target));
   };
 
   // Display title
   const contactTitle =
     lead?.school_name ||
-    lead?.school_college_name ||
     lead?.contact_person ||
-    lead?.student_name ||
     "Activity Log";
 
   const contactSubtitle = [
-    lead?.contact_person || lead?.student_name || null,
-    lead?.contact_number || lead?.phone_number || null,
+    lead?.contact_person || null,
+    lead?.contact_number || null,
   ]
     .filter(Boolean)
     .join(" • ");
@@ -310,8 +326,8 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
               onChange={(e) => setSubStatus(e.target.value)}
               className="w-full h-10 px-3 text-sm rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-white focus:bg-white focus:border-[#294998] focus:ring-2 focus:ring-[#294998]/15 outline-none transition-all text-slate-800 font-medium"
             >
-              {SUB_STATUS_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>{opt}</option>
+              {subStatusOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
             <p className="mt-1 text-[11px] text-slate-400">
@@ -375,20 +391,6 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
               onChange={(e) => setRemarks(e.target.value)}
               required
               placeholder="What was discussed? Next steps..."
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-white focus:bg-white focus:border-[#294998] focus:ring-2 focus:ring-[#294998]/15 outline-none transition-all text-slate-800 placeholder:text-slate-400 resize-none"
-            />
-          </div>
-
-          {/* Task 3.2: Details (formerly "Source") */}
-          <div>
-            <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-              <span>Details</span>
-            </label>
-            <textarea
-              rows={2}
-              value={details}
-              onChange={(e) => setDetails(e.target.value)}
-              placeholder="Additional details about this interaction..."
               className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-white focus:bg-white focus:border-[#294998] focus:ring-2 focus:ring-[#294998]/15 outline-none transition-all text-slate-800 placeholder:text-slate-400 resize-none"
             />
           </div>

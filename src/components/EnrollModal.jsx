@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { X, CheckCircle, School, Calendar, DollarSign, BookOpen, User, Phone, Mail } from "lucide-react";
-import { clientService, catalogService } from "../services/api";
+import { clientService, catalogService, leadService } from "../services/api";
+import { forgetReturnedLeadIds } from "../pages/clients/returnedToLeadsStore";
 
-export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnrolled }) {
+export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
   const [loading, setLoading] = useState(false);
   const [loadingCatalogs, setLoadingCatalogs] = useState(true);
+  const [loadingLeadDetails, setLoadingLeadDetails] = useState(false);
+  const [leadApproval, setLeadApproval] = useState(null);
   const [error, setError] = useState(null);
 
   // Catalog options from backend
   const [packages, setPackages] = useState([]);
-  // syllabi removed — syllabus_type field removed per requirement
+  const [syllabi, setSyllabi] = useState([]);
   const [classesList, setClassesList] = useState([]);
 
   // Form state
@@ -22,12 +25,15 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
     contact_email: "",
     mou_start: "",
     mou_end: "",
+    signed_date: "",
+    start_date: "",
+    end_date: "",
     first_class_date: "",
     agreed_price: "",
     pricing_basis: "per_month",
     classes_per_week: 2,
     package_type: "",
-    // syllabus_type removed per requirement
+    syllabus_type: "",
     included_classes: [],
     exams_count: 0,
     events_count: 0,
@@ -40,15 +46,20 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
     let mounted = true;
     setLoadingCatalogs(true);
 
-    const today = new Date().toISOString().split("T")[0];
-    const nextYear = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    const toLocalDate = (date) => new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+      .toISOString()
+      .slice(0, 10);
+    const today = toLocalDate(new Date());
+    const nextYearDate = new Date();
+    nextYearDate.setFullYear(nextYearDate.getFullYear() + 1);
+    const nextYear = toLocalDate(nextYearDate);
 
     // Pre-fill from lead
-    const defaultPrincipalName = lead?.parents_name || lead?.contact_person || "";
-    const defaultPrincipalNumber = lead?.contact_number || lead?.phone_number || lead?.whatsapp_number || "";
+    const defaultPrincipalName = lead?.contact_person || "";
+    const defaultPrincipalNumber = lead?.contact_number || "";
     const defaultPrincipalEmail = lead?.email || "";
-    const defaultContactName = lead?.contact_person || lead?.parents_name || "";
-    const defaultContactNumber = lead?.contact_number || lead?.phone_number || "";
+    const defaultContactName = lead?.contact_person || "";
+    const defaultContactNumber = lead?.contact_number || "";
     const defaultContactEmail = lead?.email || "";
 
     setFormData((prev) => ({
@@ -61,12 +72,15 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
       contact_email: defaultContactEmail,
       mou_start: today,
       mou_end: nextYear,
+      signed_date: today,
+      start_date: "",
+      end_date: "",
       first_class_date: "",
       agreed_price: "",
       pricing_basis: "per_month",
       classes_per_week: 2,
       package_type: "",
-      // syllabus_type removed
+      syllabus_type: "",
       included_classes: [],
       exams_count: 0,
       events_count: 0,
@@ -74,18 +88,19 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
 
     Promise.all([
       catalogService.getPackages(authToken).catch(() => []),
-      // syllabi no longer needed
       catalogService.getClasses(authToken).catch(() => []),
+      catalogService.getSyllabi(authToken).catch(() => []),
     ])
-      .then(([pkgs, cls]) => {
+      .then(([pkgs, cls, syllabusOptions]) => {
         if (!mounted) return;
         setPackages(pkgs);
         setClassesList(cls);
+        setSyllabi(syllabusOptions);
 
         setFormData((prev) => ({
           ...prev,
           package_type: pkgs[0]?.id || "",
-          // syllabus_type removed
+          syllabus_type: "",
           included_classes: cls.map((c) => c.id),
         }));
       })
@@ -97,6 +112,43 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
       mounted = false;
     };
   }, [isOpen, lead, authToken]);
+
+  useEffect(() => {
+    if (!isOpen || !authToken) return undefined;
+    let cancelled = false;
+    setLoadingLeadDetails(true);
+    setLeadApproval(null);
+    setError(null);
+    if (!lead?.id) {
+      setError("This lead has no valid server ID.");
+      setLoadingLeadDetails(false);
+      return undefined;
+    }
+    leadService.getLead(lead.id, authToken)
+      .then((details) => {
+        if (cancelled) return;
+        setLeadApproval(details?.approval || null);
+        setFormData((previous) => ({
+          ...previous,
+          principal_name: previous.principal_name || details?.contact_person || "",
+          principal_number: previous.principal_number || details?.contact_number || "",
+          principal_email: previous.principal_email || details?.email || "",
+          contact_name: previous.contact_name || details?.contact_person || "",
+          contact_number: previous.contact_number || details?.contact_number || "",
+          contact_email: previous.contact_email || details?.email || "",
+        }));
+        if (details?.approval !== "approved") {
+          setError("This lead must be approved before it can be enrolled.");
+        }
+      })
+      .catch((detailsError) => {
+        if (!cancelled) setError(detailsError.message || "Could not verify lead approval.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingLeadDetails(false);
+      });
+    return () => { cancelled = true; };
+  }, [isOpen, lead?.id, authToken]);
 
   if (!isOpen || !lead) return null;
 
@@ -132,6 +184,11 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
     e.preventDefault();
     setError(null);
 
+    if (leadApproval !== "approved") {
+      setError("This lead must be approved before it can be enrolled.");
+      return;
+    }
+
     if (!formData.principal_name.trim()) {
       setError("Principal name is required.");
       return;
@@ -152,7 +209,6 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
       setError("Please select a package.");
       return;
     }
-    // syllabus_type validation removed
     if (!formData.included_classes.length) {
       setError("Please select at least one class.");
       return;
@@ -163,6 +219,14 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
     }
     if (new Date(formData.mou_end) < new Date(formData.mou_start)) {
       setError("MOU end date must be on or after start date.");
+      return;
+    }
+    if (!formData.signed_date || !formData.start_date || !formData.end_date) {
+      setError("Signed date, contract start date, and contract end date are required.");
+      return;
+    }
+    if (new Date(formData.end_date) < new Date(formData.start_date)) {
+      setError("Contract end date must be on or after the contract start date.");
       return;
     }
 
@@ -178,21 +242,27 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
         contact_email: formData.contact_email.trim(),
         mou_start: formData.mou_start,
         mou_end: formData.mou_end,
+        signed_date: formData.signed_date,
+        start_date: formData.start_date,
+        end_date: formData.end_date,
         agreed_price: Number(formData.agreed_price),
         pricing_basis: formData.pricing_basis,
         classes_per_week: Number(formData.classes_per_week),
         package_type: Number(formData.package_type),
-        // syllabus_type removed per requirement
+        syllabus_type: formData.syllabus_type ? Number(formData.syllabus_type) : null,
         included_classes: formData.included_classes,
         exams_count: Number(formData.exams_count || 0),
         events_count: Number(formData.events_count || 0),
         first_class_date: formData.first_class_date || null,
       };
 
-      const result = await clientService.enrollLead(payload, authToken);
-      if (onEnrolled) {
-        onEnrolled(result, lead);
-      }
+      const client = await clientService.enrollLead(payload, authToken);
+      forgetReturnedLeadIds([lead.id ?? lead._id]);
+      window.dispatchEvent(
+        new CustomEvent("crm:leadConverted", {
+          detail: { leadId: lead.id ?? lead._id, lead: { ...lead, status: "enrolled" }, client },
+        })
+      );
       onClose();
     } catch (err) {
       setError(err?.message || "Failed to enroll school.");
@@ -408,6 +478,32 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
             </div>
           </div>
 
+          {/* Initial contract dates are separate from the MOU dates. */}
+          <div>
+            <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-500">
+              <Calendar className="h-4 w-4 text-[#294998]" /> Initial Contract
+            </h3>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              {[
+                ["signed_date", "Signed Date *"],
+                ["start_date", "Contract Start Date *"],
+                ["end_date", "Contract End Date *"],
+              ].map(([name, label]) => (
+                <div key={name}>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">{label}</label>
+                  <input
+                    type="date"
+                    name={name}
+                    value={formData[name]}
+                    onChange={handleChange}
+                    required
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#294998] focus:ring-2 focus:ring-[#294998]/15"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Section 4: Academic Program */}
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
@@ -432,7 +528,22 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
                   ))}
                 </select>
               </div>
-              {/* Syllabus Type removed per requirement */}
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Syllabus Type
+                </label>
+                <select
+                  name="syllabus_type"
+                  value={formData.syllabus_type}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#294998] focus:ring-2 focus:ring-[#294998]/15"
+                >
+                  <option value="">No syllabus selected</option>
+                  {syllabi.map((syllabus) => (
+                    <option key={syllabus.id} value={syllabus.id}>{syllabus.name}</option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">
                   Classes per Week *
@@ -532,7 +643,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken, onEnroll
             </button>
             <button
               type="submit"
-              disabled={loading || loadingCatalogs}
+              disabled={loading || loadingCatalogs || loadingLeadDetails || leadApproval !== "approved"}
               className="px-5 py-2.5 bg-[#294998] hover:bg-[#1E3776] text-white rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 transition-all disabled:opacity-50"
             >
               {loading ? (

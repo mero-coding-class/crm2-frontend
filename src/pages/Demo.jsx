@@ -1,19 +1,15 @@
 // src/pages/Demo.jsx — connected to crm2-backend /api/demos/
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   MonitorPlay,
   Plus,
   Search,
   Calendar,
-  Clock,
   CheckCircle2,
+  XCircle,
   Pencil,
   X,
-  Building2,
-  MapPin,
-  User,
-  Phone,
-  GraduationCap,
   Eye,
   ChevronLeft,
   ChevronRight,
@@ -69,10 +65,12 @@ const fmt = (dt) => {
 // ─── Component ────────────────────────────────────────────────────────────────
 const Demo = () => {
   const { authToken, user } = useAuth();
+  const [searchParams] = useSearchParams();
   const role = user?.role || "";
   const isAdmin = ["admin", "superadmin"].includes(role.toLowerCase());
   const isAcademic = role === "academic";
   const isB2b = role === "b2b";
+  const canScheduleDemo = isAdmin || isB2b;
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [demos, setDemos] = useState([]);
@@ -86,8 +84,8 @@ const Demo = () => {
   const [leadsLoading, setLeadsLoading] = useState(false);
 
   // ── Filters ────────────────────────────────────────────────────────────────
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("demo_status") || (searchParams.get("feedback") === "pending" ? "scheduled" : "all"));
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
@@ -121,6 +119,11 @@ const Demo = () => {
     try {
       const params = {};
       if (statusFilter && statusFilter !== "all") params.demo_status = statusFilter;
+      if (searchParams.get("unassigned") === "true") params.unassigned = "true";
+      if (searchParams.get("feedback") === "pending") params.feedback = "pending";
+      if (searchParams.get("from")) params.from = searchParams.get("from");
+      if (searchParams.get("to")) params.to = searchParams.get("to");
+      if (searchQuery.trim()) params.search = searchQuery.trim();
       const { results } = await demoService.getDemos(authToken, params);
       setDemos(results);
     } catch (e) {
@@ -128,9 +131,14 @@ const Demo = () => {
     } finally {
       setLoading(false);
     }
-  }, [authToken, statusFilter]);
+  }, [authToken, statusFilter, searchParams, searchQuery]);
 
   useEffect(() => { fetchDemos(); }, [fetchDemos]);
+
+  useEffect(() => {
+    setSearchQuery(searchParams.get("search") || "");
+    setStatusFilter(searchParams.get("demo_status") || (searchParams.get("feedback") === "pending" ? "scheduled" : "all"));
+  }, [searchParams]);
 
   // ── Fetch leads (for create picker) ────────────────────────────────────────
   const fetchLeads = useCallback(async () => {
@@ -139,7 +147,7 @@ const Demo = () => {
     try {
       const list = await leadService.getLeads(authToken);
       setLeads(Array.isArray(list) ? list : []);
-    } catch (_) { setLeads([]); } finally { setLeadsLoading(false); }
+    } catch { setLeads([]); } finally { setLeadsLoading(false); }
   }, [authToken]);
 
   // ── Stats ──────────────────────────────────────────────────────────────────
@@ -305,21 +313,21 @@ const Demo = () => {
 
   // ── UI ─────────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-full bg-[#F8FAFC] font-[Inter,system-ui,sans-serif] antialiased">
+    <div className="flex flex-col min-h-full bg-[#F8FAFC] font-[Inter,system-ui,sans-serif] antialiased">
       {/* Header */}
       <div className="px-6 py-5 border-b border-slate-200 bg-white">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-[10px] bg-[#EEF2FF] flex items-center justify-center">
-                <MonitorPlay className="w-5 h-5 text-[#4F46E5]" />
+              <div className="w-9 h-9 rounded-[10px] bg-[#EDF2FC] flex items-center justify-center">
+                <MonitorPlay className="w-5 h-5 text-[#294998]" />
               </div>
               <div>
                 <h1 className="text-[20px] font-[700] text-slate-900 leading-tight tracking-[-0.015em]">
                   Demo Management
                 </h1>
                 <p className="text-[13px] text-slate-500 mt-0.5">
-                  Schedule, track and manage school demos — real-time from backend
+                  Schedule and track school demonstrations.
                 </p>
               </div>
             </div>
@@ -327,15 +335,16 @@ const Demo = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={fetchDemos}
-              className="flex items-center gap-1.5 px-3 py-2 text-[13px] text-slate-600 border border-slate-200 rounded-[8px] hover:bg-slate-50 transition-colors"
+              disabled={loading}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-[500] text-slate-700 bg-[#EEF2F6] rounded-[8px] hover:bg-slate-200 transition-colors disabled:opacity-50"
             >
-              <RotateCw className="w-3.5 h-3.5" />
+              <RotateCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               Refresh
             </button>
-            {!isAcademic && (
+            {canScheduleDemo && (
               <button
                 onClick={openCreate}
-                className="flex items-center gap-2 px-4 py-2 bg-[#4F46E5] text-white text-[13px] font-[600] rounded-[8px] hover:bg-[#4338CA] transition-colors shadow-sm"
+                className="flex items-center gap-2 px-4 py-2 bg-[#294998] text-white text-[13px] font-[500] rounded-[8px] hover:bg-[#1E3776] transition-colors shadow-sm"
               >
                 <Plus className="w-4 h-4" />
                 Schedule Demo
@@ -346,35 +355,41 @@ const Demo = () => {
       </div>
 
       {/* Stats */}
-      <div className="px-6 pt-5 pb-2 grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { label: "Total", value: stats.total, color: "text-slate-700 bg-slate-50 border-slate-200" },
-          { label: "Scheduled", value: stats.scheduled, color: "text-blue-700 bg-blue-50 border-blue-200" },
-          { label: "Completed", value: stats.completed, color: "text-emerald-700 bg-emerald-50 border-emerald-200" },
-          { label: "Cancelled", value: stats.cancelled, color: "text-red-700 bg-red-50 border-red-200" },
-        ].map((s) => (
-          <div key={s.label} className={`rounded-[10px] border p-4 ${s.color}`}>
-            <div className="text-[24px] font-[700]">{s.value}</div>
-            <div className="text-[12px] font-[500] mt-0.5 opacity-80">{s.label}</div>
-          </div>
-        ))}
-      </div>
+      <div className="flex-1 p-6 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {[
+            { label: "Total demos", value: stats.total, icon: MonitorPlay, color: "text-[#294998] bg-[#EDF2FC]" },
+            { label: "Scheduled", value: stats.scheduled, icon: Calendar, color: "text-blue-700 bg-blue-50" },
+            { label: "Completed", value: stats.completed, icon: CheckCircle2, color: "text-emerald-700 bg-emerald-50" },
+            { label: "Cancelled", value: stats.cancelled, icon: XCircle, color: "text-red-700 bg-red-50" },
+          ].map((s) => (
+            <div key={s.label} className="bg-white rounded-[12px] border border-slate-200 p-4 flex items-center gap-3 hover:border-slate-300 transition-colors">
+              <div className={`w-9 h-9 rounded-[9px] flex items-center justify-center shrink-0 ${s.color}`}>
+                <s.icon className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="text-[12px] font-[500] text-slate-500">{s.label}</div>
+                <div className="text-[24px] leading-7 font-[700] text-slate-900 tabular-nums">{s.value}</div>
+              </div>
+            </div>
+          ))}
+        </div>
 
       {/* Toolbar */}
-      <div className="px-6 py-3 flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search school, contact, academic…"
-            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-[8px] text-[13px] bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30 focus:border-[#4F46E5]"
+            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-[8px] text-[13px] bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#294998]/20 focus:border-[#294998]"
           />
         </div>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 border border-slate-200 rounded-[8px] text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30 focus:border-[#4F46E5]"
+          className="px-3 py-2 border border-slate-200 rounded-[8px] text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-[#294998]/20 focus:border-[#294998]"
         >
           <option value="all">All Statuses</option>
           <option value="scheduled">Scheduled</option>
@@ -385,7 +400,6 @@ const Demo = () => {
       </div>
 
       {/* Content */}
-      <div className="flex-1 px-6 pb-6 overflow-auto">
         {loading ? (
           <div className="flex items-center justify-center py-24 text-slate-400 gap-2">
             <Loader2 className="w-5 h-5 animate-spin" /> Loading demos…
@@ -400,8 +414,11 @@ const Demo = () => {
           <div className="flex flex-col items-center py-20 text-slate-400 gap-3">
             <MonitorPlay className="w-10 h-10 opacity-30" />
             <p className="text-[14px]">No demos found.</p>
-            {!isAcademic && (
-              <button onClick={openCreate} className="flex items-center gap-1.5 text-[13px] text-[#4F46E5] underline">
+            {canScheduleDemo && (
+              <button
+                onClick={openCreate}
+                className="flex items-center gap-2 px-4 py-2.5 bg-[#294998] text-white text-[13px] font-[600] rounded-[8px] hover:bg-[#1E3776] transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#294998] focus-visible:ring-offset-2"
+              >
                 <Plus className="w-4 h-4" /> Schedule your first demo
               </button>
             )}
@@ -410,7 +427,8 @@ const Demo = () => {
           <>
             {/* Table */}
             <div className="bg-white rounded-[12px] border border-slate-200 overflow-hidden">
-              <table className="w-full text-[13px]">
+              <div className="overflow-x-auto">
+                <table className="min-w-[760px] w-full text-[13px]">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50/60">
                     {["School", "Demo Date/Time", "Status", "Academic", "Contact", "Actions"].map((h) => (
@@ -454,7 +472,7 @@ const Demo = () => {
                           <div className="flex items-center gap-1.5">
                             <button
                               onClick={() => setViewingDemo(demo)}
-                              className="p-1.5 rounded-[6px] text-slate-500 hover:bg-slate-100 transition-colors"
+                              className="p-1.5 rounded-[6px] text-slate-500 hover:text-[#294998] hover:bg-[#EDF2FC] transition-colors"
                               title="View"
                             >
                               <Eye className="w-4 h-4" />
@@ -463,7 +481,7 @@ const Demo = () => {
                             {(isAdmin || (isB2b && demo.demo_status !== "completed")) && (
                               <button
                                 onClick={() => openEdit(demo)}
-                                className="p-1.5 rounded-[6px] text-blue-500 hover:bg-blue-50 transition-colors"
+                                className="p-1.5 rounded-[6px] text-slate-500 hover:text-[#294998] hover:bg-[#EDF2FC] transition-colors"
                                 title="Edit"
                               >
                                 <Pencil className="w-4 h-4" />
@@ -473,7 +491,7 @@ const Demo = () => {
                             {isAdmin && demo.demo_status === "scheduled" && (
                               <button
                                 onClick={() => openAssign(demo)}
-                                className="p-1.5 rounded-[6px] text-violet-500 hover:bg-violet-50 transition-colors"
+                                className="p-1.5 rounded-[6px] text-slate-500 hover:text-[#294998] hover:bg-[#EDF2FC] transition-colors"
                                 title="Assign Academic"
                               >
                                 <UserCheck className="w-4 h-4" />
@@ -484,7 +502,7 @@ const Demo = () => {
                               (isAdmin || (isAcademic && demo.academic === user?.id)) && (
                                 <button
                                   onClick={() => openFeedback(demo)}
-                                  className="p-1.5 rounded-[6px] text-emerald-500 hover:bg-emerald-50 transition-colors"
+                                  className="p-1.5 rounded-[6px] text-slate-500 hover:text-[#294998] hover:bg-[#EDF2FC] transition-colors"
                                   title="Submit Feedback"
                                 >
                                   <MessageSquare className="w-4 h-4" />
@@ -497,6 +515,7 @@ const Demo = () => {
                   })}
                 </tbody>
               </table>
+              </div>
             </div>
 
             {/* Pagination */}
@@ -749,7 +768,7 @@ const Demo = () => {
 
 // ─── Tiny sub-components ──────────────────────────────────────────────────────
 const inputCls =
-  "w-full px-3 py-2 border border-slate-200 rounded-[8px] text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30 focus:border-[#4F46E5]";
+  "w-full px-3 py-2 border border-slate-200 rounded-[8px] text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-[#294998]/20 focus:border-[#294998]";
 
 const FormGroup = ({ label, children }) => (
   <div>
@@ -778,7 +797,7 @@ const ModalActions = ({ saving, onCancel, label }) => (
     <button
       type="submit"
       disabled={saving}
-      className="flex items-center gap-2 px-4 py-2 bg-[#4F46E5] text-white text-[13px] font-[600] rounded-[8px] hover:bg-[#4338CA] disabled:opacity-60 shadow-sm"
+      className="flex items-center gap-2 px-4 py-2 bg-[#294998] text-white text-[13px] font-[500] rounded-[8px] hover:bg-[#1E3776] disabled:opacity-60 shadow-sm"
     >
       {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
       {label}

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
-import { BASE_URL } from "../config";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import LeadEditForm from "./LeadEditForm";
+import { leadService } from "../services/api";
 
 /**
  * LeadEditModal — aligned with crm2-backend Lead model.
@@ -19,8 +19,7 @@ import LeadEditForm from "./LeadEditForm";
  *   owner, call_assignee, created_by, created_at, updated_at
  */
 
-const LeadEditModal = ({ lead, onClose, onSave }) => {
-  const DEFAULT_FORM = {
+const DEFAULT_FORM = {
     // Identifiers (read-only)
     id: "",
     system_id: "",
@@ -51,74 +50,83 @@ const LeadEditModal = ({ lead, onClose, onSave }) => {
     created_by_username: "",
     created_at: "",
     updated_at: "",
-  };
+};
+
+const isAdminRole = (role) =>
+  ["admin", "super admin", "superadmin", "super-admin"].includes(
+    String(role || "").toLowerCase()
+  );
+
+const LeadEditModal = ({ lead, onClose, onSave }) => {
 
   const [formData, setFormData] = useState(DEFAULT_FORM);
   const { user, authToken } = useAuth();
-  const [users, setUsers] = useState([]);
-  const [usersLoading, setUsersLoading] = useState(false);
+  const [leadDetails, setLeadDetails] = useState(null);
+  const [loadingLead, setLoadingLead] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [reloadToken, setReloadToken] = useState(0);
+
+  useEffect(() => {
+    if (!lead?.id || !authToken) {
+      setLoadingLead(false);
+      setLoadError("Lead details are unavailable.");
+      return undefined;
+    }
+    let cancelled = false;
+    setLoadingLead(true);
+    setLoadError("");
+    leadService
+      .getLead(lead.id, authToken)
+      .then((details) => {
+        if (!cancelled) setLeadDetails(details);
+      })
+      .catch((error) => {
+        if (!cancelled) setLoadError(error.message || "Failed to load lead details.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingLead(false);
+      });
+    return () => { cancelled = true; };
+  }, [lead?.id, authToken, reloadToken]);
 
   // Map incoming lead prop → form state using new backend field names
   useEffect(() => {
-    if (!lead) return;
+    const source = leadDetails || lead;
+    if (!source || loadingLead || loadError) return;
 
     const normalized = {
-      id: lead.id ?? "",
-      system_id: lead.system_id ?? "",
-      // Core writable fields — support legacy aliases from old backend
-      school_name:
-        lead.school_name ||
-        lead.school_college_name ||
-        lead.school ||
-        "",
-      district: lead.district || lead.address_line_2 || "",
-      municipality: lead.municipality || lead.address_line_1 || lead.permanentAddress || "",
-      address: lead.address || "",
-      contact_person:
-        lead.contact_person ||
-        lead.student_name ||
-        lead.studentName ||
-        "",
-      contact_number:
-        lead.contact_number ||
-        lead.phone_number ||
-        lead.phone ||
-        "",
-      alt_number: lead.alt_number || "",
-      alt_contact_person:
-        lead.alt_contact_person ||
-        lead.parents_name ||
-        lead.parentsName ||
-        "",
-      email: lead.email || "",
-      source: lead.source || "",
-      course_interest:
-        lead.course_interest ||
-        lead.course_name ||
-        "",
-      social_media:
-        lead.social_media ||
-        lead.website ||
-        lead.adset_name ||
-        "",
-      sub_status: lead.sub_status || lead.substatus || "New",
+      id: source.id ?? "",
+      system_id: source.system_id ?? "",
+      school_name: source.school_name || "",
+      district: source.district || "",
+      municipality: source.municipality || "",
+      address: source.address || "",
+      contact_person: source.contact_person || "",
+      contact_number: source.contact_number || "",
+      alt_number: source.alt_number || "",
+      alt_contact_person: source.alt_contact_person || "",
+      email: source.email || "",
+      source: source.source || "",
+      course_interest: source.course_interest || "",
+      social_media: source.social_media || "",
+      sub_status: source.sub_status || "New",
       // Read-only display fields
-      status: lead.status || "active",
-      approval: lead.approval || "approved",
-      proposal_status: lead.proposal_status ?? false,
-      demo_scheduled: lead.demo_scheduled ?? false,
-      owner: lead.owner ?? null,
-      owner_username: lead.owner_username || lead.assigned_to_username || lead.assigned_to || "",
-      call_assignee: lead.call_assignee ?? null,
-      call_assignee_username: lead.call_assignee_username || lead.call_assigned || "",
-      created_by: lead.created_by ?? null,
-      created_by_username: lead.created_by_username || "",
-      created_at: lead.created_at || "",
-      updated_at: lead.updated_at || "",
+      status: source.status || "active",
+      approval: source.approval || "approved",
+      proposal_status: source.proposal_status ?? false,
+      demo_scheduled: source.demo_scheduled ?? false,
+      owner: source.owner ?? null,
+      owner_username: source.owner_username || "",
+      call_assignee: source.call_assignee ?? null,
+      call_assignee_username: source.call_assignee_username || "",
+      created_by: source.created_by ?? null,
+      created_by_username: source.created_by_username || "",
+      created_at: source.created_at || "",
+      updated_at: source.updated_at || "",
     };
 
     setFormData({ ...DEFAULT_FORM, ...normalized });
-  }, [lead]);
+  }, [lead, leadDetails, loadingLead, loadError]);
 
   // Prevent background scrolling while modal is open
   useEffect(() => {
@@ -126,31 +134,6 @@ const LeadEditModal = ({ lead, onClose, onSave }) => {
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = originalOverflow; };
   }, []);
-
-  // Fetch users list (for admin — to allow re-assignment via separate endpoint)
-  useEffect(() => {
-    const role = (user?.role || "").toLowerCase();
-    if (!authToken || !["admin", "superadmin"].includes(role)) return;
-
-    let cancelled = false;
-    const fetchUsers = async () => {
-      setUsersLoading(true);
-      try {
-        const res = await fetch(`${BASE_URL}/users/`, {
-          headers: { Authorization: `Token ${authToken}` },
-        });
-        const data = await res.json();
-        const list = Array.isArray(data) ? data : data.results || [];
-        if (!cancelled) setUsers(list);
-      } catch (e) {
-        console.warn("LeadEditModal: could not fetch users", e);
-      } finally {
-        if (!cancelled) setUsersLoading(false);
-      }
-    };
-    fetchUsers();
-    return () => { cancelled = true; };
-  }, [authToken, user]);
 
   const modalRef = useRef(null);
 
@@ -176,9 +159,9 @@ const LeadEditModal = ({ lead, onClose, onSave }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Build PATCH payload — only writable fields per LeadUpdateSerializer
+    const admin = isAdminRole(user?.role);
     const updatedData = {
-      school_name: formData.school_name,
+      id: formData.id,
       district: formData.district,
       municipality: formData.municipality,
       address: formData.address,
@@ -187,11 +170,14 @@ const LeadEditModal = ({ lead, onClose, onSave }) => {
       alt_number: formData.alt_number || "",
       alt_contact_person: formData.alt_contact_person || "",
       email: formData.email,
-      source: formData.source || "",
       course_interest: formData.course_interest || "",
       social_media: formData.social_media || "",
       sub_status: formData.sub_status || "New",
     };
+    if (admin) {
+      updatedData.school_name = formData.school_name;
+      updatedData.source = formData.source || "";
+    }
 
     onSave(updatedData);
   };
@@ -213,15 +199,22 @@ const LeadEditModal = ({ lead, onClose, onSave }) => {
             <XMarkIcon className="h-5 w-5 text-gray-600" />
           </button>
         </div>
-        <LeadEditForm
-          formData={formData}
-          onChange={handleInputChange}
-          onSubmit={handleSubmit}
-          users={users}
-          usersLoading={usersLoading}
-          user={user}
-          onClose={onClose}
-        />
+        {loadingLead ? (
+          <div className="p-10 text-center text-sm text-slate-500">Loading lead details…</div>
+        ) : loadError ? (
+          <div className="space-y-4 p-8 text-center">
+            <p className="text-sm text-rose-700">{loadError}</p>
+            <button type="button" onClick={() => setReloadToken((value) => value + 1)} className="rounded-md bg-[#294998] px-4 py-2 text-sm font-medium text-white hover:bg-[#1E3776]">Retry</button>
+          </div>
+        ) : (
+          <LeadEditForm
+            formData={formData}
+            onChange={handleInputChange}
+            onSubmit={handleSubmit}
+            user={user}
+            onClose={onClose}
+          />
+        )}
       </div>
     </div>
   );

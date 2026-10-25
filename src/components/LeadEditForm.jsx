@@ -1,5 +1,5 @@
 import React from "react";
-import { SUB_STATUS_CHOICES, SOURCE_CHOICES } from "./addLead/useAddLeadForm";
+import { SOURCE_CHOICES } from "./addLead/useAddLeadForm";
 
 /**
  * LeadEditForm — aligned with crm2-backend LeadUpdateSerializer writable fields:
@@ -11,16 +11,6 @@ import { SUB_STATUS_CHOICES, SOURCE_CHOICES } from "./addLead/useAddLeadForm";
  *   system_id, status, approval, proposal_status, demo_scheduled,
  *   owner_username, call_assignee_username, created_at, updated_at
  */
-
-const NEPAL_DISTRICTS = [
-  "Kathmandu", "Lalitpur", "Bhaktapur", "Kaski (Pokhara)", "Chitwan",
-  "Rupandehi (Butwal)", "Morang (Biratnagar)", "Jhapa", "Sunsari (Dharan)",
-  "Banke (Nepalgunj)", "Kailali (Dhangadhi)", "Dhanusha (Janakpur)",
-  "Parsa (Birgunj)", "Makwanpur (Hetauda)", "Kavrepalanchok", "Gorkha",
-  "Tanahun", "Nawalparasi", "Dang", "Surkhet", "Sindhupalchok",
-  "Nuwakot", "Dhading", "Palpa", "Lamjung", "Syangja", "Ilam",
-  "Kanchanpur", "Bardiya",
-];
 
 // Human-readable status labels for display
 const STATUS_DISPLAY = {
@@ -39,13 +29,12 @@ const LeadEditForm = ({
   formData,
   onChange,
   onSubmit,
-  users = [],
-  usersLoading = false,
   user = {},
   onClose,
 }) => {
-  const isAdmin =
-    ["admin", "superadmin"].includes((user?.role || "").toLowerCase());
+  const isAdmin = ["admin", "super admin", "superadmin", "super-admin"].includes(
+    (user?.role || "").toLowerCase()
+  );
 
   const inputClass =
     "mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-[#294998] focus:border-[#294998] sm:text-sm";
@@ -193,19 +182,16 @@ const LeadEditForm = ({
         <label htmlFor="district" className={labelClass}>
           District <span className="text-rose-500">*</span>
         </label>
-        <select
+        <input
+          type="text"
           id="district"
           name="district"
           value={formData.district || ""}
           onChange={onChange}
           className={inputClass}
+          placeholder="e.g. Kathmandu"
           required
-        >
-          <option value="">Select District</option>
-          {NEPAL_DISTRICTS.map((d) => (
-            <option key={d} value={d}>{d}</option>
-          ))}
-        </select>
+        />
       </div>
 
       {/* Municipality */}

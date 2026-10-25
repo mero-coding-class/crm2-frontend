@@ -12,9 +12,7 @@ export default function useCourses(authToken) {
         const res = await courseService.getCourses(authToken);
         const list = Array.isArray(res) ? res : res?.results || [];
         if (!cancelled) setCourses(list);
-        console.debug("Leads: fetched courses count=", list.length);
-      } catch (err) {
-        console.warn("Leads: failed to fetch courses", err);
+      } catch {
         if (!cancelled) setCourses([]);
       }
     };

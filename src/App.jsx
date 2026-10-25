@@ -17,9 +17,9 @@ import Login from "./pages/Login";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Downloads from "./pages/Downloads";
-import Archive from "./pages/Archive";
 import Demo from "./pages/Demo";
 import HelpPage from "./pages/HelpPage";
+import Approvals from "./pages/Approvals";
 
 function AppContent() {
   const { authToken } = useContext(AuthContext);
@@ -38,12 +38,13 @@ function AppContent() {
           }
         >
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/approvals" element={<Approvals />} />
           <Route path="/leads" element={<Leads />} />
           <Route path="/clients" element={<Clients />} />
           <Route path="/enrolled-students" element={<Navigate to="/clients" replace />} />
           <Route path="/demo" element={<Demo />} />
-          <Route path="/trash" element={<TrashPage />} />
-          <Route path="/archive" element={<Archive />} />
+          <Route path="/trash" element={<Navigate to="/archive" replace />} />
+          <Route path="/archive" element={<TrashPage />} />
           <Route path="/report" element={<Reports />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/downloads" element={<Downloads />} />

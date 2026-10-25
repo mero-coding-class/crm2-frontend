@@ -1,911 +1,577 @@
-// C:/Users/aryal/Desktop/EDU_CRM/client/src/pages/Dashboard.jsx
-
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useAuth } from "../context/AuthContext.jsx";
-import Loader from "../components/common/Loader";
-import DelayedLoader from "../components/common/DelayedLoader";
-
-import StatCard from "../components/dashboard/StatCard";
-import LatestLeadsTable from "../components/dashboard/LatestLeadsTable";
-import TopCoursesTable from "../components/dashboard/TopCoursesTable";
-
-import { leadService, dashboardService } from "../services/api";
-import { BASE_URL } from "../config";
-
-// Recharts
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  LineChart,
-  Line,
+  Activity,
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowRight,
+  ArrowUpRight,
+  Bell,
+  CalendarClock,
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
+  CircleAlert,
+  ClipboardCheck,
+  Clock3,
+  FileCheck2,
+  GraduationCap,
+  Handshake,
+  LoaderCircle,
+  RefreshCw,
+  School,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  LabelList,
   XAxis,
   YAxis,
-  CartesianGrid,
-  BarChart,
-  Bar,
 } from "recharts";
+import { useAuth } from "../context/AuthContext.jsx";
+import { dashboardService } from "../services/api.js";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "../components/ui/chart.jsx";
 
-// Icons
-import {
-  UsersIcon,
-  AcademicCapIcon,
-  PlusIcon,
-  CurrencyDollarIcon,
-  CalendarDaysIcon,
-  GlobeAltIcon,
-} from "@heroicons/react/24/outline";
-import LeadMap from "../components/dashboard/LeadMap";
-import CallReminders from "../components/reminders/CallReminders";
-import { apiFetch } from "../services/api";
+const toIsoDate = (date) => {
+  const adjusted = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return adjusted.toISOString().slice(0, 10);
+};
 
-const ChartContainer = ({ title, description, children }) => (
-  <div className="bg-white rounded-[12px] border border-slate-200 p-5 flex flex-col h-full hover:border-slate-300 transition-colors">
-    <div className="mb-3">
-      <h3 className="text-[14px] font-[600] text-slate-900 leading-[20px] tracking-[-0.005em]">{title}</h3>
-      {description && <p className="text-[12px] text-slate-400 mt-0.5">{description}</p>}
-    </div>
-    <div className="flex-grow min-h-[250px]">{children}</div>
-  </div>
+const getRange = (selection) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const end = new Date(today);
+  let start = new Date(today);
+  if (selection === "this_month") start.setDate(1);
+  else if (selection === "last_30") start.setDate(start.getDate() - 29);
+  else if (selection === "last_90") start.setDate(start.getDate() - 89);
+  else if (selection === "year_to_date") start = new Date(today.getFullYear(), 0, 1);
+  return { from: toIsoDate(start), to: toIsoDate(end) };
+};
+
+const dateTimeBound = (value, endOfDay = false) => {
+  if (!value) return "";
+  const date = new Date(`${value}T${endOfDay ? "23:59:59.999" : "00:00:00"}`);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+};
+
+const periodLabel = (selection) => ({
+  this_month: "This month",
+  last_30: "Last 30 days",
+  last_90: "Last 90 days",
+  year_to_date: "Year to date",
+}[selection] || "This month");
+
+const PIPELINE_STAGES = ["New", "Contacted", "Follow-up", "Visit scheduled", "Demo scheduled", "Proposal sent", "Interested", "On hold", "Not interested"];
+
+const formatDate = (value, options = { dateStyle: "medium" }) => {
+  if (!value) return "Date unavailable";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Date unavailable" : date.toLocaleString("en-NP", options);
+};
+
+const formatNpr = (value) => new Intl.NumberFormat("en-NP", {
+  style: "currency", currency: "NPR", maximumFractionDigits: 0,
+}).format(Number(value) || 0);
+
+const comparison = (current, previous, suffix = "%") => {
+  const now = Number(current) || 0;
+  const before = Number(previous) || 0;
+  if (now === before) return { text: "No change", positive: null };
+  if (!before) return { text: now ? "New this period" : "No change", positive: now > 0 };
+  const diff = ((now - before) / before) * 100;
+  return {
+    text: `${diff > 0 ? "+" : ""}${diff.toFixed(0)}${suffix} vs previous period`,
+    positive: diff > 0,
+  };
+};
+
+const Surface = ({ title, description, action, children, className = "" }) => (
+  <section className={`rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_10px_rgba(15,23,42,0.035)] ${className}`}>
+    {(title || action) && (
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
+        <div>
+          {title && <h2 className="text-sm font-semibold tracking-[-0.01em] text-slate-900">{title}</h2>}
+          {description && <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>}
+        </div>
+        {action}
+      </div>
+    )}
+    {children}
+  </section>
 );
+
+const StatCard = ({ icon, label, value, detail, change, href, tone = "blue", attention = false }) => {
+  const toneStyles = {
+    blue: "bg-blue-50 text-[#294998] ring-blue-100",
+    teal: "bg-teal-50 text-teal-700 ring-teal-100",
+    amber: "bg-amber-50 text-amber-700 ring-amber-100",
+    violet: "bg-violet-50 text-violet-700 ring-violet-100",
+    rose: "bg-rose-50 text-rose-700 ring-rose-100",
+    emerald: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+  };
+  const Content = (
+    <>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-[12px] font-medium text-slate-500">{label}</p>
+        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ring-1 ${toneStyles[tone]}`}>
+          {React.createElement(icon, { className: "h-[17px] w-[17px]", strokeWidth: 1.8 })}
+        </span>
+      </div>
+      <div className="mt-4 flex items-end justify-between gap-2">
+        <p className="text-[27px] font-semibold leading-none tracking-[-0.04em] text-slate-950 tabular-nums">{value}</p>
+        {href && <ArrowUpRight className="mb-0.5 h-4 w-4 text-slate-300 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#294998]" />}
+      </div>
+      <div className="mt-3 min-h-[34px]">
+        {change && (
+          <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${change.positive === null ? "text-slate-400" : change.positive ? "text-emerald-700" : "text-rose-600"}`}>
+            {change.positive === false ? <ArrowDownRight className="h-3.5 w-3.5" /> : <ArrowUpRight className="h-3.5 w-3.5" />}
+            {change.text}
+          </span>
+        )}
+        <p className={`text-[11px] leading-[17px] ${attention ? "font-medium text-rose-600" : "text-slate-400"}`}>{detail}</p>
+      </div>
+    </>
+  );
+  const className = `group min-w-0 rounded-2xl border bg-white p-4 text-left transition duration-150 ${href ? "hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_8px_20px_rgba(15,23,42,0.07)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100" : ""} ${attention ? "border-rose-200/80" : "border-slate-200/80"}`;
+  return href ? <Link to={href} className={className}>{Content}</Link> : <div className={className}>{Content}</div>;
+};
+
+const ActionRow = ({ item }) => {
+  const Icon = item.icon;
+  return (
+    <Link to={item.to} className="group flex min-w-0 items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#294998]/30">
+      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${item.tone}`}>
+        <Icon className="h-[17px] w-[17px]" strokeWidth={1.8} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <span className="truncate text-[13px] font-semibold text-slate-800">{item.title}</span>
+          {item.badge && <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${item.badgeTone || "bg-slate-100 text-slate-600"}`}>{item.badge}</span>}
+        </span>
+        <span className="mt-0.5 block truncate text-[11px] text-slate-500">{item.subtitle}</span>
+      </span>
+      {item.meta && <span className="hidden shrink-0 text-right text-[11px] text-slate-400 sm:block">{item.meta}</span>}
+      <ArrowRight className="h-4 w-4 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#294998]" />
+    </Link>
+  );
+};
 
 const Dashboard = () => {
   const { authToken, user } = useAuth();
-  // Determine role (prefer auth context; fallback to localStorage)
-  const userRole = (
-    user?.role ||
-    localStorage.getItem("role") ||
-    ""
-  ).toLowerCase();
-  const isAdminLike = [
-    "admin",
-    "superadmin",
-    "super admin",
-    "super-admin",
-  ].includes(userRole);
-  const [allLeads, setAllLeads] = useState([]);
+  const role = String(user?.role || localStorage.getItem("role") || "").toLowerCase();
+  const isAdmin = role === "admin";
+  const isAcademic = role === "academic";
+  const isB2B = role === "b2b";
+  const [range, setRange] = useState("this_month");
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [coursesMap, setCoursesMap] = useState({});
-  const [enrollmentsTopCourses, setEnrollmentsTopCourses] = useState([]);
-  const [enrollmentsTrendData, setEnrollmentsTrendData] = useState([]);
-  const [enrollments, setEnrollments] = useState([]);
-  const [trashedLeads, setTrashedLeads] = useState([]);
-  const [enrollmentsCount, setEnrollmentsCount] = useState(0);
-  const [trashCount, setTrashCount] = useState(0);
-  // Real dashboard API data (tasks queue, notifications, admin extras)
-  const [apiDashData, setApiDashData] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
+  const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
+  const requestIdRef = useRef(0);
 
-  // Helper to fetch ALL pages for a paginated endpoint that returns either
-  // an array or an object with `results` & optional `next` (Django DRF style).
-  const fetchAllPaginated = useCallback(
-    async (baseUrl) => {
-      let url = baseUrl;
-      const out = [];
-      const headers = { "Content-Type": "application/json" };
-      if (authToken) headers.Authorization = `Token ${authToken}`;
-      const seenUrls = new Set();
-      while (url && !seenUrls.has(url)) {
-        seenUrls.add(url);
-        try {
-          const res = await apiFetch(url, {
-            headers,
-            credentials: authToken ? "include" : "same-origin",
-          });
-          if (!res.ok) break;
-          const json = await res.json().catch(() => null);
-          if (!json) break;
-          if (Array.isArray(json)) {
-            out.push(...json);
-            break; // no pagination metadata
-          }
-          if (Array.isArray(json.results)) out.push(...json.results);
-          else if (Array.isArray(json.data)) out.push(...json.data);
-          else if (Array.isArray(json.items)) out.push(...json.items);
-          else if (Array.isArray(json.leads)) out.push(...json.leads);
-          else if (Array.isArray(json.enrollments))
-            out.push(...json.enrollments);
-          // Follow typical DRF 'next' link if present
-          if (json.next) url = json.next;
-          else break;
-        } catch (e) {
-          console.warn("Pagination fetch failed for", url, e);
-          break;
-        }
-      }
-      return out;
-    },
-    [authToken]
-  );
-
-  // Pie segment colors - using cohesive brand identity palette
-  const PIE_COLORS = [
-    "#294998", // Mero Royal Navy Blue
-    "#E8A026", // Mero Golden Amber
-    "#10B981", // Emerald
-    "#3B82F6", // Blue
-    "#0EA5E9", // Sky
-    "#F97316", // Orange
-    "#8B5CF6", // Violet
-    "#14B8A6", // Teal
-  ];
-
-  // Load real data from backend
-  useEffect(() => {
-    const fetchLeadsData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        if (!authToken) throw new Error("Not authenticated.");
-        // Fetch leads (active pipeline) and clients (enrolled) in parallel
-        const [leadsAll, clientsData] = await Promise.all([
-          fetchAllPaginated(`${BASE_URL}/leads/`),
-          fetchAllPaginated(`${BASE_URL}/clients/`).catch(() => []),
-        ]);
-        setAllLeads(leadsAll);
-        setEnrollments(clientsData);
-        setEnrollmentsCount(clientsData.length);
-        // Archived leads count from the archived-leads endpoint
-        try {
-          const archivedResp = await apiFetch(`${BASE_URL}/archived-leads/?page_size=1`, {
-            headers: { Authorization: `Token ${authToken}` },
-          });
-          if (archivedResp.ok) {
-            const archivedJson = await archivedResp.json();
-            setTrashCount(archivedJson?.count || 0);
-          }
-        } catch (_) { /* non-fatal */ }
-      } catch (err) {
-        setError(err.message || "Failed to fetch leads");
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (authToken) fetchLeadsData();
-  }, [authToken, fetchAllPaginated]);
-
-  // Fetch real dashboard queue (tasks, notifications, demo_queue, admin extras)
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      if (!authToken) return;
-      try {
-        const data = await dashboardService.getDashboard(authToken);
-        setApiDashData(data);
-      } catch (_) { /* non-fatal: charts still work from leads */ }
-    };
-    fetchDashboardData();
-  }, [authToken]);
-
-  useEffect(() => {
-    // Fetch catalog classes from the real backend endpoint (/api/catalogs/classes/)
-    // to build a course-name lookup map used by the dashboard charts.
-    const fetchCatalogClasses = async () => {
-      if (!authToken) return;
-      try {
-        const res = await apiFetch(`${BASE_URL}/catalogs/classes/`, {
-          headers: { Authorization: `Token ${authToken}` },
-        });
-        if (!res.ok) return; // non-fatal
-        const data = await res.json();
-        const list = Array.isArray(data) ? data : data?.results || [];
-        const map = {};
-        list.forEach((c) => {
-          const id = c.id ?? c.pk ?? null;
-          // Prefer class_name, then name
-          const name = c.class_name || c.name || c.title || "";
-          if (id != null) map[String(id)] = name;
-          if (name) map[String(name).toLowerCase()] = name;
-        });
-        setCoursesMap(map);
-      } catch (err) {
-        // non-fatal for dashboard
-        console.warn("Failed to fetch catalog classes for dashboard:", err);
-      }
-    };
-    fetchCatalogClasses();
-  }, [authToken]);
-
-  // Helper: parse date safely
-  const toDate = (d) => {
-    if (!d && d !== 0) return null;
-    // If already a Date
-    if (d instanceof Date) return d;
-
-    const s = String(d).trim();
-
-    // Legacy backend format: 'YYYY|DD|MM' -> convert to YYYY-MM-DD
-    if (s.includes("|")) {
-      const parts = s.split("|");
-      if (parts.length === 3) {
-        const [yyyy, dd, mm] = parts;
-        const norm = `${yyyy}-${String(mm).padStart(2, "0")}-${String(
-          dd
-        ).padStart(2, "0")}`;
-        const parsed = new Date(norm);
-        return isNaN(parsed.getTime()) ? null : parsed;
-      }
-    }
-
-    // Numeric timestamp in seconds or ms
-    if (/^\d+$/.test(s)) {
-      const n = Number(s);
-      // guess: if seconds (10 digits), multiply by 1000
-      const parsed = new Date(s.length === 10 ? n * 1000 : n);
-      return isNaN(parsed.getTime()) ? null : parsed;
-    }
-
-    // Fallback: try ISO / browser parsing
-    const parsed = new Date(s);
-    return isNaN(parsed.getTime()) ? null : parsed;
-  };
-
-  // Helper: resolve possible add/created date fields from lead objects
-  const getLeadAddDate = (lead) => {
-    return (
-      lead.addDate ||
-      lead.add_date ||
-      lead.created_at ||
-      lead.created_on ||
-      lead.createdAt ||
-      lead.createdOn ||
-      lead.added_on ||
-      lead.addedAt ||
-      null
-    );
-  };
-
-  // Helper: resolve next call date from various possible fields
-  const getNextCallDate = (lead) => {
-    return (
-      lead.nextCall ||
-      lead.next_call ||
-      lead.next_call_date ||
-      lead.nextCallAt ||
-      null
-    );
-  };
-
-  // Helper: format to YYYY-MM-DD using toDate()
-  const toYMD = (d) => {
-    const dt = toDate(d);
-    if (!dt) return "";
-    const y = dt.getFullYear();
-    const m = String(dt.getMonth() + 1).padStart(2, "0");
-    const day = String(dt.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
-  };
-
-  // Build all dashboard aggregates from real leads + enrollments
-  const dashboardData = useMemo(() => {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    const totalLeads =
-      (allLeads ? allLeads.length : 0) +
-      (enrollments ? enrollments.length : 0) +
-      (trashedLeads ? trashedLeads.length : 0);
-
-    // Define "enrolled" as status === Converted
-    // Prefer authoritative enrollments endpoint for enrolled students count
-    const enrolledLeads = allLeads.filter(
-      (l) => (l.status || "").toLowerCase() === "converted"
-    );
-    const totalEnrolledStudents =
-      enrollments && enrollments.length > 0
-        ? enrollments.length
-        : enrolledLeads.length;
-
-    // New leads in current month (by addDate)
-    const newLeadsThisMonth = allLeads.filter((lead) => {
-      const dt = toDate(getLeadAddDate(lead));
-      return (
-        dt && dt.getMonth() === currentMonth && dt.getFullYear() === currentYear
-      );
-    }).length;
-
-    // Revenue this month — prefer to compute from enrollments (authoritative payments)
-    let revenueThisMonth = 0;
-    if (enrollments && enrollments.length > 0) {
-      enrollments.forEach((e) => {
-        // parse a date to determine which month this enrollment/payment applies to
-        const dateStr =
-          e.starting_date ||
-          e.start_date ||
-          e.add_date ||
-          e.addDate ||
-          e.created_at ||
-          e.createdOn ||
-          e.createdAt ||
-          null;
-        const dt = toDate(dateStr);
-        if (!dt) return;
-        if (dt.getMonth() !== currentMonth || dt.getFullYear() !== currentYear)
-          return;
-
-        // Determine payment amount: prefer explicit total_payment, otherwise sum installments or fallback to value
-        const totalPayment =
-          Number(e.total_payment) ||
-          (Number(e.first_installment) || 0) +
-          (Number(e.second_installment) || 0) +
-          (Number(e.third_installment) || 0) ||
-          Number(e.value) ||
-          0;
-        revenueThisMonth += totalPayment;
-      });
-    } else {
-      // fallback: use converted leads' value
-      enrolledLeads.forEach((lead) => {
-        const dt = toDate(getLeadAddDate(lead));
-        const val = Number(lead.value) || 0;
-        if (
-          dt &&
-          dt.getMonth() === currentMonth &&
-          dt.getFullYear() === currentYear
-        ) {
-          revenueThisMonth += val;
-        }
-      });
-    }
-
-    // Upcoming calls/classes in next 7 days (by nextCall)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const sevenDaysFromNow = new Date(today);
-    sevenDaysFromNow.setDate(today.getDate() + 7);
-    sevenDaysFromNow.setHours(23, 59, 59, 999);
-
-    const upcomingClassesCalls = allLeads.filter((lead) => {
-      const dt = toDate(getNextCallDate(lead));
-      return dt && dt >= today && dt <= sevenDaysFromNow;
-    }).length;
-
-    // Chart: status distribution — include leads, enrollments (count as Converted), and trashed leads
-    const statusCounts = new Map();
-    const combined = [
-      ...(Array.isArray(allLeads) ? allLeads : []),
-      ...(Array.isArray(enrollments)
-        ? enrollments.map((e) => ({ ...e, status: "Converted" }))
-        : []),
-      ...(Array.isArray(trashedLeads) ? trashedLeads : []),
-    ];
-    combined.forEach((lead) => {
-      const s = lead.status || lead.state || "Unknown";
-      statusCounts.set(s, (statusCounts.get(s) || 0) + 1);
-    });
-    const leadStatusDistribution = Array.from(statusCounts.entries()).map(
-      ([name, value]) => ({ name, value })
-    );
-
-    // Chart: enrollment trends by month (for Converted)
-    const enrollByMonth = new Map(); // key "YYYY-MM" -> count
-    enrolledLeads.forEach((lead) => {
-      const dt = toDate(getLeadAddDate(lead));
-      if (!dt) return;
-      const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(
-        2,
-        "0"
-      )}`;
-      enrollByMonth.set(key, (enrollByMonth.get(key) || 0) + 1);
-    });
-    let enrollmentTrends = Array.from(enrollByMonth.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([monthYear, students]) => ({
-        month: monthYear.substring(5), // "MM"
-        students,
-      }));
-
-    // If no converted leads are present to build trends, fall back to enrollment records
-    if (
-      (!enrollmentTrends || enrollmentTrends.length === 0) &&
-      enrollmentsTrendData &&
-      enrollmentsTrendData.length > 0
-    ) {
-      enrollmentTrends = enrollmentsTrendData;
-    }
-
-    // Chart: leads by source
-    const bySource = new Map();
-    allLeads.forEach((lead) => {
-      const src = lead.source || "Unknown";
-      bySource.set(src, (bySource.get(src) || 0) + 1);
-    });
-    const leadsBySource = Array.from(bySource.entries()).map(
-      ([source, leads]) => ({
-        source,
-        leads,
-      })
-    );
-
-    // Tables
-    const resolveCourseName = (lead) => {
-      // prefer explicit backend-provided course_name on the lead
-      if (lead.course_name) return lead.course_name;
-
-      // Try to find a matching enrollment (the enrollments endpoint often stores course_name)
-      try {
-        if (enrollments && enrollments.length) {
-          const leadId = lead.id ?? lead._id ?? lead.pk ?? lead.lead ?? null;
-          if (leadId != null) {
-            const match = enrollments.find((e) => {
-              // enrollment may store the lead as `lead` numeric id or nested object
-              if (e.lead == null) return false;
-              return (
-                String(e.lead) === String(leadId) ||
-                String(e.lead?.id) === String(leadId)
-              );
-            });
-            if (match)
-              return (
-                match.course_name ||
-                match.course?.course_name ||
-                match.course ||
-                ""
-              );
-          }
-        }
-      } catch (err) {
-        // ignore and continue to other fallbacks
-      }
-
-      // lead.course may already be a name
-      if (lead.course && typeof lead.course === "string") {
-        const lc = lead.course.toLowerCase();
-        return coursesMap[lead.course] || coursesMap[lc] || lead.course;
-      }
-
-      // lead.course may be an id
-      if (
-        lead.course != null &&
-        (typeof lead.course === "number" || typeof lead.course === "string")
-      ) {
-        return coursesMap[String(lead.course)] || String(lead.course);
-      }
-
-      // nested object
-      if (lead.course && typeof lead.course === "object") {
-        return (
-          lead.course.course_name ||
-          lead.course.name ||
-          coursesMap[String(lead.course.id)] ||
-          ""
-        );
-      }
-      return "";
-    };
-
-    const latestLeads = [...allLeads]
-      .sort(
-        (a, b) =>
-          (toDate(getLeadAddDate(b))?.getTime() || 0) -
-          (toDate(getLeadAddDate(a))?.getTime() || 0)
-      )
-      .slice(0, 10)
-      .map((lead) => ({
-        _id: lead._id,
-        studentName: lead.studentName || lead.student_name || "",
-        email: lead.email || lead.email_address || "",
-        // Resolve course name using fetched courses when possible
-        course:
-          resolveCourseName(lead) || lead.course_name || lead.course || "",
-        status: lead.status,
-        registeredOn: getLeadAddDate(lead),
-      }));
-
-    const topCoursesMap = new Map(); // course -> { enrollments, revenue }
-    enrolledLeads.forEach((lead) => {
-      const courseName =
-        resolveCourseName(lead) ||
-        lead.course_name ||
-        lead.course ||
-        "Unknown Course";
-      const prev = topCoursesMap.get(courseName) || {
-        enrollments: 0,
-        revenue: 0,
-      };
-      topCoursesMap.set(courseName, {
-        enrollments: prev.enrollments + 1,
-        revenue: prev.revenue + (Number(lead.value) || 0),
-      });
-    });
-    const topCourses = Array.from(topCoursesMap.entries())
-      .map(([name, data]) => ({
-        name,
-        enrollments: data.enrollments,
-        revenue: `$${data.revenue.toLocaleString()}`,
-      }))
-      .sort((a, b) => b.enrollments - a.enrollments)
-      .slice(0, 7);
-
-    // --- Monthly Distribution Calculation ---
-    // Helper to get month string and full name
-    const getMonth = (date) => {
-      if (!date) return "Unknown";
-      const d = new Date(date);
-      if (isNaN(d.getTime())) return "Unknown";
-      const year = d.getFullYear();
-      const monthNum = d.getMonth();
-      const monthShort = String(monthNum + 1).padStart(2, "0");
-      const monthName = d.toLocaleString("default", { month: "long" });
-      return {
-        key: `${year}-${monthShort}`,
-        label: `${monthName} ${year}`,
-      };
-    };
-
-    // Use objects for month keys and labels
-    const monthLabels = {};
-    const leadsByMonth = {};
-    const enrollmentsByMonth = {};
-    const trashByMonth = {};
-    allLeads.forEach((lead) => {
-      const mObj = getMonth(getLeadAddDate(lead));
-      if (!mObj || !mObj.key) return;
-      leadsByMonth[mObj.key] = (leadsByMonth[mObj.key] || 0) + 1;
-      monthLabels[mObj.key] = mObj.label;
-    });
-    enrollments.forEach((enr) => {
-      // Prefer explicit add_date (user requested) then enrollment_date then created_at
-      const mObj = getMonth(
-        enr.add_date ||
-        enr.enrollment_date ||
-        enr.starting_date ||
-        enr.created_at
-      );
-      if (!mObj || !mObj.key) return;
-      enrollmentsByMonth[mObj.key] = (enrollmentsByMonth[mObj.key] || 0) + 1;
-      monthLabels[mObj.key] = mObj.label;
-    });
-    trashedLeads.forEach((lead) => {
-      const mObj = getMonth(getLeadAddDate(lead));
-      if (!mObj || !mObj.key) return;
-      trashByMonth[mObj.key] = (trashByMonth[mObj.key] || 0) + 1;
-      monthLabels[mObj.key] = mObj.label;
-    });
-
-    const allMonths = Array.from(
-      new Set([
-        ...Object.keys(leadsByMonth),
-        ...Object.keys(enrollmentsByMonth),
-        ...Object.keys(trashByMonth),
-      ])
-    ).sort();
-
-    const monthlyDistribution = allMonths.map((monthKey) => {
-      const base = leadsByMonth[monthKey] || 0; // active/non-enrolled leads
-      const enr = enrollmentsByMonth[monthKey] || 0; // enrolled (from enrollments endpoint)
-      const tr = trashByMonth[monthKey] || 0; // trashed
-      return {
-        month: monthLabels[monthKey] || monthKey,
-        totalLeads: base + enr + tr, // total combined (matches stat card logic)
-        enrollments: enr,
-        trash: tr,
-      };
-    });
-
-    return {
-      stats: {
-        totalLeads,
-        totalEnrolledStudents,
-        newLeadsThisMonth,
-        revenueThisMonth: `Rs ${revenueThisMonth.toLocaleString()}`,
-        upcomingClassesCalls,
-      },
-      charts: {
-        leadStatusDistribution,
-        enrollmentTrends,
-        leadsBySource,
-        monthlyDistribution,
-      },
-      latestLeads,
-      topCourses,
-    };
-  }, [allLeads, coursesMap, enrollments, enrollmentsTrendData, trashedLeads]);
-
-  // apiDash = real-time dashboard payload from /api/dashboard/
-  const apiDash = apiDashData;
-
-  // Normalize leads for CallReminders and today's call stats reuse
-  const remindersLeads = useMemo(
-    () =>
-      Array.isArray(allLeads)
-        ? allLeads.map((l, i) => ({
-          _id: l._id || l.id || `lead-${i}`,
-          id: l.id,
-          student_name: l.student_name || l.name || "",
-          phone_number: l.phone_number || l.phone || "",
-          whatsapp_number: l.whatsapp_number || l.whatsapp || "",
-          course_name: l.course_name || l.course || "",
-          next_call: l.next_call || l.nextCall || "",
-          assigned_to_username: l.assigned_to_username || l.assigned_to || "",
-          assigned_to: l.assigned_to || l.assigned_to_username || "",
-          status: l.status || "",
-          sub_status: l.sub_status || l.substatus || "",
-        }))
-        : [],
-    [allLeads]
-  );
-
-  // Compute today's calls: pending/completed counts respecting user role and local storage statuses
-  const todaysCalls = useMemo(() => {
-    const today = toYMD(new Date());
-    if (!today) return { pending: 0, completed: 0, total: 0 };
-
-    const username = (user?.username || user?.name || "").toString();
-    const norm = (v) =>
-      (v == null ? "" : String(v)).trim().toLowerCase().replace(/\s+/g, " ");
-    const usernameNorm = norm(username);
-    const emailLocal = usernameNorm.includes("@")
-      ? usernameNorm.split("@")[0]
-      : usernameNorm;
-    const userIdNorm = norm(user?.id);
-    const nameNorm = norm(user?.name || user?.full_name);
-
-    const visible = (remindersLeads || []).filter((l) => {
-      const isToday = toYMD(l.next_call) === today;
-      if (!isToday) return false;
-      if (isAdminLike) return true;
-      const a = norm(l.assigned_to);
-      const u = norm(l.assigned_to_username);
-      return (
-        a === usernameNorm ||
-        u === usernameNorm ||
-        a === emailLocal ||
-        u === emailLocal ||
-        (!!userIdNorm && (a === userIdNorm || u === userIdNorm)) ||
-        (!!nameNorm && (a === nameNorm || u === nameNorm))
-      );
-    });
-
-    // Local completion status map
-    let map = {};
+  const loadDashboard = useCallback(async (quiet = false) => {
+    if (!authToken) return;
+    const requestId = ++requestIdRef.current;
+    if (quiet) setRefreshing(true);
+    else setLoading(true);
+    setError("");
     try {
-      const raw = localStorage.getItem(`mcc:reminders:${username || "anon"}`);
-      map = raw ? JSON.parse(raw) : {};
-    } catch { }
-    const dateMap = map[today] || {};
+      const payload = await dashboardService.getDashboard(authToken, getRange(range));
+      if (requestId !== requestIdRef.current) return;
+      setData(payload);
+      setLastUpdatedAt(Date.now());
+    } catch (loadError) {
+      if (requestId === requestIdRef.current) {
+        setError(loadError.message || "The dashboard could not be loaded.");
+      }
+    } finally {
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
+  }, [authToken, range]);
 
-    let completed = 0;
-    visible.forEach((l, i) => {
-      const id = l._id || l.id || `lead-${i}`;
-      if (dateMap[id] === "completed") completed += 1;
+  useEffect(() => { loadDashboard(); }, [loadDashboard]);
+
+  useEffect(() => {
+    if (!authToken) return undefined;
+    let lastRefreshAt = Date.now();
+    const refreshVisibleDashboard = () => {
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      if (now - lastRefreshAt < 3000) return;
+      lastRefreshAt = now;
+      loadDashboard(true);
+    };
+    const interval = window.setInterval(refreshVisibleDashboard, 30000);
+    window.addEventListener("focus", refreshVisibleDashboard);
+    document.addEventListener("visibilitychange", refreshVisibleDashboard);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshVisibleDashboard);
+      document.removeEventListener("visibilitychange", refreshVisibleDashboard);
+    };
+  }, [authToken, loadDashboard]);
+
+  const summary = useMemo(() => data?.summary || {}, [data]);
+  const current = useMemo(() => summary.current || {}, [summary]);
+  const previous = useMemo(() => summary.previous || {}, [summary]);
+  const renewals = useMemo(() => summary.renewals || {}, [summary]);
+  const periodFrom = dateTimeBound(summary.period?.from);
+  const periodTo = dateTimeBound(summary.period?.to, true);
+  const firstName = user?.first_name || user?.username || localStorage.getItem("username") || "there";
+
+  const actionItems = useMemo(() => {
+    if (!data) return [];
+    const items = [];
+    const escalationIds = new Set((data.escalations || []).map((task) => String(task.id)));
+    if (isAdmin) {
+      (data.escalations || []).slice(0, 5).forEach((task) => items.push({
+        id: `escalation-${task.id}`, icon: AlertTriangle, tone: "bg-rose-50 text-rose-700",
+        title: task.school_name || "Overdue follow-up",
+        subtitle: `${task.system_id || "School"} · ${task.action || "Follow-up"}`,
+        badge: "Escalated", badgeTone: "bg-rose-100 text-rose-700",
+        meta: `Due ${formatDate(task.due_at)}`,
+        to: `/leads?search=${encodeURIComponent(task.school_name || task.system_id || "")}`,
+        priority: 0,
+      }));
+    }
+    const lateTasks = (data.overdue || []).filter((task) => !isAdmin || !escalationIds.has(String(task.id)));
+    lateTasks.slice(0, 4).forEach((task) => items.push({
+      id: `overdue-${task.id}`, icon: CircleAlert, tone: "bg-rose-50 text-rose-700",
+      title: task.school_name || "Follow-up overdue",
+      subtitle: `${task.system_id || "School"} · ${task.action || "Follow-up"}`,
+      badge: "Overdue", badgeTone: "bg-rose-50 text-rose-700",
+      meta: formatDate(task.due_at, { dateStyle: "medium", timeStyle: "short" }),
+      to: `/leads?search=${encodeURIComponent(task.school_name || "")}`,
+      priority: 1,
+    }));
+    if (isAdmin) {
+      (data.approval_queue || []).slice(0, 4).forEach((lead) => items.push({
+        id: `approval-${lead.id}`, icon: ClipboardCheck, tone: "bg-amber-50 text-amber-700",
+        title: lead.school_name, subtitle: `${lead.system_id} · submitted by ${lead.created_by || "team member"}`,
+        badge: "Approval", badgeTone: "bg-amber-100 text-amber-800",
+        meta: formatDate(lead.created_at), to: "/approvals", priority: 2,
+      }));
+      (data.demo_queue || []).slice(0, 4).forEach((demo) => items.push({
+        id: `assign-${demo.id}`, icon: CalendarClock, tone: "bg-violet-50 text-violet-700",
+        title: demo.school, subtitle: `${demo.system_id} · needs an academic assignee`,
+        badge: "Assign demo", badgeTone: "bg-violet-100 text-violet-700",
+        meta: formatDate(demo.at, { dateStyle: "medium", timeStyle: "short" }),
+        to: `/demo?unassigned=true&search=${encodeURIComponent(demo.school || "")}`, priority: 3,
+      }));
+    }
+    if (isAcademic || isAdmin) {
+      (data.feedback_queue || []).slice(0, 4).forEach((demo) => items.push({
+        id: `feedback-${demo.id}`, icon: FileCheck2, tone: "bg-orange-50 text-orange-700",
+        title: demo.school_name || "Demo feedback due",
+        subtitle: `${demo.system_id || "School"} · session complete, feedback needed`,
+        badge: "Feedback needed", badgeTone: "bg-orange-100 text-orange-800",
+        meta: formatDate(demo.demo_at, { dateStyle: "medium", timeStyle: "short" }),
+        to: `/demo?feedback=pending&search=${encodeURIComponent(demo.school_name || "")}`, priority: 4,
+      }));
+    }
+    (data.today || []).slice(0, 4).forEach((task) => items.push({
+      id: `today-${task.id}`, icon: Clock3, tone: "bg-blue-50 text-[#294998]",
+      title: task.school_name || "Follow-up due today",
+      subtitle: `${task.system_id || "School"} · ${task.action || "Follow-up"}`,
+      badge: "Today", badgeTone: "bg-blue-50 text-blue-700",
+      meta: formatDate(task.due_at, { dateStyle: "medium", timeStyle: "short" }),
+      to: `/leads?search=${encodeURIComponent(task.school_name || "")}`,
+      priority: 5,
+    }));
+    if (isAcademic || isB2B) {
+      (data.upcoming_demos || []).slice(0, 4).forEach((demo) => items.push({
+        id: `upcoming-${demo.id}`, icon: CalendarDays, tone: "bg-teal-50 text-teal-700",
+        title: demo.school_name || "Upcoming demo",
+        subtitle: `${demo.system_id || "School"}${demo.academic_username ? ` · ${demo.academic_username}` : ""}`,
+        badge: "Upcoming", badgeTone: "bg-teal-50 text-teal-700",
+        meta: formatDate(demo.demo_at, { dateStyle: "medium", timeStyle: "short" }),
+        to: `/demo?demo_status=scheduled&search=${encodeURIComponent(demo.school_name || "")}`,
+        priority: 6,
+      }));
+    }
+    if (isAdmin) {
+      [...(data.renewals || []).map((row) => ({ ...row, kind: "Contract renewal" })),
+        ...(data.mou_renewals || []).map((row) => ({ ...row, kind: "MOU end date" }))]
+        .slice(0, 6).forEach((row) => items.push({
+          id: `renewal-${row.kind}-${row.id || row.contract}`,
+          icon: Handshake, tone: "bg-emerald-50 text-emerald-700",
+          title: row.school, subtitle: `${row.system_id} · ${row.kind.toLowerCase()} coming up`,
+          badge: `${row.days_left}d`, badgeTone: row.days_left <= 30 ? "bg-amber-100 text-amber-800" : "bg-emerald-50 text-emerald-700",
+          meta: formatDate(row.end_date),
+          to: `/clients?search=${encodeURIComponent(row.school || "")}`, priority: 7,
+        }));
+    }
+    return items.sort((a, b) => a.priority - b.priority);
+  }, [data, isAdmin, isAcademic, isB2B]);
+
+  const cards = useMemo(() => {
+    if (!summary || !data) return [];
+    if (isAcademic) return [
+      { icon: CalendarDays, label: "Upcoming sessions", value: summary.upcoming_demos || 0, detail: "Demos scheduled for the next 7 days", href: "/demo?demo_status=scheduled", tone: "teal" },
+      { icon: FileCheck2, label: "Feedback to submit", value: summary.feedback_needed || 0, detail: "Completed sessions waiting for your notes", href: "/demo?feedback=pending", tone: "amber", attention: !!summary.feedback_needed },
+      { icon: CheckCircle2, label: "Demos completed", value: current.demos_completed || 0, detail: `${periodLabel(range).toLowerCase()} · compared with previous period`, change: comparison(current.demos_completed, previous.demos_completed), href: "/demo?demo_status=completed", tone: "emerald" },
+      { icon: School, label: "Assigned schools", value: summary.active_client_schools || 0, detail: "Active client schools assigned to you", href: "/clients", tone: "blue" },
+    ];
+    const common = [
+      { icon: Users, label: "New leads", value: current.new_leads || 0, detail: `${periodLabel(range)} · compared with last period`, change: comparison(current.new_leads, previous.new_leads), href: `/leads?created_from=${encodeURIComponent(periodFrom)}&created_to=${encodeURIComponent(periodTo)}`, tone: "blue" },
+      { icon: Activity, label: "Active pipeline", value: summary.active_pipeline || 0, detail: "Open schools in your pipeline", href: "/leads", tone: "violet" },
+      { icon: GraduationCap, label: "Enrolled schools", value: current.enrolled_schools || 0, detail: `Schools enrolled ${periodLabel(range).toLowerCase()}`, change: comparison(current.enrolled_schools, previous.enrolled_schools), href: `/clients?enrolled_from=${summary.period?.from || ""}&enrolled_to=${summary.period?.to || ""}`, tone: "emerald" },
+      { icon: TrendingUpIcon, label: "Lead conversion", value: `${current.conversion_rate || 0}%`, detail: "Leads added in this period that have enrolled so far", change: Number(current.conversion_rate || 0) === Number(previous.conversion_rate || 0) ? { text: "No change", positive: null } : { text: `${(Number(current.conversion_rate || 0) - Number(previous.conversion_rate || 0) > 0 ? "+" : "")}${(Number(current.conversion_rate || 0) - Number(previous.conversion_rate || 0)).toFixed(1)} points vs previous period`, positive: Number(current.conversion_rate || 0) > Number(previous.conversion_rate || 0) }, href: `/clients?converted_from=${summary.period?.from || ""}&converted_to=${summary.period?.to || ""}`, tone: "teal" },
+      { icon: CalendarDays, label: "Demos scheduled", value: current.demos_scheduled || 0, detail: `${current.demos_completed || 0} completed during this period`, change: comparison(current.demos_scheduled, previous.demos_scheduled), href: `/demo?demo_status=scheduled&from=${encodeURIComponent(periodFrom)}&to=${encodeURIComponent(periodTo)}`, tone: "violet" },
+      { icon: AlertTriangle, label: "Overdue follow-ups", value: summary.overdue_followups || 0, detail: "Tasks that are past their due date", href: "/leads?followup=overdue", tone: summary.overdue_followups ? "rose" : "emerald", attention: !!summary.overdue_followups },
+      { icon: Handshake, label: "Renewals due in 60 days", value: renewals.schools_60d || 0, detail: `${renewals.contracts_60d || 0} contracts · ${renewals.mous_60d || 0} MOUs`, href: "/clients?renewals=60", tone: "amber" },
+    ];
+    if (isAdmin || isB2B) common.push({
+      icon: Handshake,
+      label: "Agreed contract value",
+      value: formatNpr(current.agreed_contract_value),
+      detail: "Signed during this period · payments are tracked separately",
+      change: comparison(current.agreed_contract_value, previous.agreed_contract_value),
+      href: `/clients?contract_from=${summary.period?.from || ""}&contract_to=${summary.period?.to || ""}`,
+      tone: "teal",
     });
-    const total = visible.length;
-    const pending = Math.max(total - completed, 0);
-    return { pending, completed, total };
-  }, [remindersLeads, user, isAdminLike]);
+    return common;
+  }, [summary, data, isAcademic, isAdmin, isB2B, range, current, previous, renewals, periodFrom, periodTo]);
 
-  if (loading)
-    return <DelayedLoader message="Loading dashboard..." minMs={2000} />;
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px] p-8">
-        <div className="text-center max-w-sm">
-          <div className="w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center mx-auto mb-4">
-            <svg className="w-6 h-6 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-          </div>
-          <h3 className="text-[16px] font-[600] text-slate-900 mb-1">Failed to load dashboard</h3>
-          <p className="text-[13px] text-slate-500 mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[#294998] text-white text-[13px] font-[500] rounded-[8px] hover:bg-[#1E3776] transition-colors"
-          >
-            Reload Dashboard
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-[#F8FAFC] min-h-full">
-      {/* Page header */}
-      <div className="px-6 py-4 border-b border-slate-200 bg-white">
-        <h1 className="text-[20px] font-[600] leading-[28px] tracking-[-0.015em] text-slate-900">Dashboard</h1>
-        <p className="text-[13px] text-slate-500 leading-[18px] mt-0.5">Global Admission Intelligence — overview and metrics</p>
-      </div>
-      <div className="p-6">
-        {/* Call reminders widget */}
-        <div className="mb-6">
-          <CallReminders
-            leads={remindersLeads}
-            currentUser={user || {}}
-            isAdminLike={isAdminLike}
-          />
-        </div>
-
-        {/* Stat Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
-          <StatCard
-            title="Total Leads"
-            value={dashboardData.stats.totalLeads}
-            icon={UsersIcon}
-            description="Overall count"
-            colorClass="text-[#294998] bg-[#EDF2FC]"
-          />
-          <StatCard
-            title="Clients"
-            value={dashboardData.stats.totalEnrolledStudents}
-            icon={AcademicCapIcon}
-            description="Converted school clients"
-            colorClass="text-emerald-600 bg-emerald-50"
-          />
-          <StatCard
-            title="Archived Leads"
-            value={trashCount}
-            icon={GlobeAltIcon}
-            description="Archived / not interested"
-            colorClass="text-rose-600 bg-rose-50"
-          />
-          {isAdminLike && (
-            <StatCard
-              title="Revenue This Month"
-              value={dashboardData.stats.revenueThisMonth}
-              icon={CurrencyDollarIcon}
-              description="Converted lead value"
-              colorClass="text-teal-600 bg-teal-50"
-            />
-          )}
-          <StatCard
-            title="Today's Tasks"
-            value={`${(apiDash?.today?.length ?? todaysCalls.pending)} Due`}
-            icon={CalendarDaysIcon}
-            description={apiDash ? `${apiDash.overdue?.length ?? 0} overdue` : `Completed ${todaysCalls.completed}`}
-            colorClass="text-[#B8740C] bg-[#FEF7EB]"
-          />
-          {/* Unread notifications from /api/dashboard/ */}
-          {apiDash && (
-            <StatCard
-              title="Notifications"
-              value={apiDash.unread_notifications ?? 0}
-              icon={CalendarDaysIcon}
-              description="Unread alerts"
-              colorClass="text-violet-600 bg-violet-50"
-            />
-          )}
-          {/* Pending approvals (admin) */}
-          {isAdminLike && apiDash?.pending_approvals != null && (
-            <StatCard
-              title="Pending Approvals"
-              value={apiDash.pending_approvals}
-              icon={PlusIcon}
-              description="B2B leads awaiting approval"
-              colorClass="text-amber-600 bg-amber-50"
-            />
-          )}
-        </div>
-
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <ChartContainer
-            title="Lead Status Distribution"
-            description="Current breakdown of leads by their status."
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={dashboardData.charts.leadStatusDistribution}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                  nameKey="name"
-                >
-                  {dashboardData.charts.leadStatusDistribution.map(
-                    (entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={PIE_COLORS[index % PIE_COLORS.length]}
-                      />
-                    )
-                  )}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-
-          <ChartContainer
-            title="Student Enrollment Trends"
-            description='Monthly trend of "Converted" leads (by Add Date).'
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={dashboardData.charts.enrollmentTrends}
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="students"
-                  stroke="#294998"
-                  strokeWidth={2.5}
-                  activeDot={{ r: 6, fill: "#294998", stroke: "#EDF2FC", strokeWidth: 2 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-
-          <ChartContainer
-            title="Leads by Source"
-            description="Distribution of leads across various marketing channels."
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={dashboardData.charts.leadsBySource}
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="source"
-                  angle={-15}
-                  textAnchor="end"
-                  height={50}
-                />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="leads" fill="#294998" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </div>
-
-        {/* Monthly totals grouped: total leads, enrollments, trash */}
-        <div className="mb-8">
-          <ChartContainer title="Monthly Leads Breakdown (Total / Enrollments / Trash)">
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart
-                data={dashboardData.charts.monthlyDistribution}
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                barCategoryGap={30}
-                barGap={0}
-                stackOffset="none"
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="totalLeads" fill="#294998" name="Total Leads" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="enrollments" fill="#10B981" name="Enrollments" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="trash" fill="#E8A026" name="Trash" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </div>
-
-        {/* Latest Leads table below, full width */}
-        <div className="mb-8">
-          <LatestLeadsTable leads={dashboardData.latestLeads} />
-        </div>
-
-        {/* Map: show leads on map (defaults to Nepal/Kathmandu) */}
-        <ChartContainer
-          title="Geographical Lead Distribution"
-          description="Visualizing where your leads are coming from. Search by city or country."
-        >
-          <LeadMap
-            leads={dashboardData.latestLeads}
-            defaultCountry="Nepal"
-            defaultCity="Kathmandu"
-          />
-        </ChartContainer>
-      </div>{/* end p-6 */}
+  const stageData = summary.funnel || [];
+  const pipelineChartConfig = {
+    count: { label: "Schools", color: "#294998" },
+  };
+  const transitionMap = useMemo(() => {
+    const map = new Map();
+    (summary.stage_transitions || []).forEach((transition) => map.set(`${transition.from}→${transition.to}`, transition.count));
+    return map;
+  }, [summary.stage_transitions]);
+  if (loading) return (
+    <div className="grid min-h-[65vh] place-items-center bg-[#F5F7FB]">
+      <div className="flex items-center gap-3 text-sm font-medium text-slate-500"><LoaderCircle className="h-5 w-5 animate-spin text-[#294998]" />Getting your dashboard ready…</div>
     </div>
   );
+
+  if (error && !data) return (
+    <div className="grid min-h-[60vh] place-items-center p-6">
+      <div className="max-w-md rounded-2xl border border-rose-200 bg-white p-7 text-center shadow-sm">
+        <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-rose-50 text-rose-600"><AlertTriangle className="h-6 w-6" /></span>
+        <h1 className="mt-4 text-lg font-semibold text-slate-900">We couldn’t load your dashboard</h1>
+        <p className="mt-2 text-sm leading-6 text-slate-500">{error}</p>
+        <button onClick={() => loadDashboard()} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#294998] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1E3776]"><RefreshCw className="h-4 w-4" />Try again</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <main className="min-h-full bg-[#F5F7FB]">
+      <div className="mx-auto max-w-[1500px] space-y-5 px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
+        <header
+          className="relative isolate overflow-hidden rounded-[24px] bg-[#142B59] px-5 py-6 text-white shadow-[0_16px_45px_rgba(20,43,89,0.17)] sm:px-8 sm:py-7"
+          style={{ background: "radial-gradient(ellipse at 14% 0%, rgba(80, 137, 221, 0.48), transparent 43%), radial-gradient(ellipse at 86% 18%, rgba(232, 160, 38, 0.2), transparent 30%), linear-gradient(115deg, #101c3c 0%, #173665 56%, #235182 100%)" }}
+        >
+          <div className="pointer-events-none absolute -bottom-28 -right-20 h-72 w-72 rounded-full bg-sky-300/10 blur-[70px]" />
+          <svg aria-hidden="true" className="pointer-events-none absolute -right-12 -top-16 h-[150%] w-[62%] text-white/20" viewBox="0 0 640 360" fill="none" preserveAspectRatio="xMidYMid slice">
+            <path d="M168 376C215 297 263 246 304 170 352 82 435 39 671 65" stroke="currentColor" />
+            <path d="M201 383C247 309 292 262 333 185 381 98 465 55 689 80" stroke="currentColor" />
+            <path d="M236 391C280 321 322 278 363 201 411 113 494 71 706 96" stroke="currentColor" />
+            <path d="M277 400C316 335 354 294 393 217 442 130 521 88 724 112" stroke="currentColor" />
+            <path d="M318 409C352 350 388 311 425 233 472 148 547 104 741 128" stroke="currentColor" />
+            <path d="M407-19C439 42 482 86 538 112 581 132 622 138 665 138" stroke="#E8A026" strokeOpacity=".8" />
+            <circle cx="538" cy="112" r="3" fill="#F6C66B" />
+            <circle cx="363" cy="201" r="2" fill="white" fillOpacity=".8" />
+          </svg>
+          <div className="relative z-10 flex flex-col justify-between gap-6 md:flex-row md:items-end">
+            <div className="max-w-2xl">
+              <h1 className="text-[25px] font-semibold leading-tight tracking-[-0.035em] sm:text-[31px]">Good to see you, {firstName}.</h1>
+              <p className="mt-2 max-w-xl text-[13px] leading-6 text-blue-100/80">Here’s a quick look at what’s happening and what needs your attention.</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <label className="relative">
+                <span className="sr-only">Dashboard reporting period</span>
+                <select value={range} onChange={(event) => setRange(event.target.value)} className="h-10 appearance-none rounded-xl border border-white/15 bg-white/[0.09] py-2 pl-3.5 pr-9 text-[12px] font-semibold text-white outline-none transition hover:bg-white/[0.14] focus:ring-2 focus:ring-white/30">
+                  <option value="this_month" className="text-slate-900">This month</option>
+                  <option value="last_30" className="text-slate-900">Last 30 days</option>
+                  <option value="last_90" className="text-slate-900">Last 90 days</option>
+                  <option value="year_to_date" className="text-slate-900">Year to date</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-blue-100" />
+              </label>
+              <button aria-label="Refresh dashboard" onClick={() => loadDashboard(true)} className="grid h-10 w-10 place-items-center rounded-xl border border-white/15 bg-white/[0.09] text-white transition hover:bg-white/[0.16] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40">
+                <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+              </button>
+              <span className="w-full text-[10px] text-blue-100/60 sm:w-auto sm:text-right">
+                {formatDate(summary.period?.from)} – {formatDate(summary.period?.to)}
+                <span className="mt-1 block text-blue-100/75" aria-live="polite">
+                  {lastUpdatedAt
+                    ? `Refreshes automatically · Last updated ${new Date(lastUpdatedAt).toLocaleTimeString("en-NP", { hour: "2-digit", minute: "2-digit" })}`
+                    : "Refreshes automatically every 30 seconds"}
+                </span>
+              </span>
+            </div>
+          </div>
+        </header>
+
+        {error && <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">We couldn’t refresh everything, so you’re seeing the latest data we have.</div>}
+
+        <Surface
+          title="Needs your attention"
+          description={isAcademic ? "Your upcoming sessions and feedback to complete." : "Follow-ups, reviews, demos and renewals coming up."}
+          action={<span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600"><span className="h-1.5 w-1.5 rounded-full bg-[#E8A026]" />{actionItems.length} items</span>}
+        >
+          <div className="grid lg:grid-cols-[minmax(0,1fr)_270px]">
+            <div className="min-w-0 p-2 sm:p-3">
+              {actionItems.length ? (
+                <div className="divide-y divide-slate-100">
+                  {actionItems.slice(0, 8).map((item) => <ActionRow key={item.id} item={item} />)}
+                </div>
+              ) : (
+                <div className="flex min-h-[190px] flex-col items-center justify-center px-5 text-center">
+                  <span className="grid h-11 w-11 place-items-center rounded-2xl bg-emerald-50 text-emerald-600"><ShieldCheck className="h-5 w-5" /></span>
+                  <p className="mt-3 text-sm font-semibold text-slate-800">You are all caught up</p>
+                  <p className="mt-1 max-w-sm text-xs leading-5 text-slate-500">Nothing urgent is waiting for you right now.</p>
+                </div>
+              )}
+            </div>
+            <aside className="border-t border-slate-100 bg-slate-50/70 p-5 lg:border-l lg:border-t-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">At a glance</p>
+              <div className="mt-4 space-y-4">
+                <div className="flex items-center justify-between gap-3"><span className="inline-flex items-center gap-2 text-xs text-slate-600"><AlertTriangle className="h-4 w-4 text-rose-500" />Overdue follow-ups</span><b className="text-sm tabular-nums text-slate-900">{summary.overdue_followups || 0}</b></div>
+                <div className="flex items-center justify-between gap-3"><span className="inline-flex items-center gap-2 text-xs text-slate-600"><CalendarDays className="h-4 w-4 text-teal-600" />Upcoming demos</span><b className="text-sm tabular-nums text-slate-900">{summary.upcoming_demos || 0}</b></div>
+                <div className="flex items-center justify-between gap-3"><span className="inline-flex items-center gap-2 text-xs text-slate-600"><Bell className="h-4 w-4 text-violet-600" />Unread notifications</span><b className="text-sm tabular-nums text-slate-900">{data.unread_notifications || 0}</b></div>
+                {isAdmin && <div className="flex items-center justify-between gap-3"><span className="inline-flex items-center gap-2 text-xs text-slate-600"><ClipboardCheck className="h-4 w-4 text-amber-600" />Lead approvals</span><b className="text-sm tabular-nums text-slate-900">{data.pending_approvals || 0}</b></div>}
+                {(isAdmin || isAcademic) && <div className="flex items-center justify-between gap-3"><span className="inline-flex items-center gap-2 text-xs text-slate-600"><FileCheck2 className="h-4 w-4 text-orange-600" />Feedback to submit</span><b className="text-sm tabular-nums text-slate-900">{summary.feedback_needed || 0}</b></div>}
+                <div className="flex items-center justify-between gap-3"><span className="inline-flex items-center gap-2 text-xs text-slate-600"><Handshake className="h-4 w-4 text-emerald-600" />Schools due to renew</span><b className="text-sm tabular-nums text-slate-900">{renewals.schools_60d || 0}</b></div>
+              </div>
+              {isAdmin && <Link to="/approvals" className="mt-6 inline-flex items-center gap-1.5 text-xs font-semibold text-[#294998] hover:text-[#1E3776]">Review pending approvals <ArrowRight className="h-3.5 w-3.5" /></Link>}
+              {isAcademic && <Link to="/demo?demo_status=scheduled" className="mt-6 inline-flex items-center gap-1.5 text-xs font-semibold text-[#294998] hover:text-[#1E3776]">View your demo schedule <ArrowRight className="h-3.5 w-3.5" /></Link>}
+            </aside>
+          </div>
+        </Surface>
+
+        <section aria-label="Dashboard key performance indicators" className={`grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 ${isAcademic ? "2xl:grid-cols-4" : "2xl:grid-cols-4"}`}>
+          {cards.map((card) => <StatCard key={card.label} {...card} />)}
+        </section>
+
+        {!isAcademic && (
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.8fr)]">
+            <Surface title="Lead pipeline" description="See how many schools are at each stage, how long they’ve been there and where they’re moving next." action={<span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-[#294998]">{summary.active_pipeline || 0} active</span>}>
+              <div className="p-5 sm:p-6">
+                {stageData.length ? <>
+                  <ChartContainer config={pipelineChartConfig} className="h-[260px]" aria-label="Active leads by pipeline stage">
+                    <BarChart data={stageData} layout="vertical" margin={{ top: 4, right: 28, left: 4, bottom: 4 }} barCategoryGap={10} accessibilityLayer>
+                      <defs>
+                        <linearGradient id="pipelineBar" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="var(--color-count)" />
+                          <stop offset="100%" stopColor="#5278C8" />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 4" horizontal={false} />
+                      <XAxis type="number" domain={[0, (max) => Math.max(1, Math.ceil(max * 1.18))]} allowDecimals={false} axisLine={false} tickLine={false} tick={{ fill: "#94A3B8", fontSize: 10 }} />
+                      <YAxis type="category" dataKey="stage" width={112} axisLine={false} tickLine={false} tick={{ fill: "#475569", fontSize: 11, fontWeight: 500 }} />
+                      <ChartTooltip cursor={{ fill: "#F8FAFC" }} content={<ChartTooltipContent />} />
+                      <Bar dataKey="count" fill="url(#pipelineBar)" radius={[0, 6, 6, 0]} maxBarSize={19}>
+                        <LabelList dataKey="count" position="right" fill="#64748B" fontSize={10} fontWeight={600} />
+                      </Bar>
+                    </BarChart>
+                  </ChartContainer>
+                  <div className="mt-2 border-t border-slate-100 pt-3">
+                    <div className="mb-2 grid grid-cols-[minmax(0,1fr)_72px] gap-2 px-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400 sm:grid-cols-[minmax(90px,1fr)_95px_145px] sm:gap-3">
+                      <span>Stage</span><span className="text-right">Avg. time</span><span className="hidden text-right sm:block">Next stage movement</span>
+                    </div>
+                    {stageData.map((stage) => {
+                      const outgoing = (summary.stage_transitions || []).filter((item) => item.from === stage.stage).reduce((sum, item) => sum + item.count, 0);
+                      const nextStage = PIPELINE_STAGES[PIPELINE_STAGES.indexOf(stage.stage) + 1];
+                      const nextCount = nextStage ? transitionMap.get(`${stage.stage}→${nextStage}`) || 0 : 0;
+                      const moveShare = outgoing ? Math.round((nextCount / outgoing) * 100) : 0;
+                      return <div key={stage.stage} className="grid grid-cols-[minmax(0,1fr)_72px] gap-x-2 gap-y-1 rounded-lg px-2 py-2 text-xs hover:bg-slate-50 sm:grid-cols-[minmax(90px,1fr)_95px_145px] sm:gap-3">
+                        <span className="truncate font-medium text-slate-700">{stage.stage}<span className="ml-1.5 text-[10px] font-normal text-slate-400">{stage.count}</span></span>
+                        <span className="text-right tabular-nums text-slate-500">{stage.avg_wait_days} days</span>
+                        <span className="col-span-2 text-left tabular-nums text-[10px] text-slate-600 sm:col-span-1 sm:text-right">{stage.waiting_30d ? <span className="mr-1 font-semibold text-amber-700">{stage.waiting_30d} waiting 30d+ ·</span> : null}{nextStage ? <>{nextCount} to {nextStage} <span className="text-slate-400">· {moveShare}% of moves</span></> : <span className="text-slate-400">{outgoing} total stage moves</span>}</span>
+                      </div>;
+                    })}
+                  </div>
+                </> : <div className="grid min-h-[280px] place-items-center text-center text-sm text-slate-400">There are no active leads right now.</div>}
+                <p className="mt-3 text-[10px] leading-4 text-slate-400">We count time from the last stage change. If a lead hasn’t changed stages, we count from when it was created. Movement totals come from recorded history.</p>
+              </div>
+            </Surface>
+
+            <Surface title="School and contract health" description="Active schools and upcoming contract and MOU renewals.">
+                <div className="grid grid-cols-2 gap-3 p-5 pb-4">
+                <div className="rounded-xl bg-emerald-50/80 p-3.5"><p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">Active schools</p><p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 tabular-nums">{summary.active_client_schools || 0}</p><p className="mt-1 text-[10px] text-emerald-700/75">of {summary.total_client_schools || 0} client schools</p></div>
+                <div className="rounded-xl bg-amber-50/80 p-3.5"><p className="text-[10px] font-semibold uppercase tracking-wide text-amber-700">Due in 30 days</p><p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 tabular-nums">{renewals.schools_30d || 0}</p><p className="mt-1 text-[10px] text-amber-700/75">unique schools to renew</p></div>
+              </div>
+              <div className="border-t border-slate-100 px-5 py-3.5">
+                <div className="mb-2 flex items-center justify-between"><p className="text-[11px] font-semibold text-slate-700">Renewals in the next 60 days</p><Link to="/clients?renewals=60" className="text-[10px] font-semibold text-[#294998] hover:underline">All clients</Link></div>
+                {(() => {
+                  const rows = [...(data.renewals || []).map((row) => ({ ...row, kind: "Contract" })), ...(data.mou_renewals || []).map((row) => ({ ...row, kind: "MOU" }))].sort((a, b) => (a.days_left ?? 999) - (b.days_left ?? 999)).slice(0, 5);
+                  return rows.length ? <div className="divide-y divide-slate-100">{rows.map((row) => <Link key={`${row.kind}-${row.id || row.contract}`} to={`/clients?search=${encodeURIComponent(row.school || "")}`} className="flex items-center gap-3 py-2.5 first:pt-1 last:pb-0 hover:text-[#294998]">
+                    <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${row.days_left <= 30 ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-500"}`}><Handshake className="h-4 w-4" /></span>
+                    <span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-semibold text-slate-700">{row.school}</span><span className="mt-0.5 block text-[10px] text-slate-400">{row.system_id} · {row.kind} ends {formatDate(row.end_date)}</span></span>
+                    <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${row.days_left <= 30 ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-500"}`}>{row.days_left}d</span>
+                  </Link>)}</div> : <p className="py-5 text-center text-xs text-slate-400">No contracts or MOUs are due to end in the next 60 days.</p>;
+                })()}
+              </div>
+            </Surface>
+          </div>
+        )}
+
+        {isAdmin ? (
+          <Surface title="Team workload" description="See each team member’s open follow-ups and active leads." action={<Link to="/leads" className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#294998]">View lead pipeline <ArrowRight className="h-3.5 w-3.5" /></Link>}>
+            <div className="p-5 sm:p-6">
+              {(summary.team_workload || []).length ? <div className="grid gap-x-8 gap-y-4 md:grid-cols-2">
+                {(summary.team_workload || []).slice(0, 8).map((member) => {
+                  const max = Math.max(...summary.team_workload.map((row) => row.open_tasks), 1);
+                  return <div key={member.owner_id} className="min-w-0">
+                    <div className="mb-2 flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-2.5"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-blue-50 text-[11px] font-semibold uppercase text-[#294998]">{member.owner?.slice(0, 2) || "—"}</span><span className="truncate text-xs font-semibold text-slate-700">{member.owner}</span></div><span className="shrink-0 text-[10px] text-slate-400">{member.active_leads} leads · {member.open_tasks} tasks</span></div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-[#294998]" style={{ width: `${Math.max(4, member.open_tasks / max * 100)}%` }} /></div>
+                    {member.overdue > 0 && <p className="mt-1.5 text-[10px] font-medium text-rose-600">{member.overdue} overdue follow-up{member.overdue === 1 ? "" : "s"}</p>}
+                  </div>;
+                })}
+              </div> : <p className="py-6 text-center text-xs text-slate-400">There are no follow-ups assigned to the team right now.</p>}
+            </div>
+          </Surface>
+        ) : isAcademic ? (
+          <div className="grid gap-5 lg:grid-cols-2">
+            <Surface title="Upcoming sessions" description="Your demos scheduled for the next seven days." action={<Link to="/demo?demo_status=scheduled" className="text-[11px] font-semibold text-[#294998]">View full schedule</Link>}>
+              <div className="divide-y divide-slate-100 px-5 py-1">
+                {(data.upcoming_demos || []).length ? data.upcoming_demos.slice(0, 6).map((demo) => <Link key={demo.id} to={`/demo?demo_status=scheduled&search=${encodeURIComponent(demo.school_name || "")}`} className="flex items-center gap-3 py-3">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-teal-50 text-teal-700"><CalendarDays className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-slate-700">{demo.school_name}</span><span className="mt-1 block text-[10px] text-slate-400">{demo.system_id} · {demo.program || "Demo session"}</span></span><span className="shrink-0 text-right text-[10px] font-medium text-slate-500">{formatDate(demo.demo_at, { dateStyle: "medium", timeStyle: "short" })}</span>
+                </Link>) : <p className="py-8 text-center text-xs text-slate-400">No demos are scheduled for the next seven days.</p>}
+              </div>
+            </Surface>
+            <Surface title="Feedback queue" description="Completed sessions waiting for your feedback." action={<Link to="/demo?feedback=pending" className="text-[11px] font-semibold text-[#294998]">View feedback</Link>}>
+              <div className="divide-y divide-slate-100 px-5 py-1">
+                {(data.feedback_queue || []).length ? data.feedback_queue.slice(0, 6).map((demo) => <Link key={demo.id} to={`/demo?feedback=pending&search=${encodeURIComponent(demo.school_name || "")}`} className="flex items-center gap-3 py-3">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-orange-50 text-orange-700"><FileCheck2 className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-slate-700">{demo.school_name}</span><span className="mt-1 block text-[10px] text-slate-400">{demo.system_id} · {demo.program || "Demo session"}</span></span><span className="shrink-0 text-right text-[10px] font-medium text-slate-500">{formatDate(demo.demo_at, { dateStyle: "medium", timeStyle: "short" })}</span>
+                </Link>) : <p className="py-8 text-center text-xs text-slate-400">No feedback is waiting for you right now.</p>}
+              </div>
+            </Surface>
+          </div>
+        ) : (
+          <Surface title="Upcoming demos" description="See the next demos scheduled with your schools." action={<Link to="/demo" className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#294998]">View all demos <ArrowRight className="h-3.5 w-3.5" /></Link>}>
+            <div className="grid gap-3 p-5 sm:grid-cols-2 xl:grid-cols-4">
+              {(data.upcoming_demos || []).length ? data.upcoming_demos.slice(0, 4).map((demo) => <Link key={demo.id} to={`/demo?demo_status=scheduled&search=${encodeURIComponent(demo.school_name || "")}`} className="rounded-xl border border-slate-200 p-3.5 transition hover:border-blue-200 hover:bg-blue-50/30">
+                <div className="flex items-start justify-between gap-2"><span className="grid h-8 w-8 place-items-center rounded-lg bg-blue-50 text-[#294998]"><CalendarDays className="h-4 w-4" /></span><span className="text-[10px] font-medium text-slate-400">{formatDate(demo.demo_at, { dateStyle: "medium" })}</span></div>
+                <p className="mt-3 truncate text-xs font-semibold text-slate-800">{demo.school_name}</p><p className="mt-1 text-[10px] text-slate-400">{demo.system_id} · {formatDate(demo.demo_at, { timeStyle: "short" })}</p>
+              </Link>) : <p className="py-5 text-xs text-slate-400">No demos are scheduled for the next seven days.</p>}
+            </div>
+          </Surface>
+        )}
+
+        <footer className="flex flex-wrap items-center justify-between gap-2 px-1 pb-2 text-[10px] text-slate-400">
+          <span>Metrics reflect your role and the reporting period you selected.</span>
+          <span>Contract values show signed agreements. Payments are tracked separately.</span>
+        </footer>
+      </div>
+    </main>
+  );
 };
+
+const TrendingUpIcon = Activity;
 
 export default Dashboard;

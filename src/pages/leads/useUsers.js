@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
 import { BASE_URL } from "../../config";
 
-export default function useUsers(authToken) {
+export default function useUsers(authToken, enabled = true) {
   const [users, setUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
 
   useEffect(() => {
-    if (!authToken) return;
+    if (!authToken || !enabled) {
+      setUsers([]);
+      setUsersLoading(false);
+      return undefined;
+    }
     let cancelled = false;
     const fetchUsers = async () => {
       setUsersLoading(true);
@@ -36,7 +40,7 @@ export default function useUsers(authToken) {
     return () => {
       cancelled = true;
     };
-  }, [authToken]);
+  }, [authToken, enabled]);
 
   return { users, usersLoading };
 }

@@ -4,8 +4,8 @@ import ImportCsvButton from "./ImportCsvButton";
 
 const LeadsHeader = ({
   handleOpenAddModal,
+  canManageLeads,
   authToken,
-  courses,
   handleRefresh,
   handleExport,
   fetchingAll,
@@ -27,7 +27,7 @@ const LeadsHeader = ({
             </span>
           </div>
           <p className="text-[13px] text-slate-500 mt-1">
-            Manage, filter, import and track student inquiries across all intake channels.
+            Manage, filter, import and track school leads across intake channels.
           </p>
         </div>
 
@@ -52,18 +52,18 @@ const LeadsHeader = ({
             Refresh
           </button>
 
-          <ImportCsvButton
-            authToken={authToken}
-            courses={courses}
-            onImported={handleRefresh}
-            id="headerCsvUpload"
-            customButton={
-              <div className="flex items-center gap-2 px-3.5 py-2 rounded-[8px] text-[13px] font-[500] bg-[#EEF2F6] hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors">
-                <FileUp className="h-4 w-4" />
-                Import CSV
-              </div>
-            }
-          />
+          {canManageLeads && (
+            <ImportCsvButton
+              authToken={authToken}
+              id="headerCsvUpload"
+              customButton={
+                <div className="flex items-center gap-2 px-3.5 py-2 rounded-[8px] text-[13px] font-[500] bg-[#EEF2F6] hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors">
+                  <FileUp className="h-4 w-4" />
+                  Import CSV / Excel
+                </div>
+              }
+            />
+          )}
 
           <button
             onClick={handleExport}
@@ -73,13 +73,15 @@ const LeadsHeader = ({
             Export CSV
           </button>
 
-          <button
-            onClick={handleOpenAddModal}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-[8px] text-[13px] font-[500] bg-[#294998] hover:bg-[#1e3776] text-white shadow-xs transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-            Add New Lead
-          </button>
+          {canManageLeads && (
+            <button
+              onClick={handleOpenAddModal}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-[8px] text-[13px] font-[500] bg-[#294998] hover:bg-[#1e3776] text-white shadow-xs transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              Add New Lead
+            </button>
+          )}
         </div>
       </div>
 

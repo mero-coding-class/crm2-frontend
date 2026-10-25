@@ -1,12 +1,12 @@
 import { useEffect } from "react";
-import { deduplicateLeads } from "./utils";
+import { RETURNED_TO_LEADS_STORAGE_KEY } from "../clients/returnedToLeadsStore";
 
 export default function useGlobalLeadEvents(
   authToken,
-  allLeadsFullRef,
   setToast,
   handleRefresh,
-  setAllLeads
+  setAllLeads,
+  currentPage = 1
 ) {
   useEffect(() => {
     if (!authToken) return;
@@ -18,31 +18,21 @@ export default function useGlobalLeadEvents(
         ? `Successfully imported ${importedCount} leads`
         : "CSV import completed successfully";
       setToast({ show: true, message, type: "success" });
-      allLeadsFullRef.current = false;
       if (importDebounceRef.current) clearTimeout(importDebounceRef.current);
-      importDebounceRef.current = setTimeout(() => handleRefresh(), 700);
+      importDebounceRef.current = setTimeout(() => {
+        handleRefresh().catch((error) => console.warn("Could not refresh imported leads", error));
+      }, 700);
     };
 
-    const onLeadUpdated = () => {};
-
-    const onLeadRestored = (e) => {
-      try {
-        const restored = e?.detail?.lead;
-        if (!restored || !setAllLeads) return;
-        setAllLeads((prev) => {
-          const id = String(restored.id ?? restored._id ?? "");
-          const filtered = (prev || []).filter(
-            (l) => String(l.id ?? l._id ?? "") !== id
-          );
-          return deduplicateLeads([restored, ...filtered]);
-        });
-        setToast?.({ show: true, type: "success", message: "Lead restored and moved to top" });
-      } catch (err) {
-        console.warn("onLeadRestored handler failed:", err);
-      }
+    const onLeadCreated = () => {
+      handleRefresh(1).catch((error) => console.warn("Could not refresh newly created lead", error));
     };
 
-    const onEnrollmentCreated = () => {};
+    const onLeadRestored = () => {
+      handleRefresh(currentPage).catch((error) => {
+        console.warn("Could not refresh restored leads", error);
+      });
+    };
 
     // When a lead is converted (and enrollment is created), remove it from the Leads list immediately
     const onLeadConverted = (e) => {
@@ -56,60 +46,32 @@ export default function useGlobalLeadEvents(
       }
     };
 
+    const onClientReturnedToLeads = () => {
+      handleRefresh(currentPage).catch((error) => {
+        console.warn("Could not refresh leads after a client was returned", error);
+      });
+    };
+
+    const onReturnedClientStorageChange = (event) => {
+      if (event.key === RETURNED_TO_LEADS_STORAGE_KEY) onClientReturnedToLeads();
+    };
+
     window.addEventListener("crm:imported", onImported);
-    window.addEventListener("crm:leadUpdated", onLeadUpdated);
+    window.addEventListener("crm:leadCreated", onLeadCreated);
     window.addEventListener("crm:leadRestored", onLeadRestored);
-    window.addEventListener("crm:enrollmentCreated", onEnrollmentCreated);
-  window.addEventListener("crm:leadConverted", onLeadConverted);
+    window.addEventListener("crm:leadConverted", onLeadConverted);
+    window.addEventListener("crm:clientReturnedToLeads", onClientReturnedToLeads);
+    window.addEventListener("storage", onReturnedClientStorageChange);
 
     return () => {
       window.removeEventListener("crm:imported", onImported);
-      window.removeEventListener("crm:leadUpdated", onLeadUpdated);
+      window.removeEventListener("crm:leadCreated", onLeadCreated);
       window.removeEventListener("crm:leadRestored", onLeadRestored);
-      window.removeEventListener("crm:enrollmentCreated", onEnrollmentCreated);
       window.removeEventListener("crm:leadConverted", onLeadConverted);
+      window.removeEventListener("crm:clientReturnedToLeads", onClientReturnedToLeads);
+      window.removeEventListener("storage", onReturnedClientStorageChange);
       if (importDebounceRef.current) clearTimeout(importDebounceRef.current);
     };
-  }, [authToken, allLeadsFullRef, setToast, handleRefresh, setAllLeads]);
+  }, [authToken, setToast, handleRefresh, setAllLeads, currentPage]);
 
-  // On mount, pick up any restored lead(s) persisted by TrashPage before navigation
-  useEffect(() => {
-    if (!authToken || !setAllLeads) return;
-    try {
-      const rawList = localStorage.getItem("crm:restoredLeads");
-      if (rawList) {
-        const arr = JSON.parse(rawList) || [];
-        if (Array.isArray(arr) && arr.length) {
-          setAllLeads((prev) => {
-            const existing = prev || [];
-            const filtered = existing.filter(
-              (l) => !arr.some((r) => String(r.id ?? r._id ?? "") === String(l.id ?? l._id ?? ""))
-            );
-            return deduplicateLeads([...arr, ...filtered]);
-          });
-          setToast?.({ show: true, type: "success", message: `Restored ${arr.length} lead(s) and moved to top` });
-        }
-      } else {
-        const raw = localStorage.getItem("crm:restoredLead");
-        if (raw) {
-          const restored = JSON.parse(raw);
-          if (restored && typeof restored === "object") {
-            setAllLeads((prev) => {
-              const id = String(restored.id ?? restored._id ?? "");
-              const filtered = (prev || []).filter(
-                (l) => String(l.id ?? l._id ?? "") !== id
-              );
-              return deduplicateLeads([restored, ...filtered]);
-            });
-            setToast?.({ show: true, type: "success", message: "Lead restored and moved to top" });
-          }
-        }
-      }
-    } catch (e) {
-      // ignore parse errors
-    } finally {
-      try { localStorage.removeItem("crm:restoredLead"); } catch {}
-      try { localStorage.removeItem("crm:restoredLeads"); } catch {}
-    }
-  }, [authToken, setAllLeads, setToast]);
 }
