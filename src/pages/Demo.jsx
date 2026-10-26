@@ -17,7 +17,7 @@ import {
   AlertTriangle,
   Loader2,
   MessageSquare,
-  UserCheck,
+  Trash2,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { demoService, leadService } from "../services/api";
@@ -95,11 +95,10 @@ const Demo = () => {
   const [viewingDemo, setViewingDemo] = useState(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackDemo, setFeedbackDemo] = useState(null);
-  const [assignOpen, setAssignOpen] = useState(false);
-  const [assignDemo, setAssignDemoState] = useState(null);
+  const [deletingDemo, setDeletingDemo] = useState(null);
 
   // ── Forms ──────────────────────────────────────────────────────────────────
-  const emptyCreate = { lead: "", demo_at: "", details: "", contact_person: "", phone: "" };
+  const emptyCreate = { lead: "", demo_at: "", details: "", contact_person: "", phone: "", assigned_teacher: "" };
   const [createForm, setCreateForm] = useState(emptyCreate);
 
   const emptyEdit = { demo_at: "", details: "", demo_status: "", contact_person: "", phone: "" };
@@ -107,9 +106,6 @@ const Demo = () => {
 
   const emptyFeedback = { outcome: "", program: "", feedback_notes: "" };
   const [feedbackForm, setFeedbackForm] = useState(emptyFeedback);
-
-  const emptyAssign = { academic: "", reason: "" };
-  const [assignForm, setAssignForm] = useState(emptyAssign);
 
   // ── Fetch demos ─────────────────────────────────────────────────────────────
   const fetchDemos = useCallback(async () => {
@@ -168,6 +164,7 @@ const Demo = () => {
         (d.school_name || "").toLowerCase().includes(q) ||
         (d.system_id || "").toLowerCase().includes(q) ||
         (d.contact_person || "").toLowerCase().includes(q) ||
+        (d.assigned_teacher || "").toLowerCase().includes(q) ||
         (d.academic_username || "").toLowerCase().includes(q) ||
         (d.details || "").toLowerCase().includes(q)
       );
@@ -206,6 +203,7 @@ const Demo = () => {
         details: createForm.details || "",
         contact_person: createForm.contact_person || "",
         phone: createForm.phone || "",
+        assigned_teacher: createForm.assigned_teacher || "",
       };
       await demoService.createDemo(payload, authToken);
       setCreateOpen(false);
@@ -278,34 +276,16 @@ const Demo = () => {
     }
   };
 
-  // ── Handlers: Assign ───────────────────────────────────────────────────────
-  const openAssign = (demo) => {
-    setAssignDemoState(demo);
-    setAssignForm(emptyAssign);
-    setSaveError(null);
-    setAssignOpen(true);
-  };
-
-  const handleAssign = async (e) => {
-    e.preventDefault();
-    if (!assignDemo) return;
-    if (!assignForm.academic || !assignForm.reason.trim()) {
-      setSaveError("Academic user ID and reason are both required.");
-      return;
-    }
+  const handleDelete = async () => {
+    if (!deletingDemo) return;
     setSaving(true);
     setSaveError(null);
     try {
-      await demoService.assignDemo(
-        assignDemo.id,
-        { academic: Number(assignForm.academic), reason: assignForm.reason },
-        authToken
-      );
-      setAssignOpen(false);
-      setAssignDemoState(null);
+      await demoService.deleteDemo(deletingDemo.id, authToken);
+      setDeletingDemo(null);
       fetchDemos();
     } catch (e) {
-      setSaveError(e.message || "Failed to assign academic.");
+      setSaveError(e.message || "Failed to delete demo.");
     } finally {
       setSaving(false);
     }
@@ -382,7 +362,7 @@ const Demo = () => {
           <input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search school, contact, academic…"
+            placeholder="Search school or contact…"
             className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-[8px] text-[13px] bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#294998]/20 focus:border-[#294998]"
           />
         </div>
@@ -428,10 +408,10 @@ const Demo = () => {
             {/* Table */}
             <div className="bg-white rounded-[12px] border border-slate-200 overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="min-w-[760px] w-full text-[13px]">
+                <table className="min-w-[900px] w-full text-[13px]">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50/60">
-                    {["School", "Demo Date/Time", "Status", "Academic", "Contact", "Actions"].map((h) => (
+                    {["School", "Demo Date/Time", "Status", "Assigned Teacher", "Contact", "Actions"].map((h) => (
                       <th key={h} className="text-left px-4 py-3 font-[600] text-slate-500 text-[11px] uppercase tracking-wide whitespace-nowrap">
                         {h}
                       </th>
@@ -462,7 +442,7 @@ const Demo = () => {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-slate-600">
-                          {demo.academic_username || <span className="text-slate-400 italic">Unassigned</span>}
+                          {demo.assigned_teacher || "—"}
                         </td>
                         <td className="px-4 py-3 text-slate-600">
                           {demo.contact_person || "—"}
@@ -487,16 +467,6 @@ const Demo = () => {
                                 <Pencil className="w-4 h-4" />
                               </button>
                             )}
-                            {/* Assign: admin only */}
-                            {isAdmin && demo.demo_status === "scheduled" && (
-                              <button
-                                onClick={() => openAssign(demo)}
-                                className="p-1.5 rounded-[6px] text-slate-500 hover:text-[#294998] hover:bg-[#EDF2FC] transition-colors"
-                                title="Assign Academic"
-                              >
-                                <UserCheck className="w-4 h-4" />
-                              </button>
-                            )}
                             {/* Feedback: academic assigned, or admin */}
                             {demo.demo_status === "scheduled" &&
                               (isAdmin || (isAcademic && demo.academic === user?.id)) && (
@@ -508,6 +478,16 @@ const Demo = () => {
                                   <MessageSquare className="w-4 h-4" />
                                 </button>
                               )}
+                            {(isAdmin || isB2b) && (
+                              <button
+                                onClick={() => { setDeletingDemo(demo); setSaveError(null); }}
+                                className="inline-flex items-center gap-1 rounded-[6px] px-2 py-1.5 text-[11px] font-[600] text-red-600 hover:bg-red-50 transition-colors"
+                                title="Delete demo"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                Delete
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -560,8 +540,8 @@ const Demo = () => {
           <DetailRow label="Demo Date" value={fmt(viewingDemo.demo_at)} />
           <DetailRow label="Contact Person" value={viewingDemo.contact_person} />
           <DetailRow label="Phone" value={viewingDemo.phone} />
+          <DetailRow label="Assigned Teacher" value={viewingDemo.assigned_teacher} />
           <DetailRow label="Details" value={viewingDemo.details} />
-          <DetailRow label="Academic" value={viewingDemo.academic_username || "—"} />
           {viewingDemo.demo_status === "completed" && (
             <>
               <hr className="my-3 border-slate-100" />
@@ -620,6 +600,15 @@ const Demo = () => {
                 onChange={(e) => setCreateForm((f) => ({ ...f, phone: e.target.value }))}
                 className={inputCls}
                 placeholder="Phone number"
+              />
+            </FormGroup>
+            <FormGroup label="Assigned Teacher">
+              <input
+                type="text"
+                value={createForm.assigned_teacher}
+                onChange={(e) => setCreateForm((f) => ({ ...f, assigned_teacher: e.target.value }))}
+                className={inputCls}
+                placeholder="Teacher's name"
               />
             </FormGroup>
             <FormGroup label="Details">
@@ -730,36 +719,26 @@ const Demo = () => {
         </Modal>
       )}
 
-      {/* ─── Assign Modal ──────────────────────────────────────────────────────── */}
-      {assignOpen && assignDemo && (
-        <Modal title={`Assign Academic — ${assignDemo.school_name}`} onClose={() => setAssignOpen(false)}>
-          <form onSubmit={handleAssign} className="space-y-4">
-            <p className="text-[13px] text-slate-500">
-              Enter the <strong>User ID</strong> of the academic staff member to assign.
-            </p>
-            <FormGroup label="Academic User ID *">
-              <input
-                type="number"
-                required
-                value={assignForm.academic}
-                onChange={(e) => setAssignForm((f) => ({ ...f, academic: e.target.value }))}
-                className={inputCls}
-                placeholder="User ID (integer)"
-              />
-            </FormGroup>
-            <FormGroup label="Reason *">
-              <textarea
-                rows={3}
-                required
-                value={assignForm.reason}
-                onChange={(e) => setAssignForm((f) => ({ ...f, reason: e.target.value }))}
-                className={inputCls}
-                placeholder="Why this academic is assigned to this demo"
-              />
-            </FormGroup>
-            {saveError && <p className="text-red-600 text-[12px]">{saveError}</p>}
-            <ModalActions saving={saving} onCancel={() => setAssignOpen(false)} label="Assign Academic" />
-          </form>
+      {deletingDemo && (
+        <Modal title="Delete Demo" onClose={() => setDeletingDemo(null)}>
+          <p className="text-[13px] leading-5 text-slate-600">
+            Delete the demo for <strong>{deletingDemo.school_name || deletingDemo.system_id}</strong> scheduled on <strong>{fmt(deletingDemo.demo_at)}</strong>? This action cannot be undone.
+          </p>
+          {saveError && <p className="text-red-600 text-[12px]">{saveError}</p>}
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setDeletingDemo(null)}
+              disabled={saving}
+              className="px-3 py-2 text-[13px] font-[500] text-slate-600 border border-slate-200 rounded-[8px] hover:bg-slate-50 disabled:opacity-50"
+            >Cancel</button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={saving}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-[13px] font-[600] text-white bg-red-600 rounded-[8px] hover:bg-red-700 disabled:opacity-50"
+            ><Trash2 className="w-3.5 h-3.5" />{saving ? "Deleting…" : "Delete Demo"}</button>
+          </div>
         </Modal>
       )}
     </div>

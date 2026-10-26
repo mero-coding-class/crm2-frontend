@@ -18,7 +18,6 @@ import {
   X,
   ChevronRight,
   Home,
-  Bell,
   Search,
   Settings,
   User,
@@ -30,7 +29,7 @@ import {
 } from "lucide-react";
 import { AuthContext } from "../context/AuthContext.jsx";
 import { cn } from "../lib/utils.js";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip.jsx";
+import { TooltipProvider } from "../components/ui/tooltip.jsx";
 
 const getRole = () => (localStorage.getItem("role") || "").trim().toLowerCase();
 const getUsername = () => (localStorage.getItem("username") || "").trim();
@@ -309,7 +308,7 @@ const MainLayout = () => {
             {/* Breadcrumb */}
             <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-[13px] min-w-0">
               {breadcrumbs.map((b, i) => (
-                <React.Fragment key={b.to}>
+                <React.Fragment key={`${i}-${b.to}`}>
                   {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-slate-300 shrink-0" />}
                   {i < breadcrumbs.length - 1 ? (
                     <Link
@@ -346,17 +345,6 @@ const MainLayout = () => {
                 <span className="flex-1 text-left">Search…</span>
                 <span className="ml-auto text-[11px] font-[500] px-1.5 py-0.5 rounded bg-slate-200 text-slate-500 shrink-0">⌘K</span>
               </button>
-
-              {/* Notifications */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button className="relative h-8 w-8 rounded-[6px] border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 transition-colors">
-                    <Bell className="h-4 w-4" />
-                    <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-[#e8a026] border border-white" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Notifications</TooltipContent>
-              </Tooltip>
 
               {/* Profile avatar + dropdown */}
               <div className="relative">

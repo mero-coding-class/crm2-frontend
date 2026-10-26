@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   XMarkIcon,
   CalendarDaysIcon,
@@ -142,10 +142,12 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
   }, [subStatus, subStatusOptions]);
 
   const [saving, setSaving] = useState(false);
+  const submittingRef = useRef(false);
   const [error, setError] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submittingRef.current) return;
     if (!remarks.trim()) {
       setError("Remarks are required.");
       return;
@@ -154,6 +156,7 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
       setError("Follow-up date is required.");
       return;
     }
+    submittingRef.current = true;
     setSaving(true);
     setError(null);
 
@@ -174,6 +177,7 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
     } catch (err) {
       setError(err?.message || "Failed to save activity. Please try again.");
     } finally {
+      submittingRef.current = false;
       setSaving(false);
     }
   };

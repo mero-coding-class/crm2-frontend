@@ -454,13 +454,12 @@ export const demoService = {
     return handleResponse(response);
   },
 
-  /** Admin-only: assign an academic to a demo. */
-  assignDemo: async (id, { academic, reason }, authToken) => {
+  /** Delete a demo the current user is allowed to manage. */
+  deleteDemo: async (id, authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await apiFetch(`${BASE_URL}/demos/${id}/assign/`, {
-      method: "POST",
-      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ academic, reason }),
+    const response = await apiFetch(`${BASE_URL}/demos/${id}/`, {
+      method: "DELETE",
+      headers: { Authorization: `Token ${authToken}` },
     });
     return handleResponse(response);
   },
