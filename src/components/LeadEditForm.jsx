@@ -29,6 +29,7 @@ const LeadEditForm = ({
   formData,
   onChange,
   onSubmit,
+  validationError = "",
   user = {},
   onClose,
 }) => {
@@ -47,6 +48,11 @@ const LeadEditForm = ({
       onSubmit={onSubmit}
       className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
     >
+      {validationError && (
+        <div className="col-span-1 sm:col-span-2 lg:col-span-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert">
+          {validationError}
+        </div>
+      )}
       {/* ── READ-ONLY SECTION ── */}
       <div className="col-span-1 sm:col-span-2 lg:col-span-3 text-sm font-semibold text-gray-500 border-t pt-3 mt-1 uppercase tracking-wider">
         System Info (Read-only)
@@ -161,7 +167,9 @@ const LeadEditForm = ({
             id="school_name"
             name="school_name"
             value={formData.school_name || ""}
+            maxLength={255}
             onChange={onChange}
+            required
             className={inputClass}
             placeholder="Full registered school name"
           />
@@ -187,6 +195,7 @@ const LeadEditForm = ({
           id="district"
           name="district"
           value={formData.district || ""}
+          maxLength={100}
           onChange={onChange}
           className={inputClass}
           placeholder="e.g. Kathmandu"
@@ -204,6 +213,7 @@ const LeadEditForm = ({
           id="municipality"
           name="municipality"
           value={formData.municipality || ""}
+          maxLength={100}
           onChange={onChange}
           className={inputClass}
           placeholder="e.g. Kathmandu Metropolitan City"
@@ -221,6 +231,7 @@ const LeadEditForm = ({
           id="address"
           name="address"
           value={formData.address || ""}
+          maxLength={255}
           onChange={onChange}
           className={inputClass}
           placeholder="Street / Ward / Landmark"
@@ -243,6 +254,7 @@ const LeadEditForm = ({
           id="contact_person"
           name="contact_person"
           value={formData.contact_person || ""}
+          maxLength={255}
           onChange={onChange}
           className={inputClass}
           required
@@ -259,6 +271,9 @@ const LeadEditForm = ({
           id="contact_number"
           name="contact_number"
           value={formData.contact_number || ""}
+          maxLength={32}
+          inputMode="tel"
+          title="Enter exactly 10 local digits. A +977 country code is accepted."
           onChange={onChange}
           className={inputClass}
           required
@@ -275,6 +290,7 @@ const LeadEditForm = ({
           id="email"
           name="email"
           value={formData.email || ""}
+          maxLength={254}
           onChange={onChange}
           className={inputClass}
           required
@@ -291,6 +307,7 @@ const LeadEditForm = ({
           id="alt_contact_person"
           name="alt_contact_person"
           value={formData.alt_contact_person || ""}
+          maxLength={255}
           onChange={onChange}
           className={inputClass}
           placeholder="Secondary contact"
@@ -307,6 +324,9 @@ const LeadEditForm = ({
           id="alt_number"
           name="alt_number"
           value={formData.alt_number || ""}
+          maxLength={32}
+          inputMode="tel"
+          title="Enter a landline with 7 to 10 local digits."
           onChange={onChange}
           className={inputClass}
           placeholder="01-XXXXXXX"
@@ -323,6 +343,7 @@ const LeadEditForm = ({
           id="social_media"
           name="social_media"
           value={formData.social_media || ""}
+          maxLength={500}
           onChange={onChange}
           className={inputClass}
           placeholder="Facebook, Website URL..."

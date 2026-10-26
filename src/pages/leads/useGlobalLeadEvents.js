@@ -34,6 +34,12 @@ export default function useGlobalLeadEvents(
       });
     };
 
+    const onApprovalUpdated = () => {
+      handleRefresh(currentPage, undefined, { silent: true }).catch((error) => {
+        console.warn("Could not refresh leads after an approval decision", error);
+      });
+    };
+
     // When a lead is converted (and enrollment is created), remove it from the Leads list immediately
     const onLeadConverted = (e) => {
       try {
@@ -59,6 +65,7 @@ export default function useGlobalLeadEvents(
     window.addEventListener("crm:imported", onImported);
     window.addEventListener("crm:leadCreated", onLeadCreated);
     window.addEventListener("crm:leadRestored", onLeadRestored);
+    window.addEventListener("crm:approvalUpdated", onApprovalUpdated);
     window.addEventListener("crm:leadConverted", onLeadConverted);
     window.addEventListener("crm:clientReturnedToLeads", onClientReturnedToLeads);
     window.addEventListener("storage", onReturnedClientStorageChange);
@@ -67,6 +74,7 @@ export default function useGlobalLeadEvents(
       window.removeEventListener("crm:imported", onImported);
       window.removeEventListener("crm:leadCreated", onLeadCreated);
       window.removeEventListener("crm:leadRestored", onLeadRestored);
+      window.removeEventListener("crm:approvalUpdated", onApprovalUpdated);
       window.removeEventListener("crm:leadConverted", onLeadConverted);
       window.removeEventListener("crm:clientReturnedToLeads", onClientReturnedToLeads);
       window.removeEventListener("storage", onReturnedClientStorageChange);

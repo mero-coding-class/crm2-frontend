@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { BASE_URL } from "../config";
 import { courseService } from "../services/api";
+import { isValidEmail, isValidPrice } from "../utils/validation";
 import {
   Users,
   UserPlus,
@@ -72,7 +73,8 @@ const Settings = () => {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [userForm, setUserForm] = useState({
     username: "",
-    role: "sales_rep",
+    email: "",
+    role: "b2b",
     password: "",
   });
   const [userLoading, setUserLoading] = useState(false);
@@ -82,7 +84,8 @@ const Settings = () => {
   const [editingUser, setEditingUser] = useState(null);
   const [editUserForm, setEditUserForm] = useState({
     username: "",
-    role: "sales_rep",
+    email: "",
+    role: "b2b",
     password: "",
   });
   const [editUserLoading, setEditUserLoading] = useState(false);
@@ -182,8 +185,20 @@ const Settings = () => {
     e.preventDefault();
     setUserMsg({ type: "", text: "" });
 
-    if (!userForm.username.trim() || !userForm.password) {
-      setUserMsg({ type: "error", text: "Username and password are required." });
+    if (!userForm.username.trim() || !userForm.email.trim() || !userForm.password) {
+      setUserMsg({ type: "error", text: "Username, email, and password are required." });
+      return;
+    }
+    if (userForm.username.trim().length < 3 || userForm.username.trim().length > 150) {
+      setUserMsg({ type: "error", text: "Username must be between 3 and 150 characters." });
+      return;
+    }
+    if (userForm.password.length < 8) {
+      setUserMsg({ type: "error", text: "Password must be at least 8 characters." });
+      return;
+    }
+    if (!isValidEmail(userForm.email)) {
+      setUserMsg({ type: "error", text: "Enter a valid email address." });
       return;
     }
 
@@ -197,6 +212,7 @@ const Settings = () => {
         },
         body: JSON.stringify({
           username: userForm.username.trim(),
+          email: userForm.email.trim(),
           role: userForm.role,
           password: userForm.password,
         }),
@@ -214,7 +230,7 @@ const Settings = () => {
       }
 
       setUserMsg({ type: "success", text: "User created successfully!" });
-      setUserForm({ username: "", role: "sales_rep", password: "" });
+      setUserForm({ username: "", email: "", role: "b2b", password: "" });
       fetchUsers();
     } catch (err) {
       setUserMsg({ type: "error", text: err.message || "Failed to create user." });
@@ -245,7 +261,8 @@ const Settings = () => {
     setEditingUser(u);
     setEditUserForm({
       username: u.username || "",
-      role: u.role || "sales_rep",
+      email: u.email || "",
+      role: u.role || "b2b",
       password: "",
     });
   };
@@ -253,10 +270,23 @@ const Settings = () => {
   const handleSaveEditUser = async (e) => {
     e.preventDefault();
     if (!editingUser) return;
+    if (editUserForm.username.trim().length < 3 || editUserForm.username.trim().length > 150) {
+      alert("Username must be between 3 and 150 characters.");
+      return;
+    }
+    if (editUserForm.password && editUserForm.password.length < 8) {
+      alert("Password must be at least 8 characters.");
+      return;
+    }
+    if (!isValidEmail(editUserForm.email)) {
+      alert("Enter a valid email address.");
+      return;
+    }
     setEditUserLoading(true);
     try {
       const payload = {
         username: editUserForm.username.trim(),
+        email: editUserForm.email.trim(),
         role: editUserForm.role,
       };
       if (editUserForm.password && editUserForm.password.trim().length > 0) {
@@ -277,7 +307,7 @@ const Settings = () => {
       setUsers((prev) =>
         prev.map((u) =>
           u.id === editingUser.id
-            ? { ...u, username: payload.username, role: payload.role }
+            ? { ...u, username: payload.username, email: payload.email, role: payload.role }
             : u
         )
       );
@@ -295,6 +325,18 @@ const Settings = () => {
 
     if (!packageForm.name.trim()) {
       setPackageMsg({ type: "error", text: "Package name is required." });
+      return;
+    }
+    if (!packageForm.price.trim()) {
+      setPackageMsg({ type: "error", text: "Package price is required." });
+      return;
+    }
+    if (packageForm.name.trim().length > 255) {
+      setPackageMsg({ type: "error", text: "Package name must be 255 characters or fewer." });
+      return;
+    }
+    if (!isValidPrice(packageForm.price)) {
+      setPackageMsg({ type: "error", text: "Enter a valid price, such as 4500, NPR 4,500, or $450." });
       return;
     }
 
@@ -340,6 +382,14 @@ const Settings = () => {
   const handleSaveEditPackage = (e) => {
     e.preventDefault();
     if (!editingPackage) return;
+    if (!editPackageForm.name.trim() || editPackageForm.name.trim().length > 255) {
+      alert("Package name is required and must be 255 characters or fewer.");
+      return;
+    }
+    if (!isValidPrice(editPackageForm.price)) {
+      alert("Enter a valid price, such as 4500, NPR 4,500, or $450.");
+      return;
+    }
 
     setPackages((prev) =>
       prev.map((p) =>
@@ -362,7 +412,10 @@ const Settings = () => {
   const handleCreateCourse = async (e) => {
     e.preventDefault();
     setCourseMsg({ type: "", text: "" });
-    if (!newCourseName.trim()) return;
+    if (!newCourseName.trim() || newCourseName.trim().length > 255) {
+      setCourseMsg({ type: "error", text: "Course name is required and must be 255 characters or fewer." });
+      return;
+    }
 
     setCourseSubmitting(true);
     try {
@@ -402,7 +455,11 @@ const Settings = () => {
 
   const handleSaveEditCourse = async (e) => {
     e.preventDefault();
-    if (!editingCourse || !editCourseName.trim()) return;
+    if (!editingCourse) return;
+    if (!editCourseName.trim() || editCourseName.trim().length > 255) {
+      alert("Course name is required and must be 255 characters or fewer.");
+      return;
+    }
     try {
       const updated = await courseService.updateCourse(
         editingCourse.id,
@@ -520,6 +577,9 @@ const Settings = () => {
                       </label>
                       <input
                         type="text"
+                        required
+                        minLength={3}
+                        maxLength={150}
                         value={userForm.username}
                         onChange={(e) =>
                           setUserForm((prev) => ({
@@ -534,11 +594,27 @@ const Settings = () => {
 
                     <div>
                       <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
+                        EMAIL <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        maxLength={254}
+                        value={userForm.email}
+                        onChange={(e) => setUserForm((prev) => ({ ...prev, email: e.target.value }))}
+                        placeholder="name@company.com"
+                        className="w-full h-10 px-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all placeholder:text-slate-400 text-slate-800"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
                         ROLE <span className="text-rose-500">*</span>
                       </label>
                       <div className="relative">
                         <select
                           value={userForm.role}
+                          required
                           onChange={(e) =>
                             setUserForm((prev) => ({
                               ...prev,
@@ -547,13 +623,10 @@ const Settings = () => {
                           }
                           className="w-full h-10 pl-3.5 pr-8 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none appearance-none cursor-pointer transition-all text-slate-800"
                         >
-                          <option value="sales_rep">Sales Rep</option>
+                          <option value="b2b">Sales Rep / B2B</option>
                           <option value="admin">Admin</option>
-                          {role === "superadmin" && (
-                            <option value="superadmin">Super Admin</option>
-                          )}
-                          <option value="counselor">Counselor</option>
-                          <option value="academic_counsellor">Academic Counsellor</option>
+                          <option value="b2c">B2C</option>
+                          <option value="academic">Academic Counsellor</option>
                         </select>
                         <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                       </div>
@@ -565,6 +638,8 @@ const Settings = () => {
                       </label>
                       <input
                         type="password"
+                        required
+                        minLength={8}
                         value={userForm.password}
                         onChange={(e) =>
                           setUserForm((prev) => ({
@@ -679,7 +754,7 @@ const Settings = () => {
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap">
                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[12px] font-[500] bg-[#EEF2F6] text-slate-700">
-                                  {u.role || "sales_rep"}
+                                  {u.role || "b2b"}
                                 </span>
                               </td>
                               <td className="px-4 py-3 text-right pr-4 whitespace-nowrap">
@@ -758,6 +833,8 @@ const Settings = () => {
                     </label>
                     <input
                       type="text"
+                      required
+                      maxLength={255}
                       value={packageForm.name}
                       onChange={(e) =>
                         setPackageForm((prev) => ({
@@ -779,6 +856,10 @@ const Settings = () => {
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] font-[600] text-slate-500 pointer-events-none">NPR</span>
                       <input
                         type="text"
+                        maxLength={32}
+                        required
+                        pattern="(?:(?:NPR|[$]) *)?[0-9]+(?:,[0-9]{3})*(?:[.][0-9]{1,2})?"
+                        title="Use a number with an optional NPR or $ prefix, such as NPR 4,500."
                         value={packageForm.price}
                         onChange={(e) =>
                           setPackageForm((prev) => ({
@@ -843,6 +924,7 @@ const Settings = () => {
                     </label>
                     <input
                       type="text"
+                      maxLength={1000}
                       value={packageForm.features}
                       onChange={(e) =>
                         setPackageForm((prev) => ({
@@ -1017,6 +1099,8 @@ const Settings = () => {
                 <div className="flex flex-col sm:flex-row gap-3">
                   <input
                     type="text"
+                    required
+                    maxLength={255}
                     value={newCourseName}
                     onChange={(e) => setNewCourseName(e.target.value)}
                     placeholder="Enter course name (e.g. IELTS / PTE Preparation)"
@@ -1139,6 +1223,8 @@ const Settings = () => {
                 <input
                   type="text"
                   value={editUserForm.username}
+                  minLength={3}
+                  maxLength={150}
                   onChange={(e) =>
                     setEditUserForm((prev) => ({
                       ...prev,
@@ -1146,6 +1232,20 @@ const Settings = () => {
                     }))
                   }
                   required
+                  className="w-full h-10 px-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all text-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
+                  EMAIL
+                </label>
+                <input
+                  type="email"
+                  value={editUserForm.email}
+                  onChange={(e) => setEditUserForm((prev) => ({ ...prev, email: e.target.value }))}
+                  required
+                  maxLength={254}
                   className="w-full h-10 px-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all text-slate-800"
                 />
               </div>
@@ -1165,13 +1265,10 @@ const Settings = () => {
                     }
                     className="w-full h-10 pl-3.5 pr-8 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none appearance-none cursor-pointer transition-all text-slate-800"
                   >
-                    <option value="sales_rep">Sales Rep</option>
+                    <option value="b2b">Sales Rep / B2B</option>
                     <option value="admin">Admin</option>
-                    {role === "superadmin" && (
-                      <option value="superadmin">Super Admin</option>
-                    )}
-                    <option value="counselor">Counselor</option>
-                    <option value="academic_counsellor">Academic Counsellor</option>
+                    <option value="b2c">B2C</option>
+                    <option value="academic">Academic Counsellor</option>
                   </select>
                   <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
@@ -1184,6 +1281,7 @@ const Settings = () => {
                 <input
                   type="password"
                   value={editUserForm.password}
+                  minLength={8}
                   onChange={(e) =>
                     setEditUserForm((prev) => ({
                       ...prev,
@@ -1240,6 +1338,7 @@ const Settings = () => {
                 <input
                   type="text"
                   value={editPackageForm.name}
+                  maxLength={255}
                   onChange={(e) =>
                     setEditPackageForm((prev) => ({
                       ...prev,
@@ -1258,6 +1357,9 @@ const Settings = () => {
                 <input
                   type="text"
                   value={editPackageForm.price}
+                  maxLength={32}
+                  pattern="(?:(?:NPR|[$]) *)?[0-9]+(?:,[0-9]{3})*(?:[.][0-9]{1,2})?"
+                  title="Use a number with an optional NPR or $ prefix, such as NPR 4,500."
                   onChange={(e) =>
                     setEditPackageForm((prev) => ({
                       ...prev,
@@ -1324,6 +1426,7 @@ const Settings = () => {
                 <textarea
                   rows={2}
                   value={editPackageForm.features}
+                  maxLength={1000}
                   onChange={(e) =>
                     setEditPackageForm((prev) => ({
                       ...prev,
@@ -1377,6 +1480,7 @@ const Settings = () => {
                 <input
                   type="text"
                   value={editCourseName}
+                  maxLength={255}
                   onChange={(e) => setEditCourseName(e.target.value)}
                   required
                   className="w-full h-10 px-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all text-slate-800"

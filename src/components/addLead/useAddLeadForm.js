@@ -1,5 +1,10 @@
 import { useState } from "react";
 import { leadService } from "../../services/api";
+import {
+  isValidEmail,
+  isValidLandlineNumber,
+  isValidPhoneNumber,
+} from "../../utils/validation";
 
 // Source choices matching crm2-backend (free text, these are UI suggestions)
 export const SOURCE_CHOICES = [
@@ -49,7 +54,8 @@ export default function useAddLeadForm({ authToken, onClose, onSave, isAdmin }) 
   };
 
   const handleSubmit = async () => {
-    // Validate required fields per LeadCreateSerializer
+    // Validate the same required fields, lengths, email and phone rules as
+    // LeadCreateSerializer before making the request.
     const requiredFields = [
       "school_name",
       "district",
@@ -67,11 +73,43 @@ export default function useAddLeadForm({ authToken, onClose, onSave, isAdmin }) 
       return false;
     });
 
-    if (missing.length) {
-      const e = {};
-      missing.forEach((f) => (e[f] = "This field is required"));
-      setErrors(e);
-      return { ok: false, reason: "validation", missing, first: missing[0] };
+    const fieldErrors = {};
+    missing.forEach((field) => { fieldErrors[field] = "This field is required"; });
+
+    const maxLengths = {
+      school_name: 255,
+      district: 100,
+      municipality: 100,
+      address: 255,
+      contact_person: 255,
+      alt_contact_person: 255,
+      contact_number: 32,
+      alt_number: 32,
+      email: 254,
+      source: 100,
+      course_interest: 255,
+      social_media: 500,
+    };
+    Object.entries(maxLengths).forEach(([field, maxLength]) => {
+      if (String(formData[field] || "").length > maxLength) {
+        fieldErrors[field] = `Must be ${maxLength} characters or fewer.`;
+      }
+    });
+
+    if (formData.email.trim() && !isValidEmail(formData.email)) {
+      fieldErrors.email = "Enter a valid email address.";
+    }
+    if (formData.contact_number.trim() && !isValidPhoneNumber(formData.contact_number)) {
+      fieldErrors.contact_number = "Enter a phone number with exactly 10 local digits. +977 is accepted.";
+    }
+    if (formData.alt_number.trim() && !isValidLandlineNumber(formData.alt_number)) {
+      fieldErrors.alt_number = "Enter a landline number with 7 to 10 local digits.";
+    }
+
+    if (Object.keys(fieldErrors).length) {
+      setErrors(fieldErrors);
+      const first = Object.keys(fieldErrors)[0];
+      return { ok: false, reason: "validation", missing, first };
     }
 
     // Build payload matching LeadCreateSerializer fields exactly

@@ -147,6 +147,7 @@ const AddLeadModal = ({ onClose, onSave, authToken, courses }) => {
                   name="school_name"
                   type="text"
                   required
+                  maxLength={255}
                   value={formData.school_name}
                   onChange={handleChange}
                   placeholder="Enter school / institution name"
@@ -167,6 +168,7 @@ const AddLeadModal = ({ onClose, onSave, authToken, courses }) => {
                     id="district"
                     name="district"
                     type="text"
+                    maxLength={100}
                     value={formData.district}
                     onChange={handleChange}
                     required
@@ -187,6 +189,7 @@ const AddLeadModal = ({ onClose, onSave, authToken, courses }) => {
                     name="municipality"
                     type="text"
                     required
+                    maxLength={100}
                     value={formData.municipality}
                     onChange={handleChange}
                     placeholder="e.g. Kathmandu Metropolitan City"
@@ -208,6 +211,7 @@ const AddLeadModal = ({ onClose, onSave, authToken, courses }) => {
                   name="address"
                   type="text"
                   required
+                  maxLength={255}
                   value={formData.address}
                   onChange={handleChange}
                   placeholder="Street address, ward no., landmark..."
@@ -241,6 +245,7 @@ const AddLeadModal = ({ onClose, onSave, authToken, courses }) => {
                       name="contact_person"
                       type="text"
                       required
+                      maxLength={255}
                       value={formData.contact_person}
                       onChange={handleChange}
                       placeholder="Principal / Coordinator name"
@@ -261,8 +266,11 @@ const AddLeadModal = ({ onClose, onSave, authToken, courses }) => {
                     <input
                       id="contact_number"
                       name="contact_number"
-                      type="text"
+                      type="tel"
                       required
+                      maxLength={32}
+                      inputMode="tel"
+                      title="Enter exactly 10 local digits. A +977 country code is accepted."
                       value={formData.contact_number}
                       onChange={handleChange}
                       placeholder="+977 98XXXXXXXX"
@@ -285,6 +293,7 @@ const AddLeadModal = ({ onClose, onSave, authToken, courses }) => {
                     id="alt_contact_person"
                     name="alt_contact_person"
                     type="text"
+                    maxLength={255}
                     value={formData.alt_contact_person}
                     onChange={handleChange}
                     placeholder="Secondary contact name"
@@ -302,13 +311,19 @@ const AddLeadModal = ({ onClose, onSave, authToken, courses }) => {
                     <input
                       id="alt_number"
                       name="alt_number"
-                      type="text"
+                      type="tel"
+                      maxLength={32}
+                      inputMode="tel"
+                      title="Enter a landline with 7 to 10 local digits."
                       value={formData.alt_number}
                       onChange={handleChange}
                       placeholder="01-XXXXXXX"
                       className="w-full h-11 pl-10 pr-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all placeholder:text-slate-400"
                     />
                   </div>
+                  {errors?.alt_number && (
+                    <p className="text-[11px] text-rose-500">{errors.alt_number}</p>
+                  )}
                 </div>
               </div>
 
@@ -325,6 +340,7 @@ const AddLeadModal = ({ onClose, onSave, authToken, courses }) => {
                       name="email"
                       type="email"
                       required
+                      maxLength={254}
                       value={formData.email}
                       onChange={handleChange}
                       placeholder="official@school.edu.np"
@@ -347,6 +363,7 @@ const AddLeadModal = ({ onClose, onSave, authToken, courses }) => {
                       id="social_media"
                       name="social_media"
                       type="text"
+                      maxLength={500}
                       value={formData.social_media}
                       onChange={handleChange}
                       placeholder="LinkedIn, Facebook, or Website URL"
@@ -393,6 +410,7 @@ const AddLeadModal = ({ onClose, onSave, authToken, courses }) => {
                     id="course_interest"
                     name="course_interest"
                     type="text"
+                    maxLength={255}
                     value={formData.course_interest}
                     onChange={handleChange}
                     placeholder="e.g. Robotics, Coding Bootcamp, AI for Schools..."

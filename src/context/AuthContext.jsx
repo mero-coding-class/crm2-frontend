@@ -1,5 +1,5 @@
 // src/context/AuthContext.jsx
-import React, { createContext, useState, useEffect, useContext } from "react";
+import React, { createContext, useState, useEffect, useContext, useCallback } from "react";
 import { BASE_URL } from "../config";
 
 export const AuthContext = createContext(null);
@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Allow updating user profile after fetching it elsewhere
-  const setUserProfile = (userInfo) => {
+  const setUserProfile = useCallback((userInfo) => {
     localStorage.setItem("user", JSON.stringify(userInfo || {}));
     if (userInfo?.username) localStorage.setItem("username", userInfo.username);
     if (userInfo?.role) localStorage.setItem("role", userInfo.role);
@@ -50,7 +50,7 @@ export const AuthProvider = ({ children }) => {
     if (userInfo?.email != null)
       localStorage.setItem("email", userInfo.email || "");
     setUser(userInfo || null);
-  };
+  }, []);
 
   const logout = () => {
     try {

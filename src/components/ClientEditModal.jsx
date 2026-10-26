@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { X, CheckCircle, School, Calendar, DollarSign, BookOpen, User, Phone, Mail, MapPin } from "lucide-react";
 import { clientService, catalogService } from "../services/api";
+import { isValidEmail, isValidPhoneNumber } from "../utils/validation";
 
 export default function ClientEditModal({ isOpen, onClose, client, authToken, teachers = [], onSave }) {
   const [loading, setLoading] = useState(false);
@@ -88,6 +89,49 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+
+    const requiredFields = [
+      "principal_name", "principal_number", "principal_email",
+      "contact_name", "contact_number", "contact_email",
+      "district", "municipality", "mou_start", "mou_end",
+    ];
+    const missingField = requiredFields.find((field) => !String(formData[field] ?? "").trim());
+    if (missingField) {
+      setError(`${missingField.replaceAll("_", " ")} is required.`);
+      return;
+    }
+    if (!isValidPhoneNumber(formData.principal_number) || !isValidPhoneNumber(formData.contact_number)) {
+      setError("Principal and contact phone numbers must contain exactly 10 local digits. +977 is accepted.");
+      return;
+    }
+    if (!isValidEmail(formData.principal_email) || !isValidEmail(formData.contact_email)) {
+      setError("Enter valid principal and contact email addresses.");
+      return;
+    }
+    const maxLengths = {
+      principal_name: 255, principal_number: 32, principal_email: 254,
+      contact_name: 255, contact_number: 32, contact_email: 254,
+      district: 100, municipality: 100,
+    };
+    const tooLong = Object.entries(maxLengths).find(([field, limit]) =>
+      String(formData[field] || "").trim().length > limit
+    );
+    if (tooLong) {
+      setError(`${tooLong[0].replaceAll("_", " ")} must be ${tooLong[1]} characters or fewer.`);
+      return;
+    }
+    if (!Number.isInteger(Number(formData.agreed_price)) || Number(formData.agreed_price) < 0) {
+      setError("Agreed price must be a non-negative whole number.");
+      return;
+    }
+    if (!Number.isInteger(Number(formData.classes_per_week)) || Number(formData.classes_per_week) < 1 || Number(formData.classes_per_week) > 14) {
+      setError("Classes per week must be a whole number from 1 to 14.");
+      return;
+    }
+    if (![formData.exams_count, formData.events_count].every((value) => Number.isInteger(Number(value)) && Number(value) >= 0 && Number(value) <= 32767)) {
+      setError("Exam and event counts must be whole numbers from 0 to 32,767.");
+      return;
+    }
 
     if (new Date(formData.mou_end) < new Date(formData.mou_start)) {
       setError("MOU end date must be on or after start date.");
@@ -184,6 +228,8 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   name="principal_name"
                   value={formData.principal_name}
                   onChange={handleChange}
+                  required
+                  maxLength={255}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
                 />
               </div>
@@ -192,10 +238,14 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   Principal Phone
                 </label>
                 <input
-                  type="text"
+                  type="tel"
                   name="principal_number"
                   value={formData.principal_number}
                   onChange={handleChange}
+                  required
+                  maxLength={32}
+                  inputMode="tel"
+                  title="Enter exactly 10 local digits. A +977 country code is accepted."
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
                 />
               </div>
@@ -208,6 +258,8 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   name="principal_email"
                   value={formData.principal_email}
                   onChange={handleChange}
+                  required
+                  maxLength={254}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
                 />
               </div>
@@ -229,6 +281,8 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   name="contact_name"
                   value={formData.contact_name}
                   onChange={handleChange}
+                  required
+                  maxLength={255}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
                 />
               </div>
@@ -237,10 +291,14 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   Contact Phone
                 </label>
                 <input
-                  type="text"
+                  type="tel"
                   name="contact_number"
                   value={formData.contact_number}
                   onChange={handleChange}
+                  required
+                  maxLength={32}
+                  inputMode="tel"
+                  title="Enter exactly 10 local digits. A +977 country code is accepted."
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
                 />
               </div>
@@ -253,6 +311,8 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   name="contact_email"
                   value={formData.contact_email}
                   onChange={handleChange}
+                  required
+                  maxLength={254}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
                 />
               </div>
@@ -268,6 +328,8 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   name="district"
                   value={formData.district}
                   onChange={handleChange}
+                  required
+                  maxLength={100}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
                 />
               </div>
@@ -280,6 +342,8 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   name="municipality"
                   value={formData.municipality}
                   onChange={handleChange}
+                  required
+                  maxLength={100}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
                 />
               </div>
@@ -301,6 +365,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   name="mou_start"
                   value={formData.mou_start}
                   onChange={handleChange}
+                  required
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
                 />
               </div>
@@ -313,6 +378,8 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   name="mou_end"
                   value={formData.mou_end}
                   onChange={handleChange}
+                  required
+                  min={formData.mou_start || undefined}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
                 />
               </div>
@@ -324,6 +391,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   name="pricing_basis"
                   value={formData.pricing_basis}
                   onChange={handleChange}
+                  required
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none bg-white"
                 >
                   <option value="per_month">Per Month</option>
@@ -339,7 +407,9 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   name="agreed_price"
                   value={formData.agreed_price}
                   onChange={handleChange}
+                  required
                   min="0"
+                  step="1"
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none font-semibold text-slate-800"
                 />
               </div>
@@ -360,6 +430,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   name="package_type"
                   value={formData.package_type}
                   onChange={handleChange}
+                  required
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none bg-white capitalize"
                 >
                   {packages.map((pkg) => (
@@ -378,8 +449,10 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   name="classes_per_week"
                   value={formData.classes_per_week}
                   onChange={handleChange}
+                  required
                   min="1"
                   max="14"
+                  step="1"
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
                 />
               </div>
@@ -418,7 +491,10 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   name="exams_count"
                   value={formData.exams_count}
                   onChange={handleChange}
+                  required
                   min="0"
+                  max="32767"
+                  step="1"
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
                 />
               </div>
@@ -431,7 +507,10 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   name="events_count"
                   value={formData.events_count}
                   onChange={handleChange}
+                  required
                   min="0"
+                  max="32767"
+                  step="1"
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
                 />
               </div>

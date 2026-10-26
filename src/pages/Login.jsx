@@ -148,6 +148,7 @@ const Login = () => {
                 id="username"
                 name="username"
                 value={formData.username}
+                maxLength={150}
                 onChange={handleChange}
                 placeholder="Enter your username"
                 className="w-full h-10 px-3 text-[14px] rounded-[8px] border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#294998] focus:ring-[3px] focus:ring-[#294998]/15 hover:border-slate-300 transition-colors"

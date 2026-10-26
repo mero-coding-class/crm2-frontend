@@ -3,6 +3,11 @@ import { useAuth } from "../context/AuthContext";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import LeadEditForm from "./LeadEditForm";
 import { leadService } from "../services/api";
+import {
+  isValidEmail,
+  isValidLandlineNumber,
+  isValidPhoneNumber,
+} from "../utils/validation";
 
 /**
  * LeadEditModal — aligned with crm2-backend Lead model.
@@ -64,6 +69,7 @@ const LeadEditModal = ({ lead, onClose, onSave }) => {
   const [leadDetails, setLeadDetails] = useState(null);
   const [loadingLead, setLoadingLead] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [validationError, setValidationError] = useState("");
   const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
@@ -153,6 +159,7 @@ const LeadEditModal = ({ lead, onClose, onSave }) => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    setValidationError("");
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -160,6 +167,42 @@ const LeadEditModal = ({ lead, onClose, onSave }) => {
     e.preventDefault();
 
     const admin = isAdminRole(user?.role);
+    const requiredFields = [
+      "district", "municipality", "address", "contact_person", "contact_number", "email",
+      ...(admin ? ["school_name"] : []),
+    ];
+    const missingField = requiredFields.find((field) => !String(formData[field] || "").trim());
+    if (missingField) {
+      setValidationError(`${missingField.replaceAll("_", " ")} is required.`);
+      return;
+    }
+    if (!isValidEmail(formData.email)) {
+      setValidationError("Enter a valid email address.");
+      return;
+    }
+    if (!isValidPhoneNumber(formData.contact_number)) {
+      setValidationError("Enter a contact number with exactly 10 local digits. +977 is accepted.");
+      return;
+    }
+    if (formData.alt_number && !isValidLandlineNumber(formData.alt_number)) {
+      setValidationError("Enter a landline number with 7 to 10 local digits.");
+      return;
+    }
+    const maxLengths = {
+      school_name: 255, district: 100, municipality: 100, address: 255,
+      contact_person: 255, contact_number: 32, alt_number: 32,
+      alt_contact_person: 255, email: 254, source: 100,
+      course_interest: 255, social_media: 500,
+    };
+    const tooLong = Object.entries(maxLengths).find(([field, limit]) =>
+      String(formData[field] || "").length > limit
+    );
+    if (tooLong) {
+      setValidationError(`${tooLong[0].replaceAll("_", " ")} must be ${tooLong[1]} characters or fewer.`);
+      return;
+    }
+    setValidationError("");
+
     const updatedData = {
       id: formData.id,
       district: formData.district,
@@ -211,6 +254,7 @@ const LeadEditModal = ({ lead, onClose, onSave }) => {
             formData={formData}
             onChange={handleInputChange}
             onSubmit={handleSubmit}
+            validationError={validationError}
             user={user}
             onClose={onClose}
           />

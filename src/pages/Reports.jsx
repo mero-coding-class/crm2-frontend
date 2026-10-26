@@ -135,6 +135,10 @@ const Reports = () => {
   // ── Fetch Summary ──────────────────────────────────────────────────────────
   const fetchSummary = useCallback(async () => {
     if (!authToken) return;
+    if (from && to && from > to) {
+      setError("From date must be on or before To date.");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -155,6 +159,10 @@ const Reports = () => {
 
   // ── Export helpers ─────────────────────────────────────────────────────────
   const handleExportSummary = async (fmt_) => {
+    if (from && to && from > to) {
+      setError("From date must be on or before To date.");
+      return;
+    }
     const key = `summary-${fmt_}`;
     setExporting((e) => ({ ...e, [key]: true }));
     try {
@@ -172,6 +180,10 @@ const Reports = () => {
   };
 
   const handleExportLeads = async (fmt_) => {
+    if (from && to && from > to) {
+      setError("From date must be on or before To date.");
+      return;
+    }
     const key = `leads-${fmt_}`;
     setExporting((e) => ({ ...e, [key]: true }));
     try {
@@ -189,6 +201,10 @@ const Reports = () => {
   };
 
   const handleExportDataset = async (dataset, fmt_) => {
+    if (from && to && from > to) {
+      setError("From date must be on or before To date.");
+      return;
+    }
     const key = `${dataset}-${fmt_}`;
     setExporting((e) => ({ ...e, [key]: true }));
     try {
@@ -242,6 +258,7 @@ const Reports = () => {
                 id="report-from"
                 type="date"
                 value={from}
+                max={to || undefined}
                 onChange={(e) => setFrom(e.target.value)}
                 className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#294998] focus:ring-2 focus:ring-[#294998]/15"
               />
@@ -252,6 +269,7 @@ const Reports = () => {
                 id="report-to"
                 type="date"
                 value={to}
+                min={from || undefined}
                 onChange={(e) => setTo(e.target.value)}
                 className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#294998] focus:ring-2 focus:ring-[#294998]/15"
               />

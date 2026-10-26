@@ -38,9 +38,11 @@ const Leads = () => {
   const [searchParams] = useSearchParams();
   const routeFilters = useMemo(() => {
     const filters = {};
-    ["created_from", "created_to", "demo"].forEach((key) => {
+    ["created_from", "created_to", "demo", "approval"].forEach((key) => {
       const value = searchParams.get(key);
-      if (value) filters[key] = value;
+      if (value && (key !== "approval" || ["pending", "approved"].includes(value))) {
+        filters[key] = value;
+      }
     });
     const followup = searchParams.get("followup");
     if (followup === "overdue") {
@@ -355,6 +357,7 @@ const Leads = () => {
             handleDelete={handleDelete}
             handleBulkDelete={handleBulkDelete}
             canManageLeads={canManageLeads}
+            isAdmin={role === "admin"}
             onActivitySave={handleActivitySave}
             authToken={authToken}
             handleOpenAddModal={handleOpenAddModal}

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, CheckCircle, School, Calendar, DollarSign, BookOpen, User, Phone, Mail } from "lucide-react";
 import { clientService, catalogService, leadService } from "../services/api";
 import { forgetReturnedLeadIds } from "../pages/clients/returnedToLeadsStore";
+import { isValidEmail, isValidPhoneNumber } from "../utils/validation";
 
 export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
   const [loading, setLoading] = useState(false);
@@ -197,12 +198,37 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
       setError("Principal contact number is required.");
       return;
     }
+    if (!isValidPhoneNumber(formData.principal_number)) {
+      setError("Principal phone must contain exactly 10 local digits. +977 is accepted.");
+      return;
+    }
     if (!formData.principal_email.trim()) {
       setError("Principal email is required.");
       return;
     }
+    if (!isValidEmail(formData.principal_email)) {
+      setError("Enter a valid principal email address.");
+      return;
+    }
     if (!formData.contact_name.trim() || !formData.contact_number.trim() || !formData.contact_email.trim()) {
       setError("School operational contact details are required.");
+      return;
+    }
+    if (!isValidPhoneNumber(formData.contact_number)) {
+      setError("Contact phone must contain exactly 10 local digits. +977 is accepted.");
+      return;
+    }
+    if (!isValidEmail(formData.contact_email)) {
+      setError("Enter a valid contact email address.");
+      return;
+    }
+    const textLengths = [
+      ["principal_name", 255], ["contact_name", 255],
+      ["principal_email", 254], ["contact_email", 254],
+    ];
+    const tooLong = textLengths.find(([field, limit]) => formData[field].trim().length > limit);
+    if (tooLong) {
+      setError(`${tooLong[0].replaceAll("_", " ")} must be ${tooLong[1]} characters or fewer.`);
       return;
     }
     if (!formData.package_type) {
@@ -215,6 +241,18 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
     }
     if (!formData.agreed_price || Number(formData.agreed_price) <= 0) {
       setError("Agreed price must be greater than 0 NPR.");
+      return;
+    }
+    if (!Number.isInteger(Number(formData.agreed_price))) {
+      setError("Agreed price must be a whole number of NPR.");
+      return;
+    }
+    if (!Number.isInteger(Number(formData.classes_per_week)) || Number(formData.classes_per_week) < 1 || Number(formData.classes_per_week) > 14) {
+      setError("Classes per week must be a whole number from 1 to 14.");
+      return;
+    }
+    if (![formData.exams_count, formData.events_count].every((value) => Number.isInteger(Number(value)) && Number(value) >= 0 && Number(value) <= 32767)) {
+      setError("Exam and event counts must be whole numbers from 0 to 32,767.");
       return;
     }
     if (new Date(formData.mou_end) < new Date(formData.mou_start)) {
@@ -331,6 +369,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                   value={formData.principal_name}
                   onChange={handleChange}
                   required
+                  maxLength={255}
                   placeholder="e.g. Dr. Ramesh Shrestha"
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
                 />
@@ -340,11 +379,14 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                   Principal Phone *
                 </label>
                 <input
-                  type="text"
+                  type="tel"
                   name="principal_number"
                   value={formData.principal_number}
                   onChange={handleChange}
                   required
+                  maxLength={32}
+                  inputMode="tel"
+                  title="Enter exactly 10 local digits. A +977 country code is accepted."
                   placeholder="98XXXXXXXX"
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
                 />
@@ -359,6 +401,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                   value={formData.principal_email}
                   onChange={handleChange}
                   required
+                  maxLength={254}
                   placeholder="principal@school.edu.np"
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
                 />
@@ -382,6 +425,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                   value={formData.contact_name}
                   onChange={handleChange}
                   required
+                  maxLength={255}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
                 />
               </div>
@@ -390,11 +434,14 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                   Phone Number *
                 </label>
                 <input
-                  type="text"
+                  type="tel"
                   name="contact_number"
                   value={formData.contact_number}
                   onChange={handleChange}
                   required
+                  maxLength={32}
+                  inputMode="tel"
+                  title="Enter exactly 10 local digits. A +977 country code is accepted."
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
                 />
               </div>
@@ -408,6 +455,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                   value={formData.contact_email}
                   onChange={handleChange}
                   required
+                  maxLength={254}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
                 />
               </div>
@@ -443,6 +491,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                   value={formData.mou_end}
                   onChange={handleChange}
                   required
+                  min={formData.mou_start || undefined}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
                 />
               </div>
@@ -454,6 +503,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                   name="pricing_basis"
                   value={formData.pricing_basis}
                   onChange={handleChange}
+                  required
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none bg-white"
                 >
                   <option value="per_month">Per Month</option>
@@ -471,6 +521,8 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                   onChange={handleChange}
                   required
                   min="1"
+                  max="9223372036854775807"
+                  step="1"
                   placeholder="e.g. 45000"
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none font-semibold text-slate-800"
                 />
@@ -497,6 +549,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                     value={formData[name]}
                     onChange={handleChange}
                     required
+                    min={name === "end_date" ? formData.start_date || undefined : undefined}
                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#294998] focus:ring-2 focus:ring-[#294998]/15"
                   />
                 </div>
@@ -556,6 +609,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                   required
                   min="1"
                   max="14"
+                  step="1"
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
                 />
               </div>
@@ -613,6 +667,8 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                 value={formData.exams_count}
                 onChange={handleChange}
                 min="0"
+                max="32767"
+                step="1"
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
               />
             </div>
@@ -626,6 +682,8 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                 value={formData.events_count}
                 onChange={handleChange}
                 min="0"
+                max="32767"
+                step="1"
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
               />
             </div>

@@ -20,6 +20,13 @@ import Downloads from "./pages/Downloads";
 import Demo from "./pages/Demo";
 import HelpPage from "./pages/HelpPage";
 import Approvals from "./pages/Approvals";
+import Profile from "./pages/Profile";
+
+function AdminOnly({ children }) {
+  const { user } = useContext(AuthContext);
+  const role = String(user?.role || localStorage.getItem("role") || "").toLowerCase();
+  return role === "admin" ? children : <Navigate to="/dashboard" replace />;
+}
 
 function AppContent() {
   const { authToken } = useContext(AuthContext);
@@ -38,7 +45,8 @@ function AppContent() {
           }
         >
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/approvals" element={<Approvals />} />
+          <Route path="/approvals" element={<AdminOnly><Approvals /></AdminOnly>} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/leads" element={<Leads />} />
           <Route path="/clients" element={<Clients />} />
           <Route path="/enrolled-students" element={<Navigate to="/clients" replace />} />
@@ -46,7 +54,7 @@ function AppContent() {
           <Route path="/trash" element={<Navigate to="/archive" replace />} />
           <Route path="/archive" element={<TrashPage />} />
           <Route path="/report" element={<Reports />} />
-          <Route path="/settings" element={<Settings />} />
+          <Route path="/settings" element={<AdminOnly><Settings /></AdminOnly>} />
           <Route path="/downloads" element={<Downloads />} />
           <Route path="/help" element={<HelpPage />} />
           {/* Catch-all route within the protected area, redirects to dashboard */}

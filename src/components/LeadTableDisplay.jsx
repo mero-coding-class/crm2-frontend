@@ -16,6 +16,7 @@ const initialColumns = {
   contact_person: { label: "Contact Person", visible: true },
   contact_number: { label: "Contact Number", visible: true },
   sub_status: { label: "Sub-Status", visible: true },
+  approval: { label: "Approval", visible: true },
   // Additional fields included in the backend summary response
   id: { label: "ID", visible: false },
   system_id: { label: "System ID", visible: false },
@@ -28,6 +29,7 @@ const LeadTableDisplay = ({
   handleDelete,
   handleBulkDelete,
   canManageLeads = false,
+  isAdmin = false,
   onActivitySave,
   authToken,
   currentPage: parentCurrentPage,
@@ -334,6 +336,7 @@ const LeadTableDisplay = ({
                       handleEdit={handleEdit}
                       handleDelete={handleDelete}
                       canManageLeads={canManageLeads}
+                      isAdmin={isAdmin}
                       onOpenActivityModal={(leadToView) =>
                         setActivityModalLead(leadToView)
                       }

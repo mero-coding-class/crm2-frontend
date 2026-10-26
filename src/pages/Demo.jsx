@@ -21,13 +21,14 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { demoService, leadService } from "../services/api";
+import { isValidPhoneNumber } from "../utils/validation";
 
 // ─── Status config ────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
   scheduled: {
     label: "Scheduled",
     badge: "bg-blue-50 text-blue-700 border border-blue-200",
-    dot: "bg-blue-500",
+    icon: Calendar,
   },
   completed: {
     label: "Completed",
@@ -194,6 +195,10 @@ const Demo = () => {
       setSaveError("Lead and Demo Date/Time are required.");
       return;
     }
+    if (createForm.phone.trim() && !isValidPhoneNumber(createForm.phone)) {
+      setSaveError("Phone must contain exactly 10 local digits. +977 is accepted.");
+      return;
+    }
     setSaving(true);
     setSaveError(null);
     try {
@@ -231,6 +236,10 @@ const Demo = () => {
   const handleUpdate = async (e) => {
     e.preventDefault();
     if (!editingDemo) return;
+    if (editForm.phone.trim() && !isValidPhoneNumber(editForm.phone)) {
+      setSaveError("Phone must contain exactly 10 local digits. +977 is accepted.");
+      return;
+    }
     setSaving(true);
     setSaveError(null);
     try {
@@ -437,7 +446,7 @@ const Demo = () => {
                         </td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-[600] ${cfg.badge}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                            {cfg.icon ? <cfg.icon className="w-3.5 h-3.5" /> : <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />}
                             {cfg.label}
                           </span>
                         </td>
@@ -587,6 +596,7 @@ const Demo = () => {
             <FormGroup label="Contact Person">
               <input
                 type="text"
+                maxLength={255}
                 value={createForm.contact_person}
                 onChange={(e) => setCreateForm((f) => ({ ...f, contact_person: e.target.value }))}
                 className={inputCls}
@@ -595,7 +605,10 @@ const Demo = () => {
             </FormGroup>
             <FormGroup label="Phone">
               <input
-                type="text"
+                type="tel"
+                maxLength={32}
+                inputMode="tel"
+                title="Enter exactly 10 local digits. A +977 country code is accepted."
                 value={createForm.phone}
                 onChange={(e) => setCreateForm((f) => ({ ...f, phone: e.target.value }))}
                 className={inputCls}
@@ -605,6 +618,7 @@ const Demo = () => {
             <FormGroup label="Assigned Teacher">
               <input
                 type="text"
+                maxLength={255}
                 value={createForm.assigned_teacher}
                 onChange={(e) => setCreateForm((f) => ({ ...f, assigned_teacher: e.target.value }))}
                 className={inputCls}
@@ -641,6 +655,7 @@ const Demo = () => {
             <FormGroup label="Contact Person">
               <input
                 type="text"
+                maxLength={255}
                 value={editForm.contact_person}
                 onChange={(e) => setEditForm((f) => ({ ...f, contact_person: e.target.value }))}
                 className={inputCls}
@@ -648,7 +663,10 @@ const Demo = () => {
             </FormGroup>
             <FormGroup label="Phone">
               <input
-                type="text"
+                type="tel"
+                maxLength={32}
+                inputMode="tel"
+                title="Enter exactly 10 local digits. A +977 country code is accepted."
                 value={editForm.phone}
                 onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
                 className={inputCls}
@@ -689,6 +707,7 @@ const Demo = () => {
             <FormGroup label="Outcome">
               <input
                 type="text"
+                maxLength={40}
                 value={feedbackForm.outcome}
                 onChange={(e) => setFeedbackForm((f) => ({ ...f, outcome: e.target.value }))}
                 className={inputCls}
@@ -698,6 +717,7 @@ const Demo = () => {
             <FormGroup label="Program">
               <input
                 type="text"
+                maxLength={100}
                 value={feedbackForm.program}
                 onChange={(e) => setFeedbackForm((f) => ({ ...f, program: e.target.value }))}
                 className={inputCls}

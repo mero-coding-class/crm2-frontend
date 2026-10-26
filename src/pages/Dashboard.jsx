@@ -114,8 +114,8 @@ const comparison = (current, previous, suffix = "%") => {
   };
 };
 
-const Surface = ({ title, description, action, children, className = "" }) => (
-  <section className={`rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_10px_rgba(15,23,42,0.035)] ${className}`}>
+const Surface = ({ title, description, action, children, className = "", surfaceBackground = "bg-white" }) => (
+  <section className={`rounded-2xl border border-slate-200/80 ${surfaceBackground} shadow-[0_2px_10px_rgba(15,23,42,0.035)] ${className}`}>
     {(title || action) && (
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
         <div>
@@ -167,15 +167,16 @@ const StatCard = ({ icon, label, value, detail, change, href, tone = "blue", att
 
 const FollowupQueue = ({ title, description, tasks, icon: Icon, tone, emptyMessage }) => {
   const tones = {
-    rose: { icon: "bg-rose-50 text-rose-700", count: "bg-rose-50 text-rose-700" },
-    blue: { icon: "bg-blue-50 text-[#294998]", count: "bg-blue-50 text-blue-700" },
-    teal: { icon: "bg-teal-50 text-teal-700", count: "bg-teal-50 text-teal-700" },
+    rose: { icon: "bg-rose-50 text-rose-700", count: "bg-rose-800 text-white", surface: "bg-rose-50/40" },
+    blue: { icon: "bg-blue-50 text-[#294998]", count: "bg-[#294998] text-white", surface: "bg-blue-50/40" },
+    teal: { icon: "bg-teal-50 text-teal-700", count: "bg-teal-800 text-white", surface: "bg-teal-50/40" },
   };
   const style = tones[tone] || tones.blue;
 
   return (
     <Surface
       className="flex min-h-[260px] flex-col"
+      surfaceBackground={style.surface}
       title={title}
       description={description}
       action={<span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold tabular-nums ${style.count}`}>{tasks.length}</span>}
@@ -291,18 +292,19 @@ const Dashboard = () => {
   const cards = useMemo(() => {
     if (!summary || !data) return [];
     if (isAcademic) return [
+      { icon: ClipboardCheck, label: "Pending Approval Leads", value: summary.pending_approval_leads || 0, detail: "Leads awaiting admin review", tone: "amber" },
       { icon: CalendarDays, label: "Upcoming sessions", value: summary.upcoming_demos || 0, detail: "Demos scheduled for the next 7 days", href: "/demo?demo_status=scheduled", tone: "teal" },
       { icon: FileCheck2, label: "Feedback to submit", value: summary.feedback_needed || 0, detail: "Completed sessions waiting for your notes", href: "/demo?feedback=pending", tone: "amber", attention: !!summary.feedback_needed },
       { icon: CheckCircle2, label: "Demos completed", value: current.demos_completed || 0, detail: `${periodLabel(range).toLowerCase()} · compared with previous period`, change: comparison(current.demos_completed, previous.demos_completed), href: "/demo?demo_status=completed", tone: "emerald" },
       { icon: School, label: "Assigned schools", value: summary.active_client_schools || 0, detail: "Active client schools assigned to you", href: "/clients", tone: "blue" },
     ];
     const common = [
-      { icon: Users, label: "New leads", value: current.new_leads || 0, detail: `${periodLabel(range)} · compared with last period`, change: comparison(current.new_leads, previous.new_leads), href: `/leads?created_from=${encodeURIComponent(periodFrom)}&created_to=${encodeURIComponent(periodTo)}`, tone: "blue" },
+      { icon: Users, label: "New leads", value: current.new_leads || 0, detail: `${periodLabel(range)} · compared with last period`, change: comparison(current.new_leads, previous.new_leads), href: `/leads?approval=approved&created_from=${encodeURIComponent(periodFrom)}&created_to=${encodeURIComponent(periodTo)}`, tone: "blue" },
+      { icon: ClipboardCheck, label: "Pending Approval Leads", value: summary.pending_approval_leads || 0, detail: "Leads awaiting admin review", href: isAdmin ? "/approvals" : "/leads?approval=pending", tone: "amber", attention: !!summary.pending_approval_leads },
       { icon: Activity, label: "Active pipeline", value: summary.active_pipeline || 0, detail: "Open schools in your pipeline", href: "/leads", tone: "violet" },
       { icon: GraduationCap, label: "Enrolled schools", value: current.enrolled_schools || 0, detail: `Schools enrolled ${periodLabel(range).toLowerCase()}`, change: comparison(current.enrolled_schools, previous.enrolled_schools), href: `/clients?enrolled_from=${summary.period?.from || ""}&enrolled_to=${summary.period?.to || ""}`, tone: "emerald" },
       { icon: TrendingUpIcon, label: "Lead conversion", value: `${current.conversion_rate || 0}%`, detail: "Leads added in this period that have enrolled so far", change: Number(current.conversion_rate || 0) === Number(previous.conversion_rate || 0) ? { text: "No change", positive: null } : { text: `${(Number(current.conversion_rate || 0) - Number(previous.conversion_rate || 0) > 0 ? "+" : "")}${(Number(current.conversion_rate || 0) - Number(previous.conversion_rate || 0)).toFixed(1)} points vs previous period`, positive: Number(current.conversion_rate || 0) > Number(previous.conversion_rate || 0) }, href: `/clients?converted_from=${summary.period?.from || ""}&converted_to=${summary.period?.to || ""}`, tone: "teal" },
       { icon: CalendarDays, label: "Demos scheduled", value: current.demos_scheduled || 0, detail: `${current.demos_completed || 0} completed during this period`, change: comparison(current.demos_scheduled, previous.demos_scheduled), href: `/demo?demo_status=scheduled&from=${encodeURIComponent(periodFrom)}&to=${encodeURIComponent(periodTo)}`, tone: "violet" },
-      { icon: AlertTriangle, label: "Overdue follow-ups", value: summary.overdue_followups || 0, detail: "Tasks that are past their due date", href: "/leads?followup=overdue", tone: summary.overdue_followups ? "rose" : "emerald", attention: !!summary.overdue_followups },
       { icon: Handshake, label: "Renewals due in 60 days", value: renewals.schools_60d || 0, detail: `${renewals.contracts_60d || 0} contracts · ${renewals.mous_60d || 0} MOUs`, href: "/clients?renewals=60", tone: "amber" },
     ];
     if (isAdmin || isB2B) common.push({
@@ -394,19 +396,17 @@ const Dashboard = () => {
 
         {error && <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">We couldn’t refresh everything, so you’re seeing the latest data we have.</div>}
 
-        <Surface title="At a glance" description="A quick summary of upcoming work.">
-          <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3 xl:grid-cols-5">
-            <div className="flex items-center justify-between gap-3 rounded-xl bg-rose-50/70 p-3"><span className="inline-flex items-center gap-2 text-xs text-slate-600"><AlertTriangle className="h-4 w-4 text-rose-500" />Overdue follow-ups</span><b className="text-sm tabular-nums text-slate-900">{summary.overdue_followups || 0}</b></div>
-            <div className="flex items-center justify-between gap-3 rounded-xl bg-teal-50/70 p-3"><span className="inline-flex items-center gap-2 text-xs text-slate-600"><CalendarDays className="h-4 w-4 text-teal-600" />Upcoming demos</span><b className="text-sm tabular-nums text-slate-900">{summary.upcoming_demos || 0}</b></div>
-            {isAdmin && <div className="flex items-center justify-between gap-3 rounded-xl bg-amber-50/70 p-3"><span className="inline-flex items-center gap-2 text-xs text-slate-600"><ClipboardCheck className="h-4 w-4 text-amber-600" />Lead approvals</span><b className="text-sm tabular-nums text-slate-900">{data.pending_approvals || 0}</b></div>}
-            {(isAdmin || isAcademic) && <div className="flex items-center justify-between gap-3 rounded-xl bg-orange-50/70 p-3"><span className="inline-flex items-center gap-2 text-xs text-slate-600"><FileCheck2 className="h-4 w-4 text-orange-600" />Feedback to submit</span><b className="text-sm tabular-nums text-slate-900">{summary.feedback_needed || 0}</b></div>}
-            <div className="flex items-center justify-between gap-3 rounded-xl bg-emerald-50/70 p-3"><span className="inline-flex items-center gap-2 text-xs text-slate-600"><Handshake className="h-4 w-4 text-emerald-600" />Schools due to renew</span><b className="text-sm tabular-nums text-slate-900">{renewals.schools_60d || 0}</b></div>
-          </div>
-          {(isAdmin || isAcademic) && <div className="border-t border-slate-100 px-5 py-3">
-            {isAdmin && <Link to="/approvals" className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#294998] hover:text-[#1E3776]">Review pending approvals <ArrowRight className="h-3.5 w-3.5" /></Link>}
-            {isAcademic && <Link to="/demo?demo_status=scheduled" className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#294998] hover:text-[#1E3776]">View your demo schedule <ArrowRight className="h-3.5 w-3.5" /></Link>}
-          </div>}
-        </Surface>
+        {isAdmin && (
+          <Surface>
+            <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3 xl:grid-cols-5">
+              <div className="flex items-center justify-between gap-3 rounded-xl bg-rose-50/70 p-3"><span className="inline-flex items-center gap-2 text-xs text-slate-600"><AlertTriangle className="h-4 w-4 text-rose-500" />Overdue follow-ups</span><b className="text-sm tabular-nums text-slate-900">{summary.overdue_followups || 0}</b></div>
+              <div className="flex items-center justify-between gap-3 rounded-xl bg-teal-50/70 p-3"><span className="inline-flex items-center gap-2 text-xs text-slate-600"><CalendarDays className="h-4 w-4 text-teal-600" />Upcoming demos</span><b className="text-sm tabular-nums text-slate-900">{summary.upcoming_demos || 0}</b></div>
+              <div className="flex items-center justify-between gap-3 rounded-xl bg-amber-50/70 p-3"><span className="inline-flex items-center gap-2 text-xs text-slate-600"><ClipboardCheck className="h-4 w-4 text-amber-600" />Lead approvals</span><b className="text-sm tabular-nums text-slate-900">{data.pending_approvals || 0}</b></div>
+              <div className="flex items-center justify-between gap-3 rounded-xl bg-orange-50/70 p-3"><span className="inline-flex items-center gap-2 text-xs text-slate-600"><FileCheck2 className="h-4 w-4 text-orange-600" />Feedback to submit</span><b className="text-sm tabular-nums text-slate-900">{summary.feedback_needed || 0}</b></div>
+              <div className="flex items-center justify-between gap-3 rounded-xl bg-emerald-50/70 p-3"><span className="inline-flex items-center gap-2 text-xs text-slate-600"><Handshake className="h-4 w-4 text-emerald-600" />Schools due to renew</span><b className="text-sm tabular-nums text-slate-900">{renewals.schools_60d || 0}</b></div>
+            </div>
+          </Surface>
+        )}
 
         <div className="grid gap-5">
           {!isAcademic && <div className="grid gap-4 lg:grid-cols-3">

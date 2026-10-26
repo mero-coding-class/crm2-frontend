@@ -19,6 +19,8 @@ import {
   ChevronRight,
   Home,
   Search,
+  Bell,
+  ClipboardCheck,
   Settings,
   User,
   FileBarChart,
@@ -26,10 +28,12 @@ import {
   HelpCircle,
   Command,
   Code2,
+  RefreshCw,
 } from "lucide-react";
 import { AuthContext } from "../context/AuthContext.jsx";
 import { cn } from "../lib/utils.js";
 import { TooltipProvider } from "../components/ui/tooltip.jsx";
+import { approvalService, notificationService } from "../services/api.js";
 
 const getRole = () => (localStorage.getItem("role") || "").trim().toLowerCase();
 const getUsername = () => (localStorage.getItem("username") || "").trim();
@@ -70,10 +74,14 @@ const ALL_COMMANDS = [
 ];
 
 const MainLayout = () => {
-  const { logout } = useContext(AuthContext);
+  const { logout, authToken, user } = useContext(AuthContext);
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const location = useLocation();
@@ -91,8 +99,59 @@ const MainLayout = () => {
     }),
   ];
 
-  const username = getUsername() || "User";
-  const role = getRole();
+  const username = user?.username || getUsername() || "User";
+  const role = String(user?.role || getRole()).toLowerCase();
+  const isAdmin = role === "admin";
+  const visibleNavItems = isAdmin
+    ? [...navItems, { to: "/approvals", icon: ClipboardCheck, label: "Approvals" }]
+    : navItems;
+  const commandItems = isAdmin
+    ? ALL_COMMANDS
+    : ALL_COMMANDS.filter((item) => item.to !== "/settings");
+
+  const refreshApprovalCount = useCallback(async () => {
+    if (!authToken || !isAdmin) {
+      setPendingApprovalCount(0);
+      return;
+    }
+    try {
+      const result = await approvalService.getPendingCount(authToken);
+      setPendingApprovalCount(Number(result?.count) || 0);
+    } catch {
+      // Keep the last backend count visible through a temporary request failure.
+    }
+  }, [authToken, isAdmin]);
+
+  const refreshNotifications = useCallback(async () => {
+    if (!authToken) return;
+    const [recent, unread] = await Promise.allSettled([
+      notificationService.getNotifications(authToken),
+      notificationService.getNotifications(authToken, { unread: true, pageSize: 1 }),
+    ]);
+    if (recent.status === "fulfilled") setNotifications(recent.value.results);
+    if (unread.status === "fulfilled") setUnreadCount(unread.value.count);
+  }, [authToken]);
+
+  useEffect(() => {
+    refreshApprovalCount();
+    const interval = window.setInterval(refreshApprovalCount, 30000);
+    const refreshOnLeadChange = () => refreshApprovalCount();
+    window.addEventListener("crm:leadCreated", refreshOnLeadChange);
+    window.addEventListener("crm:imported", refreshOnLeadChange);
+    window.addEventListener("crm:approvalUpdated", refreshOnLeadChange);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("crm:leadCreated", refreshOnLeadChange);
+      window.removeEventListener("crm:imported", refreshOnLeadChange);
+      window.removeEventListener("crm:approvalUpdated", refreshOnLeadChange);
+    };
+  }, [refreshApprovalCount]);
+
+  useEffect(() => {
+    refreshNotifications();
+    const interval = window.setInterval(refreshNotifications, 30000);
+    return () => window.clearInterval(interval);
+  }, [refreshNotifications]);
 
   const handleLogout = () => {
     logout();
@@ -117,16 +176,36 @@ const MainLayout = () => {
   }, []);
 
   const filteredCommands = commandQuery.trim()
-    ? ALL_COMMANDS.filter((c) =>
+    ? commandItems.filter((c) =>
       c.label.toLowerCase().includes(commandQuery.toLowerCase()) ||
       c.category.toLowerCase().includes(commandQuery.toLowerCase())
     )
-    : ALL_COMMANDS;
+    : commandItems;
 
   const handleCommandSelect = (cmd) => {
     setCommandOpen(false);
     setCommandQuery("");
     navigate(cmd.to);
+  };
+
+  const openNotification = async (notification) => {
+    setNotificationOpen(false);
+    if (!notification.is_read) {
+      try {
+        await notificationService.markRead(notification.id, authToken);
+        setNotifications((current) => current.map((item) =>
+          item.id === notification.id ? { ...item, is_read: true } : item
+        ));
+        setUnreadCount((count) => Math.max(0, count - 1));
+      } catch {
+        // Opening the related page remains available if marking read fails.
+      }
+    }
+    if (notification.kind === "lead_pending_approval" && isAdmin) {
+      navigate("/approvals");
+    } else if (notification.kind !== "lead_rejected") {
+      navigate(`/leads?search=${encodeURIComponent(notification.lead_school_name || "")}`);
+    }
   };
 
   return (
@@ -179,48 +258,66 @@ const MainLayout = () => {
             <p className="px-2.5 pt-1 pb-2 text-[10px] font-[600] text-slate-400 uppercase tracking-[0.06em]">
               Main
             </p>
-            {navItems.map(({ to, icon: Icon, label }) => (
+            {visibleNavItems.map(({ to, icon: Icon, label }) => (
               <NavLink
                 key={to}
                 to={to}
                 onClick={() => setSidebarOpen(false)}
                 className={({ isActive }) =>
                   cn(
-                    "relative flex items-center gap-2.5 px-2.5 py-2 rounded-[9px] text-[13px] font-[500] transition-all duration-200 group overflow-hidden",
+                    "relative isolate flex items-center gap-2.5 px-2.5 py-2 rounded-[10px] text-[13px] font-[500] transition-all duration-300 ease-out group overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#294998]/30 focus-visible:ring-offset-1 motion-reduce:transition-none",
                     isActive
-                      ? "bg-gradient-to-r from-[#edf2fc] via-[#edf2fc]/50 to-transparent text-[#172b5c] font-[600] border border-[#cddbf6]/70 shadow-xs"
-                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 border border-transparent"
+                      ? "bg-gradient-to-r from-[#edf2fc] via-[#edf2fc]/70 to-white text-[#172b5c] font-[600] border border-[#cddbf6]/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_6px_rgba(41,73,152,0.07)]"
+                      : "text-slate-600 border border-transparent hover:-translate-y-0.5 hover:border-[#d6e2f8] hover:bg-white hover:text-[#203b78] hover:shadow-[0_5px_14px_rgba(41,73,152,0.10)] focus-visible:border-[#d6e2f8]"
                   )
                 }
               >
                 {({ isActive }) => (
                   <>
-                    {/* Left Active Amber Glow Capsule Indicator */}
-                    {isActive && (
-                      <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-[#E8A026] shadow-[0_0_8px_rgba(232,160,38,0.5)]" />
-                    )}
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "pointer-events-none absolute inset-0 bg-gradient-to-r from-[#294998]/[0.08] via-[#294998]/[0.035] to-transparent transition-opacity duration-300 group-focus-visible:opacity-100 motion-reduce:transition-none",
+                        isActive ? "opacity-0" : "opacity-0 group-hover:opacity-100"
+                      )}
+                    />
+
+                    {/* Amber rail grows in on hover and stays visible for the active page. */}
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "absolute left-0 top-2 bottom-2 w-[3px] origin-center rounded-r-full bg-[#E8A026] shadow-[0_0_9px_rgba(232,160,38,0.45)] transition-transform duration-300 ease-out motion-reduce:transition-none",
+                        isActive ? "scale-y-100" : "scale-y-0 group-hover:scale-y-100 group-focus-visible:scale-y-100"
+                      )}
+                    />
 
                     {/* Icon Tile */}
                     <div
                       className={cn(
-                        "h-7 w-7 rounded-[7px] flex items-center justify-center shrink-0 transition-all duration-200",
+                        "relative z-10 h-7 w-7 rounded-[8px] flex items-center justify-center shrink-0 transition-all duration-300 ease-out motion-reduce:transition-none",
                         isActive
-                          ? "bg-[#294998] text-white shadow-xs shadow-[#294998]/30"
-                          : "bg-slate-100/80 text-slate-500 group-hover:bg-slate-200/70 group-hover:text-slate-800"
+                          ? "bg-[#294998] text-white shadow-[0_3px_8px_rgba(41,73,152,0.28)]"
+                          : "bg-slate-100/80 text-slate-500 group-hover:-translate-y-0.5 group-hover:rotate-[-4deg] group-hover:scale-110 group-hover:bg-gradient-to-br group-hover:from-[#294998] group-hover:to-[#4569b6] group-hover:text-white group-hover:shadow-[0_5px_10px_rgba(41,73,152,0.28)] group-focus-visible:bg-[#294998] group-focus-visible:text-white group-focus-visible:shadow-[0_5px_10px_rgba(41,73,152,0.22)]"
                       )}
                     >
-                      <Icon className="h-3.5 w-3.5 transition-transform duration-200 group-hover:scale-105" />
+                      <Icon className="h-3.5 w-3.5 transition-transform duration-300 group-hover:rotate-[4deg] group-hover:scale-110 motion-reduce:transition-none" />
                     </div>
 
-                    <span className="truncate">{label}</span>
+                    <span className="relative z-10 truncate transition-transform duration-300 group-hover:translate-x-0.5 group-focus-visible:translate-x-0.5 motion-reduce:transition-none">{label}</span>
+
+                    {label === "Approvals" && pendingApprovalCount > 0 && (
+                      <span aria-label={`${pendingApprovalCount} pending approvals`} className="relative z-10 ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white shadow-sm">
+                        {pendingApprovalCount > 99 ? "99+" : pendingApprovalCount}
+                      </span>
+                    )}
 
                     {/* Right Interactive Indicator */}
                     <ChevronRight
                       className={cn(
-                        "ml-auto h-3.5 w-3.5 shrink-0 transition-all duration-200",
+                        "relative z-10 ml-auto h-3.5 w-3.5 shrink-0 transition-all duration-300 ease-out motion-reduce:transition-none",
                         isActive
                           ? "text-[#294998] opacity-90 translate-x-0 group-hover:translate-x-0.5"
-                          : "text-slate-300 opacity-0 group-hover:opacity-60 -translate-x-1 group-hover:translate-x-0"
+                          : "text-[#294998] opacity-0 -translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 group-focus-visible:opacity-80 group-focus-visible:translate-x-0"
                       )}
                     />
                   </>
@@ -231,48 +328,60 @@ const MainLayout = () => {
 
           {/* Bottom links */}
           <div className="px-2 pb-4 border-t border-slate-100 shrink-0 pt-3 space-y-1">
-            {bottomNavItems.map(({ to, icon: Icon, label }) => (
+            {(isAdmin ? bottomNavItems : []).map(({ to, icon: Icon, label }) => (
               <NavLink
                 key={to}
                 to={to}
                 onClick={() => setSidebarOpen(false)}
                 className={({ isActive }) =>
                   cn(
-                    "relative flex items-center gap-2.5 px-2.5 py-2 rounded-[9px] text-[13px] font-[500] transition-all duration-200 group overflow-hidden",
+                    "relative isolate flex items-center gap-2.5 px-2.5 py-2 rounded-[10px] text-[13px] font-[500] transition-all duration-300 ease-out group overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#294998]/30 focus-visible:ring-offset-1 motion-reduce:transition-none",
                     isActive
-                      ? "bg-gradient-to-r from-[#edf2fc] via-[#edf2fc]/50 to-transparent text-[#172b5c] font-[600] border border-[#cddbf6]/70 shadow-xs"
-                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 border border-transparent"
+                      ? "bg-gradient-to-r from-[#edf2fc] via-[#edf2fc]/70 to-white text-[#172b5c] font-[600] border border-[#cddbf6]/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_6px_rgba(41,73,152,0.07)]"
+                      : "text-slate-600 border border-transparent hover:-translate-y-0.5 hover:border-[#d6e2f8] hover:bg-white hover:text-[#203b78] hover:shadow-[0_5px_14px_rgba(41,73,152,0.10)] focus-visible:border-[#d6e2f8]"
                   )
                 }
               >
                 {({ isActive }) => (
                   <>
-                    {/* Left Active Amber Glow Capsule Indicator */}
-                    {isActive && (
-                      <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-[#E8A026] shadow-[0_0_8px_rgba(232,160,38,0.5)]" />
-                    )}
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "pointer-events-none absolute inset-0 bg-gradient-to-r from-[#294998]/[0.08] via-[#294998]/[0.035] to-transparent transition-opacity duration-300 group-focus-visible:opacity-100 motion-reduce:transition-none",
+                        isActive ? "opacity-0" : "opacity-0 group-hover:opacity-100"
+                      )}
+                    />
+
+                    {/* Amber rail grows in on hover and stays visible for the active page. */}
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "absolute left-0 top-2 bottom-2 w-[3px] origin-center rounded-r-full bg-[#E8A026] shadow-[0_0_9px_rgba(232,160,38,0.45)] transition-transform duration-300 ease-out motion-reduce:transition-none",
+                        isActive ? "scale-y-100" : "scale-y-0 group-hover:scale-y-100 group-focus-visible:scale-y-100"
+                      )}
+                    />
 
                     {/* Icon Tile */}
                     <div
                       className={cn(
-                        "h-7 w-7 rounded-[7px] flex items-center justify-center shrink-0 transition-all duration-200",
+                        "relative z-10 h-7 w-7 rounded-[8px] flex items-center justify-center shrink-0 transition-all duration-300 ease-out motion-reduce:transition-none",
                         isActive
-                          ? "bg-[#294998] text-white shadow-xs shadow-[#294998]/30"
-                          : "bg-slate-100/80 text-slate-500 group-hover:bg-slate-200/70 group-hover:text-slate-800"
+                          ? "bg-[#294998] text-white shadow-[0_3px_8px_rgba(41,73,152,0.28)]"
+                          : "bg-slate-100/80 text-slate-500 group-hover:-translate-y-0.5 group-hover:rotate-[-4deg] group-hover:scale-110 group-hover:bg-gradient-to-br group-hover:from-[#294998] group-hover:to-[#4569b6] group-hover:text-white group-hover:shadow-[0_5px_10px_rgba(41,73,152,0.28)] group-focus-visible:bg-[#294998] group-focus-visible:text-white group-focus-visible:shadow-[0_5px_10px_rgba(41,73,152,0.22)]"
                       )}
                     >
-                      <Icon className="h-3.5 w-3.5 transition-transform duration-200 group-hover:scale-105" />
+                      <Icon className="h-3.5 w-3.5 transition-transform duration-300 group-hover:rotate-[4deg] group-hover:scale-110 motion-reduce:transition-none" />
                     </div>
 
-                    <span className="truncate">{label}</span>
+                    <span className="relative z-10 truncate transition-transform duration-300 group-hover:translate-x-0.5 group-focus-visible:translate-x-0.5 motion-reduce:transition-none">{label}</span>
 
                     {/* Right Interactive Indicator */}
                     <ChevronRight
                       className={cn(
-                        "ml-auto h-3.5 w-3.5 shrink-0 transition-all duration-200",
+                        "relative z-10 ml-auto h-3.5 w-3.5 shrink-0 transition-all duration-300 ease-out motion-reduce:transition-none",
                         isActive
                           ? "text-[#294998] opacity-90 translate-x-0 group-hover:translate-x-0.5"
-                          : "text-slate-300 opacity-0 group-hover:opacity-60 -translate-x-1 group-hover:translate-x-0"
+                          : "text-[#294998] opacity-0 -translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 group-focus-visible:opacity-80 group-focus-visible:translate-x-0"
                       )}
                     />
                   </>
@@ -346,10 +455,49 @@ const MainLayout = () => {
                 <span className="ml-auto text-[11px] font-[500] px-1.5 py-0.5 rounded bg-slate-200 text-slate-500 shrink-0">⌘K</span>
               </button>
 
+              <div className="relative">
+                <button
+                  type="button"
+                  aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ""}`}
+                  aria-expanded={notificationOpen}
+                  onClick={() => {
+                    setProfileOpen(false);
+                    setNotificationOpen((open) => !open);
+                    refreshNotifications();
+                  }}
+                  className="relative grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
+                >
+                  <Bell className="h-4 w-4" />
+                  {unreadCount > 0 && <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-rose-600 px-1 text-[9px] font-bold leading-none text-white">{unreadCount > 9 ? "9+" : unreadCount}</span>}
+                </button>
+                {notificationOpen && <>
+                  <div className="fixed inset-0 z-40" onClick={() => setNotificationOpen(false)} />
+                  <section aria-label="Notifications" className="absolute right-0 top-full z-50 mt-2 w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+                    <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                      <div><h2 className="text-sm font-semibold text-slate-900">Notifications</h2><p className="mt-0.5 text-[10px] text-slate-400">{unreadCount} unread</p></div>
+                      <button type="button" aria-label="Refresh notifications" onClick={refreshNotifications} className="rounded p-1.5 text-slate-400 hover:bg-slate-100"><RefreshCw className="h-3.5 w-3.5" /></button>
+                    </div>
+                    <div className="max-h-[min(65vh,26rem)] overflow-y-auto divide-y divide-slate-100">
+                      {notifications.length ? notifications.map((notification) => (
+                        <button key={notification.id} type="button" onClick={() => openNotification(notification)} className={`block w-full px-4 py-3 text-left transition hover:bg-slate-50 ${notification.is_read ? "" : "bg-blue-50/40"}`}>
+                          <span className="flex items-start gap-2.5">
+                            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${notification.is_read ? "bg-slate-200" : "bg-[#294998]"}`} />
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-xs font-semibold leading-5 text-slate-800">{notification.message || notification.kind?.replaceAll("_", " ")}</span>
+                              <span className="mt-0.5 block truncate text-[10px] text-slate-400">{notification.lead_system_id} · {new Date(notification.sent_at).toLocaleString("en-NP", { dateStyle: "medium", timeStyle: "short" })}</span>
+                            </span>
+                          </span>
+                        </button>
+                      )) : <p className="px-4 py-8 text-center text-xs text-slate-400">You’re all caught up.</p>}
+                    </div>
+                  </section>
+                </>}
+              </div>
+
               {/* Profile avatar + dropdown */}
               <div className="relative">
                 <button
-                  onClick={() => setProfileOpen((o) => !o)}
+                  onClick={() => { setNotificationOpen(false); setProfileOpen((o) => !o); }}
                   className="h-8 w-8 rounded-full bg-[#294998] flex items-center justify-center text-[11px] font-[700] text-white cursor-pointer hover:ring-2 hover:ring-[#294998]/30 transition-all shadow-xs"
                 >
                   {getInitials(username)}
@@ -370,12 +518,19 @@ const MainLayout = () => {
                       </div>
                       <div className="py-1">
                         <button
-                          onClick={() => { setProfileOpen(false); navigate("/settings"); }}
+                          onClick={() => { setProfileOpen(false); navigate("/profile"); }}
                           className="w-full flex items-center gap-3 px-4 py-2 text-[13px] text-slate-700 hover:bg-slate-50 transition-colors"
                         >
                           <User className="h-3.5 w-3.5 text-slate-400" />
-                          Profile & Settings
+                          My Profile
                         </button>
+                        {isAdmin && <button
+                          onClick={() => { setProfileOpen(false); navigate("/settings"); }}
+                          className="w-full flex items-center gap-3 px-4 py-2 text-[13px] text-slate-700 hover:bg-slate-50 transition-colors"
+                        >
+                          <Settings className="h-3.5 w-3.5 text-slate-400" />
+                          Settings
+                        </button>}
                       </div>
                       <div className="py-1 border-t border-slate-100">
                         <button

@@ -25,7 +25,8 @@ const csvCell = (value) => {
 
 const TrashPage = () => {
   const { authToken, user } = useAuth();
-  const canRestore = ADMIN_ROLES.includes(String(user?.role || "").toLowerCase());
+  const role = String(user?.role || "").toLowerCase();
+  const canRestore = ADMIN_ROLES.includes(role) || role === "b2b";
   const [leads, setLeads] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -170,7 +171,7 @@ const TrashPage = () => {
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Archived Leads</h1>
-          <p className="mt-1 text-sm text-slate-500">Archived records are read-only. Admins can restore them.</p>
+          <p className="mt-1 text-sm text-slate-500">Archived records are read-only. Admins and lead owners can restore them.</p>
         </div>
         <div className="flex items-center gap-2">
           <button type="button" disabled={loading || busy} onClick={() => fetchLeads(currentPage, searchTerm)} className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50">

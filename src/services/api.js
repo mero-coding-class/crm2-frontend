@@ -112,6 +112,7 @@ export const leadService = {
       contact_person: lead.contact_person || "",
       contact_number: lead.contact_number || "",
       sub_status: lead.sub_status || "New",
+      approval: lead.approval || "",
     }));
 
     return { results: mapped, count: count ?? null, totalPages };
@@ -494,6 +495,13 @@ export const dashboardService = {
 };
 
 export const approvalService = {
+  getPendingCount: async (authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/approvals/count/`, {
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    return handleResponse(response);
+  },
   getQueue: async (authToken, page = 1, pageSize = 25) => {
     if (!authToken) throw new Error("Authentication token not found.");
     const response = await apiFetch(`${BASE_URL}/approvals/?page=${page}&page_size=${pageSize}`, {
@@ -513,18 +521,76 @@ export const approvalService = {
         Authorization: `Token ${authToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ reason }),
+      body: JSON.stringify(reason ? { reason } : {}),
     });
     return handleResponse(response);
   },
   approveLead: (id, reason, authToken) => approvalService.decide(id, "approve", reason, authToken),
   rejectLead: (id, reason, authToken) => approvalService.decide(id, "reject", reason, authToken),
-  batchReview: async (ids, action, authToken) => {
+  batchReview: async (ids, action, authToken, reason = "") => {
     if (!authToken) throw new Error("Authentication token not found.");
     const response = await apiFetch(`${BASE_URL}/approvals/batch/`, {
       method: "POST",
       headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ ids, action }),
+      body: JSON.stringify({ ids, action, ...(reason ? { reason } : {}) }),
+    });
+    return handleResponse(response);
+  },
+};
+
+export const profileService = {
+  getMyProfile: async (authToken) => {
+    const response = await apiFetch(`${BASE_URL}/auth/me/`, {
+      headers: authToken ? { Authorization: `Token ${authToken}` } : {},
+    });
+    return handleResponse(response);
+  },
+  updateMyProfile: async (updates, authToken) => {
+    const response = await apiFetch(`${BASE_URL}/auth/me/`, {
+      method: "PATCH",
+      headers: {
+        ...(authToken ? { Authorization: `Token ${authToken}` } : {}),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(updates),
+    });
+    return handleResponse(response);
+  },
+  changePassword: async (oldPassword, newPassword, authToken) => {
+    const response = await apiFetch(`${BASE_URL}/auth/password/`, {
+      method: "POST",
+      headers: {
+        ...(authToken ? { Authorization: `Token ${authToken}` } : {}),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+    });
+    return handleResponse(response);
+  },
+};
+
+export const notificationService = {
+  getNotifications: async (authToken, { unread = false, pageSize = 8 } = {}) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const params = new URLSearchParams({ page: "1", page_size: String(pageSize) });
+    if (unread) params.set("unread", "true");
+    const response = await apiFetch(`${BASE_URL}/notifications/?${params}`, {
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    const data = await handleResponse(response);
+    return {
+      results: Array.isArray(data) ? data : data?.results || [],
+      count: Array.isArray(data) ? data.length : data?.count || 0,
+    };
+  },
+  markRead: async (id, authToken) => {
+    const response = await apiFetch(`${BASE_URL}/notifications/${id}/`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Token ${authToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ is_read: true }),
     });
     return handleResponse(response);
   },
