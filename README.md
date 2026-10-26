@@ -1,12 +1,29 @@
-# React + Vite
+# Mero Coding CRM frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React and Vite client for the CRM. The API uses session cookies; Vite proxies
+`/api`, `/health`, `/media`, and `/ws` to the backend during development.
 
-Currently, two official plugins are available:
+## Local development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```bash
+npm install
+VITE_BACKEND_URL=http://127.0.0.1:8000 npm run dev
+```
 
-## Expanding the ESLint configuration
+Open `http://localhost:3000`. Start the backend and its PostgreSQL and Redis
+services first. The backend serves authenticated live change events over
+`/ws/updates/`; open pages refresh their own data after a saved change.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+For a production frontend hosted separately from the backend, set
+`VITE_API_ORIGIN` and `VITE_WEBSOCKET_ORIGIN` to the backend origin at build
+time. Use frontend and backend subdomains of the same site, configure the
+backend CORS/CSRF/WebSocket origin allowlists, and set the session and CSRF
+cookie domains to the shared parent domain. A same-origin reverse proxy can
+keep both variables unset.
+
+## Available commands
+
+- `npm run dev` starts the Vite development server.
+- `npm run build` creates the production bundle in `dist/`.
+- `npm run lint` runs ESLint.
+- `npm run preview` serves the production bundle locally.

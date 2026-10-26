@@ -1,7 +1,9 @@
 // src/pages/Reports.jsx — connected to crm2-backend /api/reports/*
 import React, { useState, useEffect, useCallback } from "react";
-import { useAuth } from "../context/AuthContext.jsx";
+import { useAuth } from "../context/useAuth.js";
 import { reportService } from "../services/api";
+import PageLoadingState from "../components/common/PageLoadingState.jsx";
+import useRealtimeRefresh from "../hooks/useRealtimeRefresh.js";
 import {
   BarChart2,
   TrendingUp,
@@ -126,7 +128,7 @@ const Reports = () => {
 
   // ── Data ───────────────────────────────────────────────────────────────────
   const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // ── Export ─────────────────────────────────────────────────────────────────
@@ -156,6 +158,9 @@ const Reports = () => {
   }, [authToken, from, to, district]);
 
   useEffect(() => { fetchSummary(); }, [fetchSummary]);
+  useRealtimeRefresh(authToken, fetchSummary);
+
+  if (loading && !summary) return <PageLoadingState />;
 
   // ── Export helpers ─────────────────────────────────────────────────────────
   const handleExportSummary = async (fmt_) => {
@@ -297,12 +302,6 @@ const Reports = () => {
         )}
 
         {/* Loading skeleton */}
-        {loading && !summary && (
-          <div className={`${panelClass} flex min-h-48 items-center justify-center gap-2 text-sm text-slate-500`}>
-            <Loader2 className="h-5 w-5 animate-spin text-[#294998]" aria-hidden="true" /> Loading report…
-          </div>
-        )}
-
         {summary && (
           <>
             {/* Key Metrics */}

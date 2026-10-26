@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth.js";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import LeadEditForm from "./LeadEditForm";
 import { leadService } from "../services/api";

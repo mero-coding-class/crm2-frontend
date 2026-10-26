@@ -1,13 +1,13 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useAuth } from "../context/AuthContext.jsx";
+import { useAuth } from "../context/useAuth.js";
 import LeadTableDisplay from "../components/LeadTableDisplay";
 import LeadEditModal from "../components/LeadEditModal";
 import AddLeadModal from "../components/AddLeadModal";
 import LeadsHeader from "../components/LeadsHeader";
 import LeadsFilters from "../components/LeadsFilters";
 import Toast from "../components/common/Toast";
-import DelayedLoader from "../components/common/DelayedLoader";
+import PageLoadingState from "../components/common/PageLoadingState.jsx";
 import Loader from "../components/common/Loader";
 import {
   AlertDialog,
@@ -242,7 +242,7 @@ const Leads = () => {
   // removed noisy debug logging
 
   if (loading) {
-    return <DelayedLoader message="Loading leads..." minMs={2000} />;
+    return <PageLoadingState />;
   }
 
   if (error) {

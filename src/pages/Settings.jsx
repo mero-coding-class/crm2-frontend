@@ -1,5 +1,7 @@
-import React, { useMemo, useState, useEffect } from "react";
-import { useAuth } from "../context/AuthContext.jsx";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
+import { useAuth } from "../context/useAuth.js";
+import PageLoadingState from "../components/common/PageLoadingState.jsx";
+import useRealtimeRefresh from "../hooks/useRealtimeRefresh.js";
 import { BASE_URL } from "../config";
 import { courseService } from "../services/api";
 import { isValidEmail, isValidPrice } from "../utils/validation";
@@ -70,7 +72,7 @@ const Settings = () => {
 
   // --- Users State ---
   const [users, setUsers] = useState([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(true);
   const [userForm, setUserForm] = useState({
     username: "",
     email: "",
@@ -131,14 +133,14 @@ const Settings = () => {
 
   // --- Courses State ---
   const [courses, setCourses] = useState([]);
-  const [loadingCourses, setLoadingCourses] = useState(false);
+  const [loadingCourses, setLoadingCourses] = useState(true);
   const [newCourseName, setNewCourseName] = useState("");
   const [courseSubmitting, setCourseSubmitting] = useState(false);
   const [courseMsg, setCourseMsg] = useState({ type: "", text: "" });
   const [editingCourse, setEditingCourse] = useState(null);
   const [editCourseName, setEditCourseName] = useState("");
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setLoadingUsers(true);
     try {
       const res = await fetch(`${BASE_URL}/users/`, {
@@ -157,9 +159,9 @@ const Settings = () => {
     } finally {
       setLoadingUsers(false);
     }
-  };
+  }, [authToken]);
 
-  const fetchCourses = async () => {
+  const fetchCourses = useCallback(async () => {
     setLoadingCourses(true);
     try {
       let data = await courseService.getCourses(authToken);
@@ -172,14 +174,20 @@ const Settings = () => {
     } finally {
       setLoadingCourses(false);
     }
-  };
+  }, [authToken]);
 
   useEffect(() => {
     if (isAdminLike && authToken) {
       fetchUsers();
       fetchCourses();
     }
-  }, [isAdminLike, authToken]);
+  }, [isAdminLike, authToken, fetchUsers, fetchCourses]);
+
+  useRealtimeRefresh(authToken, () => {
+    if (!isAdminLike) return;
+    fetchUsers();
+    fetchCourses();
+  });
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
@@ -484,6 +492,10 @@ const Settings = () => {
         </p>
       </div>
     );
+  }
+
+  if ((tab === "users" && loadingUsers) || (tab === "courses" && loadingCourses)) {
+    return <PageLoadingState />;
   }
 
   return (

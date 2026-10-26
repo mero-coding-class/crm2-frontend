@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth.js";
 import useAddLeadForm, {
   SOURCE_CHOICES,
 } from "./addLead/useAddLeadForm";

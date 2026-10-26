@@ -1,21 +1,25 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
-import { useAuth } from "../context/AuthContext.jsx";
+import { useAuth } from "../context/useAuth.js";
 import { BASE_URL } from "../config";
 
 async function fetchUserProfile(token, fallbackUsername) {
   try {
     const { data } = await axios.get(`${BASE_URL}/auth/me/`);
     if (data && data.username) return data;
-  } catch (_) {}
+  } catch {
+    // The current session may still be enough to complete sign-in.
+  }
   try {
     const { data } = await axios.get(`${BASE_URL}/users/`);
     const list = Array.isArray(data) ? data : data.results || [];
     const found =
       list.find((u) => u?.username === fallbackUsername) ?? list[0] ?? null;
     if (found) return found;
-  } catch (_) {}
+  } catch {
+    // Keep the login flow available if the profile endpoint is temporarily unavailable.
+  }
   return { username: fallbackUsername };
 }
 

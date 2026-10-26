@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useAuth } from "../context/AuthContext.jsx";
+import { useAuth } from "../context/useAuth.js";
 import TrashTableDisplay from "../components/TrashDisplayTable.jsx";
 import { ArrowPathIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { leadService } from "../services/api.js";
-import DelayedLoader from "../components/common/DelayedLoader";
+import PageLoadingState from "../components/common/PageLoadingState.jsx";
+import useRealtimeRefresh from "../hooks/useRealtimeRefresh.js";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -69,6 +70,8 @@ const TrashPage = () => {
     }, searchTerm ? 250 : 0);
     return () => window.clearTimeout(timer);
   }, [authToken, currentPage, searchTerm, fetchLeads]);
+
+  useRealtimeRefresh(authToken, () => fetchLeads(currentPage, searchTerm, { silent: true }));
 
   useEffect(() => {
     if (!authToken) return undefined;
@@ -163,7 +166,7 @@ const TrashPage = () => {
   };
 
   if (loading && leads.length === 0) {
-    return <DelayedLoader message="Loading archived leads…" minMs={600} />;
+    return <PageLoadingState />;
   }
 
   return (

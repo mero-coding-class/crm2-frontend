@@ -1,8 +1,7 @@
 // src/context/AuthContext.jsx
-import React, { createContext, useState, useEffect, useContext, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { BASE_URL } from "../config";
-
-export const AuthContext = createContext(null);
+import { AuthContext } from "./authContext.js";
 
 export const AuthProvider = ({ children }) => {
   const [authToken, setAuthToken] = useState(
@@ -13,7 +12,9 @@ export const AuthProvider = ({ children }) => {
     try {
       const raw = localStorage.getItem("user");
       if (raw) return JSON.parse(raw);
-    } catch {}
+    } catch {
+      // Fall back to the legacy separate localStorage keys below.
+    }
     // Backward-compat: if older code stored separate keys
     const username = localStorage.getItem("username");
     const role = localStorage.getItem("role");
@@ -53,11 +54,9 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const logout = () => {
-    try {
-      fetch(`${BASE_URL}/auth/logout/`, {
-        method: "POST",
-      }).catch(() => {});
-    } catch (_) {}
+    fetch(`${BASE_URL}/auth/logout/`, { method: "POST" }).catch(() => {
+      // Clear local state even if the server cannot be reached during logout.
+    });
     localStorage.removeItem("authToken");
     localStorage.removeItem("user");
     localStorage.removeItem("username");
@@ -110,11 +109,4 @@ export const AuthProvider = ({ children }) => {
       {children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuth = () => {
-  const ctx = useContext(AuthContext);
-  if (ctx === undefined)
-    throw new Error("useAuth must be used within an AuthProvider");
-  return ctx;
 };

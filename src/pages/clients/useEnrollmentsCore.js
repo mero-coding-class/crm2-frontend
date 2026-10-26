@@ -1,6 +1,5 @@
 import { useCallback, useRef, useState } from "react";
 import { clientService } from "../../services/api";
-import { filterReturnedClients } from "./returnedToLeadsStore";
 
 export default function useEnrollmentsCore(authToken, itemsPerPage, routeFilters = {}) {
   const [allStudents, setAllStudents] = useState([]);
@@ -33,9 +32,7 @@ export default function useEnrollmentsCore(authToken, itemsPerPage, routeFilters
         const list = Array.isArray(response)
           ? response
           : response?.results || response?.data || [];
-        const visibleClients = filterReturnedClients(list);
-
-        setAllStudents(visibleClients);
+        setAllStudents(list);
         setCurrentPage(page);
         const count = Array.isArray(response)
           ? response.length

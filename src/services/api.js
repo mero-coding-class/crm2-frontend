@@ -422,15 +422,43 @@ export const demoService = {
   /** List demos (role-scoped). Supports params: lead, demo_status, academic, from, to, unassigned */
   getDemos: async (authToken, params = {}) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const qs = new URLSearchParams(
-      Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ""))
-    ).toString();
-    const response = await apiFetch(`${BASE_URL}/demos/${qs ? `?${qs}` : ""}`, {
+    const queryParams = Object.fromEntries(
+      Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== "")
+    );
+    queryParams.page_size = 100;
+
+    const fetchPage = async (page) => {
+      const pageParams = new URLSearchParams({ ...queryParams, page: String(page) });
+      const response = await apiFetch(`${BASE_URL}/demos/?${pageParams}`, {
+        headers: { Authorization: `Token ${authToken}` },
+      });
+      return handleResponse(response);
+    };
+
+    const firstPage = await fetchPage(1);
+    if (Array.isArray(firstPage)) {
+      return { results: firstPage, count: firstPage.length };
+    }
+
+    const list = [...(firstPage?.results || [])];
+    const count = firstPage?.count || list.length;
+    const pageCount = Math.ceil(count / 100);
+    for (let page = 2; page <= pageCount; page += 1) {
+      const data = await fetchPage(page);
+      const rows = Array.isArray(data) ? data : data?.results || [];
+      if (rows.length === 0) break;
+      list.push(...rows);
+    }
+    return { results: list, count };
+  },
+
+  /** Load the minimal lead and academic choices used by full demo editors. */
+  getEditOptions: async (authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/demos/edit-options/`, {
       headers: { Authorization: `Token ${authToken}` },
     });
-    const data = await handleResponse(response);
-    const list = Array.isArray(data) ? data : data?.results || [];
-    return { results: list, count: data?.count || list.length };
+    return handleResponse(response);
   },
 
   /** Schedule a new demo. */
@@ -733,6 +761,27 @@ export const clientService = {
     const url = `${BASE_URL}/clients/${qs ? `?${qs}` : ""}`;
     const response = await apiFetch(url, {
       headers: { Authorization: `Token ${authToken}` },
+    });
+    return handleResponse(response);
+  },
+
+  getAcademicAssignees: async (authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/clients/academic-assignees/`, {
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    return handleResponse(response);
+  },
+
+  assignAcademic: async (clientId, assignedTo, authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/clients/${clientId}/assign-academic/`, {
+      method: "POST",
+      headers: {
+        Authorization: `Token ${authToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ assigned_to: assignedTo }),
     });
     return handleResponse(response);
   },

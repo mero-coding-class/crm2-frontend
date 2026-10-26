@@ -1,7 +1,6 @@
 import { useCallback, useState } from "react";
 import { clientService } from "../../services/api";
 import { exportsStore } from "../../services/exportsStore";
-import { filterReturnedClients } from "./returnedToLeadsStore";
 
 const EXPORT_COLUMNS = [
   "id",
@@ -71,7 +70,6 @@ export default function useEnrollmentExport(authToken) {
           page += 1;
         }
 
-        clients = filterReturnedClients(clients);
         if (!clients.length) throw new Error("No clients to export.");
 
         const csv = [

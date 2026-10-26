@@ -32,7 +32,11 @@ const Toast = ({ message, type = "success", onClose, duration = 6000 }) => {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      try { onCloseRef.current && onCloseRef.current(); } catch {}
+      try {
+        onCloseRef.current?.();
+      } catch {
+        // A disappearing toast must not break the rest of the page.
+      }
     }, duration);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps

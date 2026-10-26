@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { Download, Trash2, FileText, AlertTriangle, X } from "lucide-react";
 import { exportsStore } from "../services/exportsStore";
 import {
@@ -46,20 +46,19 @@ function downloadItem(item) {
 }
 
 const Downloads = () => {
-  const [itemsVersion, setItemsVersion] = useState(0);
-  const items = useMemo(() => exportsStore.list(), [itemsVersion]);
+  const [items, setItems] = useState(() => exportsStore.list());
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
   const handleDelete = (id) => {
     exportsStore.remove(id);
-    setItemsVersion((v) => v + 1);
+    setItems(exportsStore.list());
     setDeleteConfirmId(null);
   };
 
   const handleClear = () => {
     exportsStore.clear();
-    setItemsVersion((v) => v + 1);
+    setItems([]);
     setClearConfirmOpen(false);
   };
 

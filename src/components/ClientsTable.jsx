@@ -86,6 +86,9 @@ const ClientsTable = ({
   handleBulkDelete,
   teachers = [],
   canManage = false,
+  canAssignAcademic = false,
+  assigningClientId = null,
+  onAssignAcademic,
 }) => {
   const [orderedStudents, setOrderedStudents] = useState([]);
   const [selectedStudents, setSelectedStudents] = useState(new Set());
@@ -213,6 +216,9 @@ const ClientsTable = ({
                     handleDelete={handleDelete}
                     teachers={teachers}
                     canManage={canManage}
+                    canAssignAcademic={canAssignAcademic}
+                    assigningClientId={assigningClientId}
+                    onAssignAcademic={onAssignAcademic}
                   />
                 ))}
               </tbody>
@@ -233,6 +239,9 @@ const SortableClientRow = ({
   handleDelete,
   teachers,
   canManage,
+  canAssignAcademic,
+  assigningClientId,
+  onAssignAcademic,
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: student.id });
   const style = {
@@ -248,8 +257,34 @@ const SortableClientRow = ({
       case "school_name":
         return <span title={student.school_name || "—"} className="font-[600] text-slate-900">{student.school_name || "—"}</span>;
       case "assigned_to": {
+        const assignedId = student.assigned_to?.id ?? student.assigned_to;
         const assignedName = student.assigned_to_name ||
-          teachers.find((teacher) => String(teacher.id) === String(student.assigned_to))?.name;
+          teachers.find((teacher) => String(teacher.id) === String(assignedId))?.name;
+        if (canAssignAcademic) {
+          const hasCurrentTeacher = teachers.some(
+            (teacher) => String(teacher.id) === String(assignedId)
+          );
+          return (
+            <select
+              aria-label={`Academic user for ${student.school_name || "client"}`}
+              value={assignedId ?? ""}
+              disabled={assigningClientId !== null}
+              onChange={(event) => onAssignAcademic?.(
+                student.id,
+                event.target.value === "" ? null : Number(event.target.value)
+              )}
+              className="max-w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-[12px] text-slate-700 outline-none focus:border-[#294998] focus:ring-2 focus:ring-[#294998]/15 disabled:opacity-60"
+            >
+              <option value="">Unassigned</option>
+              {assignedId != null && !hasCurrentTeacher && (
+                <option value={assignedId}>{assignedName || assignedId}</option>
+              )}
+              {teachers.map((teacher) => (
+                <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
+              ))}
+            </select>
+          );
+        }
         return <span title={assignedName || "Unassigned"}>{assignedName || "Unassigned"}</span>;
       }
       case "classes_per_week":

@@ -15,7 +15,6 @@ import {
   FileCheck2,
   GraduationCap,
   Handshake,
-  LoaderCircle,
   RefreshCw,
   School,
   Users,
@@ -28,9 +27,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useAuth } from "../context/AuthContext.jsx";
+import { useAuth } from "../context/useAuth.js";
 import { dashboardService } from "../services/api.js";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "../components/ui/chart.jsx";
+import PageLoadingState from "../components/common/PageLoadingState.jsx";
+import useRealtimeRefresh from "../hooks/useRealtimeRefresh.js";
 
 const toIsoDate = (date) => {
   const adjusted = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
@@ -235,6 +236,7 @@ const Dashboard = () => {
   }, [authToken, range]);
 
   useEffect(() => { loadDashboard(); }, [loadDashboard]);
+  useRealtimeRefresh(authToken, () => loadDashboard(true));
 
   useEffect(() => {
     if (!authToken) return undefined;
@@ -328,11 +330,7 @@ const Dashboard = () => {
     (summary.stage_transitions || []).forEach((transition) => map.set(`${transition.from}→${transition.to}`, transition.count));
     return map;
   }, [summary.stage_transitions]);
-  if (loading) return (
-    <div className="grid min-h-[65vh] place-items-center bg-[#F5F7FB]">
-      <div className="flex items-center gap-3 text-sm font-medium text-slate-500"><LoaderCircle className="h-5 w-5 animate-spin text-[#294998]" />Getting your dashboard ready…</div>
-    </div>
-  );
+  if (loading) return <PageLoadingState />;
 
   if (error && !data) return (
     <div className="grid min-h-[60vh] place-items-center p-6">

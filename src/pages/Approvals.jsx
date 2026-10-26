@@ -13,8 +13,10 @@ import {
   X,
   XCircle,
 } from "lucide-react";
-import { useAuth } from "../context/AuthContext.jsx";
+import { useAuth } from "../context/useAuth.js";
 import { approvalService } from "../services/api.js";
+import PageLoadingState from "../components/common/PageLoadingState.jsx";
+import useRealtimeRefresh from "../hooks/useRealtimeRefresh.js";
 
 const formatDate = (value) => {
   if (!value) return "Date unavailable";
@@ -60,6 +62,7 @@ const Approvals = () => {
   }, [authToken, isAdmin, page]);
 
   useEffect(() => { loadQueue(); }, [loadQueue]);
+  useRealtimeRefresh(authToken, loadQueue);
 
   const submitDecision = async () => {
     if (!review || (review.decision === "reject" && !reason.trim())) return;
@@ -114,6 +117,8 @@ const Approvals = () => {
     </main>
   );
 
+  if (loading && !rows.length) return <PageLoadingState />;
+
   return (
     <main className="min-h-full bg-[#F5F7FB]">
       <div className="mx-auto max-w-6xl space-y-5 px-4 py-6 sm:px-6 lg:px-8">
@@ -145,7 +150,7 @@ const Approvals = () => {
             <div className="flex items-center gap-3"><input type="checkbox" aria-label="Select all leads on this page" checked={rows.length > 0 && rows.every((lead) => selected.has(lead.id))} onChange={(event) => setSelected(event.target.checked ? new Set(rows.map((lead) => lead.id)) : new Set())} className="h-4 w-4 rounded border-slate-300 text-[#294998] focus:ring-[#294998]" /><div><h2 className="text-sm font-semibold text-slate-900">Submission queue</h2><p className="mt-1 text-xs text-slate-500">Oldest pending submissions appear first.</p></div></div>
             <span className="text-[11px] font-medium text-slate-400">Page {page} of {pages}</span>
           </div>
-          {loading && !rows.length ? <div className="grid min-h-56 place-items-center text-sm text-slate-500"><span className="inline-flex items-center gap-2"><LoaderCircle className="h-4 w-4 animate-spin text-[#294998]" />Loading submissions…</span></div> : rows.length ? <div className="divide-y divide-slate-100">
+          {rows.length ? <div className="divide-y divide-slate-100">
             {rows.map((lead) => <article key={lead.id} className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:px-6">
               <input type="checkbox" checked={selected.has(lead.id)} onChange={() => setSelected((current) => { const next = new Set(current); next.has(lead.id) ? next.delete(lead.id) : next.add(lead.id); return next; })} aria-label={`Select ${lead.school_name}`} className="h-4 w-4 shrink-0 rounded border-slate-300 text-[#294998] focus:ring-[#294998]" />
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-blue-50 text-[#294998]"><School className="h-5 w-5" /></span>

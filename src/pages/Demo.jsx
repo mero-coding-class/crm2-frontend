@@ -19,9 +19,11 @@ import {
   MessageSquare,
   Trash2,
 } from "lucide-react";
-import { useAuth } from "../context/AuthContext.jsx";
+import { useAuth } from "../context/useAuth.js";
 import { demoService, leadService } from "../services/api";
 import { isValidPhoneNumber } from "../utils/validation";
+import PageLoadingState from "../components/common/PageLoadingState.jsx";
+import useRealtimeRefresh from "../hooks/useRealtimeRefresh.js";
 
 // ─── Status config ────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
@@ -63,14 +65,23 @@ const fmt = (dt) => {
     : d.toLocaleString("en-NP", { dateStyle: "medium", timeStyle: "short" });
 };
 
+const toDateTimeLocal = (dt) => {
+  if (!dt) return "";
+  const date = new Date(dt);
+  if (isNaN(date.getTime())) return "";
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+    .toISOString()
+    .slice(0, 16);
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 const Demo = () => {
   const { authToken, user } = useAuth();
   const [searchParams] = useSearchParams();
   const role = user?.role || "";
   const isAdmin = ["admin", "superadmin"].includes(role.toLowerCase());
-  const isAcademic = role === "academic";
-  const isB2b = role === "b2b";
+  const isAcademic = role.toLowerCase() === "academic";
+  const isB2b = role.toLowerCase() === "b2b";
   const canScheduleDemo = isAdmin || isB2b;
 
   // ── State ──────────────────────────────────────────────────────────────────
@@ -102,7 +113,10 @@ const Demo = () => {
   const emptyCreate = { lead: "", demo_at: "", details: "", contact_person: "", phone: "", assigned_teacher: "" };
   const [createForm, setCreateForm] = useState(emptyCreate);
 
-  const emptyEdit = { demo_at: "", details: "", demo_status: "", contact_person: "", phone: "" };
+  const emptyEdit = {
+    demo_at: "", details: "", contact_person: "", phone: "",
+    assigned_teacher: "",
+  };
   const [editForm, setEditForm] = useState(emptyEdit);
 
   const emptyFeedback = { outcome: "", program: "", feedback_notes: "" };
@@ -120,7 +134,6 @@ const Demo = () => {
       if (searchParams.get("feedback") === "pending") params.feedback = "pending";
       if (searchParams.get("from")) params.from = searchParams.get("from");
       if (searchParams.get("to")) params.to = searchParams.get("to");
-      if (searchQuery.trim()) params.search = searchQuery.trim();
       const { results } = await demoService.getDemos(authToken, params);
       setDemos(results);
     } catch (e) {
@@ -128,7 +141,7 @@ const Demo = () => {
     } finally {
       setLoading(false);
     }
-  }, [authToken, statusFilter, searchParams, searchQuery]);
+  }, [authToken, statusFilter, searchParams]);
 
   useEffect(() => { fetchDemos(); }, [fetchDemos]);
 
@@ -146,6 +159,8 @@ const Demo = () => {
       setLeads(Array.isArray(list) ? list : []);
     } catch { setLeads([]); } finally { setLeadsLoading(false); }
   }, [authToken]);
+
+  useRealtimeRefresh(authToken, fetchDemos);
 
   // ── Stats ──────────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -224,11 +239,11 @@ const Demo = () => {
   const openEdit = (demo) => {
     setEditingDemo(demo);
     setEditForm({
-      demo_at: demo.demo_at ? demo.demo_at.slice(0, 16) : "",
+      demo_at: toDateTimeLocal(demo.demo_at),
       details: demo.details || "",
-      demo_status: demo.demo_status || "scheduled",
       contact_person: demo.contact_person || "",
       phone: demo.phone || "",
+      assigned_teacher: demo.assigned_teacher || "",
     });
     setSaveError(null);
   };
@@ -236,7 +251,11 @@ const Demo = () => {
   const handleUpdate = async (e) => {
     e.preventDefault();
     if (!editingDemo) return;
-    if (editForm.phone.trim() && !isValidPhoneNumber(editForm.phone)) {
+    if (!editForm.demo_at) {
+      setSaveError("Demo Date/Time is required.");
+      return;
+    }
+    if ((isAdmin || isB2b || isAcademic) && editForm.phone.trim() && !isValidPhoneNumber(editForm.phone)) {
       setSaveError("Phone must contain exactly 10 local digits. +977 is accepted.");
       return;
     }
@@ -246,10 +265,17 @@ const Demo = () => {
       const allowed = {};
       if (editForm.demo_at) allowed.demo_at = editForm.demo_at;
       if (editForm.details !== undefined) allowed.details = editForm.details;
-      if (editForm.contact_person !== undefined) allowed.contact_person = editForm.contact_person;
-      if (editForm.phone !== undefined) allowed.phone = editForm.phone;
-      // Only admins can change demo_status via the main update
-      if (isAdmin && editForm.demo_status) allowed.demo_status = editForm.demo_status;
+      if (editForm.assigned_teacher !== undefined) allowed.assigned_teacher = editForm.assigned_teacher;
+      // Keep PATCH limited to fields the user changed. In particular, don't
+      // resend B2B contact snapshots on an unrelated reschedule/details edit.
+      if ((isAdmin || isAcademic || isB2b) &&
+          editForm.contact_person !== (editingDemo.contact_person || "")) {
+        allowed.contact_person = editForm.contact_person;
+      }
+      if ((isAdmin || isAcademic || isB2b) &&
+          editForm.phone !== (editingDemo.phone || "")) {
+        allowed.phone = editForm.phone;
+      }
       await demoService.updateDemo(editingDemo.id, allowed, authToken);
       setEditingDemo(null);
       fetchDemos();
@@ -299,6 +325,8 @@ const Demo = () => {
       setSaving(false);
     }
   };
+
+  if (loading && demos.length === 0) return <PageLoadingState />;
 
   // ── UI ─────────────────────────────────────────────────────────────────────
   return (
@@ -466,8 +494,7 @@ const Demo = () => {
                             >
                               <Eye className="w-4 h-4" />
                             </button>
-                            {/* Edit: B2B owns, admin all (not academic/b2c) */}
-                            {(isAdmin || (isB2b && demo.demo_status !== "completed")) && (
+                            {(isAdmin || isB2b || isAcademic) && (
                               <button
                                 onClick={() => openEdit(demo)}
                                 className="p-1.5 rounded-[6px] text-slate-500 hover:text-[#294998] hover:bg-[#EDF2FC] transition-colors"
@@ -476,9 +503,9 @@ const Demo = () => {
                                 <Pencil className="w-4 h-4" />
                               </button>
                             )}
-                            {/* Feedback: academic assigned, or admin */}
+                            {/* Any academic or admin can submit demo feedback. */}
                             {demo.demo_status === "scheduled" &&
-                              (isAdmin || (isAcademic && demo.academic === user?.id)) && (
+                              (isAdmin || isAcademic) && (
                                 <button
                                   onClick={() => openFeedback(demo)}
                                   className="p-1.5 rounded-[6px] text-slate-500 hover:text-[#294998] hover:bg-[#EDF2FC] transition-colors"
@@ -549,19 +576,9 @@ const Demo = () => {
           <DetailRow label="Demo Date" value={fmt(viewingDemo.demo_at)} />
           <DetailRow label="Contact Person" value={viewingDemo.contact_person} />
           <DetailRow label="Phone" value={viewingDemo.phone} />
+          <DetailRow label="Academic" value={viewingDemo.academic_username || (viewingDemo.academic ? `Academic #${viewingDemo.academic}` : "Unassigned")} />
           <DetailRow label="Assigned Teacher" value={viewingDemo.assigned_teacher} />
           <DetailRow label="Details" value={viewingDemo.details} />
-          {viewingDemo.demo_status === "completed" && (
-            <>
-              <hr className="my-3 border-slate-100" />
-              <h4 className="text-[12px] font-[700] text-slate-500 uppercase tracking-wide mb-2">Feedback</h4>
-              <DetailRow label="Feedback By" value={viewingDemo.feedback_by_username} />
-              <DetailRow label="Feedback At" value={fmt(viewingDemo.feedback_at)} />
-              <DetailRow label="Program" value={viewingDemo.program} />
-              <DetailRow label="Outcome" value={viewingDemo.outcome} />
-              <DetailRow label="Notes" value={viewingDemo.feedback_notes} />
-            </>
-          )}
         </Modal>
       )}
 
@@ -647,29 +664,46 @@ const Demo = () => {
             <FormGroup label="Demo Date & Time">
               <input
                 type="datetime-local"
+                required
                 value={editForm.demo_at}
                 onChange={(e) => setEditForm((f) => ({ ...f, demo_at: e.target.value }))}
                 className={inputCls}
               />
             </FormGroup>
-            <FormGroup label="Contact Person">
+            {(isAdmin || isB2b || isAcademic) && (
+              <FormGroup label="Contact Person">
+                <input
+                  type="text"
+                  maxLength={255}
+                  value={editForm.contact_person}
+                  onChange={(e) => setEditForm((f) => ({ ...f, contact_person: e.target.value }))}
+                  className={inputCls}
+                />
+              </FormGroup>
+            )}
+            {(isAdmin || isB2b || isAcademic) && (
+              <>
+                <FormGroup label="Phone">
+                  <input
+                    type="tel"
+                    maxLength={32}
+                    inputMode="tel"
+                    title="Enter exactly 10 local digits. A +977 country code is accepted."
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
+                    className={inputCls}
+                  />
+                </FormGroup>
+              </>
+            )}
+            <FormGroup label="Assigned Teacher">
               <input
                 type="text"
                 maxLength={255}
-                value={editForm.contact_person}
-                onChange={(e) => setEditForm((f) => ({ ...f, contact_person: e.target.value }))}
+                value={editForm.assigned_teacher}
+                onChange={(e) => setEditForm((f) => ({ ...f, assigned_teacher: e.target.value }))}
                 className={inputCls}
-              />
-            </FormGroup>
-            <FormGroup label="Phone">
-              <input
-                type="tel"
-                maxLength={32}
-                inputMode="tel"
-                title="Enter exactly 10 local digits. A +977 country code is accepted."
-                value={editForm.phone}
-                onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
-                className={inputCls}
+                placeholder="Teacher's name"
               />
             </FormGroup>
             <FormGroup label="Details">
@@ -680,20 +714,6 @@ const Demo = () => {
                 className={inputCls}
               />
             </FormGroup>
-            {isAdmin && (
-              <FormGroup label="Status">
-                <select
-                  value={editForm.demo_status}
-                  onChange={(e) => setEditForm((f) => ({ ...f, demo_status: e.target.value }))}
-                  className={inputCls}
-                >
-                  <option value="scheduled">Scheduled</option>
-                  <option value="rescheduled">Rescheduled</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              </FormGroup>
-            )}
             {saveError && <p className="text-red-600 text-[12px]">{saveError}</p>}
             <ModalActions saving={saving} onCancel={() => setEditingDemo(null)} label="Save Changes" />
           </form>

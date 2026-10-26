@@ -34,11 +34,3 @@ export const forgetReturnedLeadIds = (leadIds = []) => {
     console.warn("Could not clear returned-client state", error);
   }
 };
-
-export const filterReturnedClients = (clients = []) => {
-  const returnedIds = getReturnedLeadIds();
-  return (clients || []).filter((client) => {
-    const leadId = client?.lead_id ?? client?.lead?.id ?? client?.lead?._id ?? client?.leadId;
-    return leadId === null || leadId === undefined || !returnedIds.has(String(leadId));
-  });
-};

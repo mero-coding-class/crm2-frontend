@@ -20,7 +20,7 @@ function loadAll() {
 function saveAll(items) {
   try {
     localStorage.setItem(getKey(), JSON.stringify(items));
-  } catch (e) {
+  } catch {
     // If storage quota exceeded, remove oldest entries until it fits (best-effort)
     try {
       let arr = Array.isArray(items) ? items.slice() : [];
@@ -29,7 +29,9 @@ function saveAll(items) {
         localStorage.setItem(getKey(), JSON.stringify(arr));
         break; // best effort one-shift to avoid long loops
       }
-    } catch {}
+    } catch {
+      // Leave the saved export list unchanged if storage is still full.
+    }
   }
 }
 

@@ -58,6 +58,12 @@ export default function useGlobalLeadEvents(
       });
     };
 
+    const onRemoteChange = () => {
+      handleRefresh(currentPage, undefined, { silent: true }).catch((error) => {
+        console.warn("Could not refresh leads after a live update", error);
+      });
+    };
+
     const onReturnedClientStorageChange = (event) => {
       if (event.key === RETURNED_TO_LEADS_STORAGE_KEY) onClientReturnedToLeads();
     };
@@ -68,6 +74,7 @@ export default function useGlobalLeadEvents(
     window.addEventListener("crm:approvalUpdated", onApprovalUpdated);
     window.addEventListener("crm:leadConverted", onLeadConverted);
     window.addEventListener("crm:clientReturnedToLeads", onClientReturnedToLeads);
+    window.addEventListener("crm:remoteChange", onRemoteChange);
     window.addEventListener("storage", onReturnedClientStorageChange);
 
     return () => {
@@ -77,6 +84,7 @@ export default function useGlobalLeadEvents(
       window.removeEventListener("crm:approvalUpdated", onApprovalUpdated);
       window.removeEventListener("crm:leadConverted", onLeadConverted);
       window.removeEventListener("crm:clientReturnedToLeads", onClientReturnedToLeads);
+      window.removeEventListener("crm:remoteChange", onRemoteChange);
       window.removeEventListener("storage", onReturnedClientStorageChange);
       if (importDebounceRef.current) clearTimeout(importDebounceRef.current);
     };

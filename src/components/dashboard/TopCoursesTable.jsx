@@ -1,19 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { BASE_URL } from "../../config";
 
-// Helper to build a courses lookup map from fetched course objects
-const buildCoursesMap = (data = []) => {
-  const map = {};
-  if (!Array.isArray(data)) return map;
-  data.forEach((c) => {
-    const id = c.id ?? c.pk ?? c._id ?? c.course_id ?? null;
-    const name = c.course_name || c.name || c.title || c.course || "";
-    if (id != null) map[String(id)] = name;
-    if (name) map[String(name).toLowerCase()] = name;
-  });
-  return map;
-};
-
 const TopCoursesTable = ({
   courses = [],
   coursesMap: propCoursesMap = null,

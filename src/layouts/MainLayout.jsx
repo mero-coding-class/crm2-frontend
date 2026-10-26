@@ -30,10 +30,11 @@ import {
   Code2,
   RefreshCw,
 } from "lucide-react";
-import { AuthContext } from "../context/AuthContext.jsx";
+import { AuthContext } from "../context/authContext.js";
 import { cn } from "../lib/utils.js";
 import { TooltipProvider } from "../components/ui/tooltip.jsx";
 import { approvalService, notificationService } from "../services/api.js";
+import useRealtimeUpdates from "../hooks/useRealtimeUpdates.js";
 
 const getRole = () => (localStorage.getItem("role") || "").trim().toLowerCase();
 const getUsername = () => (localStorage.getItem("username") || "").trim();
@@ -75,6 +76,7 @@ const ALL_COMMANDS = [
 
 const MainLayout = () => {
   const { logout, authToken, user } = useContext(AuthContext);
+  useRealtimeUpdates(authToken);
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -102,12 +104,20 @@ const MainLayout = () => {
   const username = user?.username || getUsername() || "User";
   const role = String(user?.role || getRole()).toLowerCase();
   const isAdmin = role === "admin";
-  const visibleNavItems = isAdmin
-    ? [...navItems, { to: "/approvals", icon: ClipboardCheck, label: "Approvals" }]
-    : navItems;
-  const commandItems = isAdmin
-    ? ALL_COMMANDS
-    : ALL_COMMANDS.filter((item) => item.to !== "/settings");
+  const restrictedPaths = new Set(
+    role === "academic"
+      ? ["/leads", "/archive", "/report"]
+      : role === "b2c"
+        ? ["/report"]
+        : []
+  );
+  const visibleNavItems = navItems.filter((item) => !restrictedPaths.has(item.to));
+  if (isAdmin) {
+    visibleNavItems.push({ to: "/approvals", icon: ClipboardCheck, label: "Approvals" });
+  }
+  const commandItems = ALL_COMMANDS.filter((item) =>
+    !restrictedPaths.has(item.to) && (isAdmin || item.to !== "/settings")
+  );
 
   const refreshApprovalCount = useCallback(async () => {
     if (!authToken || !isAdmin) {
@@ -152,6 +162,15 @@ const MainLayout = () => {
     const interval = window.setInterval(refreshNotifications, 30000);
     return () => window.clearInterval(interval);
   }, [refreshNotifications]);
+
+  useEffect(() => {
+    const refreshRealtimeIndicators = () => {
+      refreshApprovalCount();
+      refreshNotifications();
+    };
+    window.addEventListener("crm:remoteChange", refreshRealtimeIndicators);
+    return () => window.removeEventListener("crm:remoteChange", refreshRealtimeIndicators);
+  }, [refreshApprovalCount, refreshNotifications]);
 
   const handleLogout = () => {
     logout();
@@ -204,7 +223,8 @@ const MainLayout = () => {
     if (notification.kind === "lead_pending_approval" && isAdmin) {
       navigate("/approvals");
     } else if (notification.kind !== "lead_rejected") {
-      navigate(`/leads?search=${encodeURIComponent(notification.lead_school_name || "")}`);
+      const destination = role === "academic" ? "/demo" : "/leads";
+      navigate(`${destination}?search=${encodeURIComponent(notification.lead_school_name || "")}`);
     }
   };
 

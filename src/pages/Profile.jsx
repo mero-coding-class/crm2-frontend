@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, CheckCircle2, LoaderCircle, Save, ShieldCheck, UserRound } from "lucide-react";
-import { useAuth } from "../context/AuthContext.jsx";
+import { useAuth } from "../context/useAuth.js";
 import { profileService } from "../services/api.js";
+import PageLoadingState from "../components/common/PageLoadingState.jsx";
+import useRealtimeRefresh from "../hooks/useRealtimeRefresh.js";
 
 const Profile = () => {
   const { authToken, user, setUserProfile } = useAuth();
@@ -32,6 +34,22 @@ const Profile = () => {
     });
     return () => { cancelled = true; };
   }, [authToken, setUserProfile]);
+
+  useRealtimeRefresh(authToken, async () => {
+    try {
+      const data = await profileService.getMyProfile(authToken);
+      setProfile({
+        username: data.username || "",
+        email: data.email || "",
+        first_name: data.first_name || "",
+        last_name: data.last_name || "",
+        role: data.role || "",
+      });
+      setUserProfile(data);
+    } catch (error) {
+      setMessage({ type: "error", text: error.message || "Could not refresh your profile." });
+    }
+  });
 
   const saveProfile = async (event) => {
     event.preventDefault();
@@ -76,6 +94,8 @@ const Profile = () => {
     }
   };
 
+  if (loading) return <PageLoadingState />;
+
   return (
     <main className="min-h-full bg-[#F5F7FB]">
       <div className="mx-auto max-w-4xl space-y-5 px-4 py-6 sm:px-6 lg:px-8">
@@ -90,7 +110,7 @@ const Profile = () => {
           {message.type === "success" && <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />}{message.text}
         </div>}
 
-        {loading ? <div className="grid min-h-52 place-items-center text-sm text-slate-500"><span className="inline-flex items-center gap-2"><LoaderCircle className="h-4 w-4 animate-spin" />Loading your profile…</span></div> : <div className="grid gap-5 lg:grid-cols-2">
+        <div className="grid gap-5 lg:grid-cols-2">
           <form onSubmit={saveProfile} className="space-y-5 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_10px_rgba(15,23,42,0.035)] sm:p-6">
             <div className="flex items-center gap-3 border-b border-slate-100 pb-4"><span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-50 text-[#294998]"><UserRound className="h-5 w-5" /></span><div><h2 className="text-sm font-semibold text-slate-900">Profile details</h2><p className="mt-0.5 text-xs text-slate-500">Your username and role are managed by an administrator.</p></div></div>
             <label className="block text-xs font-semibold text-slate-700">Username<input value={profile.username} readOnly className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-normal text-slate-500" /></label>
@@ -109,7 +129,7 @@ const Profile = () => {
             <label className="block text-xs font-semibold text-slate-700">Confirm new password<input type="password" autoComplete="new-password" value={passwords.confirm_password} onChange={(event) => setPasswords((current) => ({ ...current, confirm_password: event.target.value }))} required minLength={8} className="mt-1.5 block w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-normal text-slate-800 outline-none focus:border-[#294998] focus:ring-4 focus:ring-blue-50" /></label>
             <div className="flex justify-end pt-1"><button type="submit" disabled={savingPassword} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">{savingPassword && <LoaderCircle className="h-3.5 w-3.5 animate-spin" />}{savingPassword ? "Updating…" : "Update password"}</button></div>
           </form>
-        </div>}
+        </div>
       </div>
     </main>
   );

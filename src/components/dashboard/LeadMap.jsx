@@ -9,8 +9,8 @@ import shadowUrl from "leaflet/dist/images/marker-shadow.png";
 // Fix Leaflet's default icon paths when bundlers change them
 try {
   delete L.Icon.Default.prototype._getIconUrl;
-} catch (e) {
-  // ignore
+} catch {
+  // Leaflet versions without this legacy property need no adjustment.
 }
 L.Icon.Default.mergeOptions({
   iconRetinaUrl,
@@ -40,8 +40,8 @@ function FitBounds({ positions, centerOverride }) {
       } else {
         map.fitBounds(bounds.pad(0.25));
       }
-    } catch (err) {
-      // ignore
+    } catch {
+      // Ignore malformed positions from legacy lead records.
     }
   }, [positions, centerOverride, map]);
   return null;
@@ -87,42 +87,6 @@ const LeadMap = ({ leads = [], defaultCountry = "Nepal", defaultCity = "Kathmand
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Helper: get coords for a lead (from cache or geocode)
-  const resolveLeadCoords = async (lead) => {
-    // Try multiple fields for city and country. Backend sometimes uses different names.
-    const city = (
-      lead.city || lead.student_city || lead.address_city || lead.address_line_1 || lead.address_line_2 || ""
-    )
-      .toString()
-      .trim();
-    // prefer explicit country; some records accidentally use `county` instead
-    const country = (lead.country || lead.county || defaultCountry).toString().trim() || defaultCountry;
-    if (!city) return null;
-    const key = `${city}|${country}`;
-    if (coordsCache[key]) return coordsCache[key];
-    // Try a couple of queries: city,country then city alone
-    console.debug("LeadMap: geocoding", { city, country, key, leadId: lead.id });
-    let g = await geocodeCity(city, country);
-    if (!g) {
-      console.debug("LeadMap: fallback geocode city only", { city });
-      g = await geocodeCity(city, "");
-    }
-    if (!g && (lead.address_line_1 || lead.address_line_2)) {
-      const combined = `${lead.address_line_1 || ""} ${lead.address_line_2 || ""}`.trim();
-      if (combined) {
-        console.debug("LeadMap: fallback geocode from address_line_1/2", { combined });
-        g = await geocodeCity(combined, country);
-      }
-    }
-    if (g) {
-      setCoordsCache((c) => ({ ...c, [key]: g }));
-      console.debug("LeadMap: geocode success", { key, coords: g });
-    } else {
-      console.warn("LeadMap: geocode failed for lead", { lead, key });
-    }
-    return g;
-  };
 
   // Build markers for leads (memoize for performance)
   const [markers, setMarkers] = useState([]);

@@ -8,8 +8,8 @@ import React, {
   useMemo,
 } from "react";
 import { useSearchParams } from "react-router-dom";
-import DelayedLoader from "../components/common/DelayedLoader";
-import { useAuth } from "../context/AuthContext.jsx";
+import PageLoadingState from "../components/common/PageLoadingState.jsx";
+import { useAuth } from "../context/useAuth.js";
 import ClientsTable from "../components/ClientsTable";
 import {
   RotateCw,
@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import ClientEditModal from "../components/ClientEditModal";
 import Toast from "../components/common/Toast";
+import { clientService } from "../services/api";
 
 // Modular hooks and components for Clients page
 import useEnrollmentsCore from "./clients/useEnrollmentsCore";
@@ -28,6 +29,7 @@ import useTeachers from "./clients/useTeachers";
 import useEnrollmentEvents from "./clients/useEnrollmentEvents";
 import FiltersPanel from "./clients/FiltersPanel";
 import useEnrollmentUpdates from "./clients/useEnrollmentUpdates";
+import useRealtimeRefresh from "../hooks/useRealtimeRefresh.js";
 
 const Clients = () => {
   const { authToken, user } = useAuth();
@@ -41,7 +43,9 @@ const Clients = () => {
     });
     return filters;
   }, [searchParams]);
-  const canManageClients = user?.role?.toLowerCase() === "admin";
+  const role = user?.role?.toLowerCase();
+  const canManageClients = role === "admin";
+  const canAssignAcademic = canManageClients || role === "b2b";
   const ITEMS_PER_PAGE = 20;
   // Core paginated state and server fetcher
   const {
@@ -71,7 +75,8 @@ const Clients = () => {
   const { exporting, handleExportEnrollments } = useEnrollmentExport(authToken);
 
   // Academic users can be assigned to client records.
-  const { teachers, fetchTeachers } = useTeachers(authToken, canManageClients);
+  const { teachers, fetchTeachers } = useTeachers(authToken, canAssignAcademic);
+  const [assigningClientId, setAssigningClientId] = useState(null);
   const [editingStudent, setEditingStudent] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [toast, setToast] = useState({
@@ -106,6 +111,11 @@ const Clients = () => {
   useEffect(() => {
     fetchTeachers();
   }, [fetchTeachers]);
+
+  useRealtimeRefresh(authToken, () => {
+    fetchEnrolledStudents(currentPage, { silent: true });
+    if (canAssignAcademic) fetchTeachers();
+  });
 
   useEffect(() => {
     if (!authToken) return undefined;
@@ -157,11 +167,34 @@ const Clients = () => {
     setEditingStudent(null);
   }, []);
 
-  // Show full-screen delayed loader only on the very first load.
+  const handleAssignAcademic = useCallback(async (clientId, assignedTo) => {
+    setAssigningClientId(clientId);
+    try {
+      const updated = await clientService.assignAcademic(clientId, assignedTo, authToken);
+      setAllStudents((students) => students.map((student) =>
+        student.id === clientId ? { ...student, ...updated } : student
+      ));
+      setToast({
+        show: true,
+        message: updated.assigned_to_name
+          ? `Assigned to ${updated.assigned_to_name}`
+          : "Academic assignment cleared",
+        type: "success",
+      });
+    } catch (assignError) {
+      setToast({
+        show: true,
+        message: assignError.message || "Could not update academic assignment",
+        type: "error",
+      });
+    } finally {
+      setAssigningClientId(null);
+    }
+  }, [authToken, setAllStudents]);
+
+  // Show the shared page loader only on the very first load.
   if (initialLoad)
-    return (
-      <DelayedLoader message="Loading clients..." minMs={150} />
-    );
+    return <PageLoadingState />;
 
   if (error) {
     return (
@@ -231,6 +264,9 @@ const Clients = () => {
           students={filteredStudents}
           teachers={teachers}
           canManage={canManageClients}
+          canAssignAcademic={canAssignAcademic}
+          assigningClientId={assigningClientId}
+          onAssignAcademic={handleAssignAcademic}
           handleEdit={handleEdit}
           handleDelete={handleDelete}
           handleBulkDelete={handleBulkDelete}
