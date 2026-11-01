@@ -1,5 +1,4 @@
 import { useCallback, useState } from "react";
-import { clientService } from "../../services/api";
 import { exportsStore } from "../../services/exportsStore";
 
 const EXPORT_COLUMNS = [
@@ -36,40 +35,14 @@ const escapeCsv = (value) => {
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 };
 
-export default function useEnrollmentExport(authToken) {
+export default function useEnrollmentExport() {
   const [exporting, setExporting] = useState(false);
 
   const handleExportEnrollments = useCallback(
-    async ({ searchQuery = "" } = {}) => {
-      if (!authToken || exporting) return;
+    async ({ clients = [], searchQuery = "" } = {}) => {
+      if (exporting) return;
       setExporting(true);
       try {
-        const pageSize = 100;
-        let page = 1;
-        let clients = [];
-
-        while (true) {
-          const response = await clientService.getClients(authToken, {
-            page,
-            pageSize,
-            search: searchQuery.trim(),
-          });
-          const results = Array.isArray(response)
-            ? response
-            : response?.results || response?.data || [];
-          clients = clients.concat(results);
-
-          const count = Array.isArray(response)
-            ? null
-            : response?.count ?? response?.total ?? null;
-          if (count != null) {
-            if (page >= Math.max(1, Math.ceil(count / pageSize))) break;
-          } else if (results.length < pageSize) {
-            break;
-          }
-          page += 1;
-        }
-
         if (!clients.length) throw new Error("No clients to export.");
 
         const csv = [
@@ -99,7 +72,7 @@ export default function useEnrollmentExport(authToken) {
         setExporting(false);
       }
     },
-    [authToken, exporting]
+    [exporting]
   );
 
   return { exporting, handleExportEnrollments };

@@ -5,14 +5,14 @@ const PageLoadingState = () => (
   <div
     role="status"
     aria-live="polite"
-    className="grid min-h-[calc(100vh-3.5rem)] place-items-center bg-[#F8FAFC] px-6"
+    className="grid min-h-[calc(100vh-3.5rem)] place-items-center bg-canvas px-6"
   >
     <div className="flex flex-col items-center gap-3">
       <div className="relative grid h-12 w-12 place-items-center rounded-xl border border-slate-200 bg-white shadow-sm">
         <img src="/merocoding-logo.png" alt="" className="h-7 w-7 object-contain" />
         <LoaderCircle
           aria-hidden="true"
-          className="absolute -inset-1 h-14 w-14 animate-spin text-[#294998]"
+          className="absolute -inset-1 h-14 w-14 animate-spin text-primary"
           strokeWidth={1.5}
         />
       </div>

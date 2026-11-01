@@ -6,18 +6,22 @@
   --canvas: #F8FAFC;
   --canvas-subtle: #F1F5F9;
   --surface-card: #FFFFFF;
+  --surface-muted: #EEF2F6;
   --border-subtle: #E2E8F0;
   --border-strong: #CBD5E1;
 
-  /* Mero Coding Brand Primary (Royal Navy Blue #294998) */
+  /* Mero Coding Brand Primary */
   --primary-base: #294998;
+  --primary-rgb: 41, 73, 152;
   --primary-hover: #1E3776;
   --primary-dark: #172B5C;
+  --primary-dark-rgb: 23, 43, 92;
   --primary-light: #EDF2FC;
   --primary-border: #CDDBF6;
 
-  /* Mero Coding Brand Secondary / Accent (Warm Golden Amber #E8A026) */
+  /* Mero Coding Brand Secondary / Accent */
   --accent-base: #E8A026;
+  --accent-rgb: 232, 160, 38;
   --accent-hover: #D38E1A;
   --accent-light: #FEF7EB;
   --accent-border: #FAD99A;
@@ -26,12 +30,12 @@
   /* Status Colors */
   --success: #10B981;
   --success-bg: #ECFDF5;
-  --warning: #E8A026;
-  --warning-bg: #FEF7EB;
-  --danger: #EF4444;
-  --danger-bg: #FEF2F2;
-  --info: #294998;
-  --info-bg: #EDF2FC;
+  --warning: var(--accent-base);
+  --warning-bg: var(--accent-light);
+  --danger: #F43F5E;
+  --danger-bg: #FFF1F2;
+  --info: var(--primary-base);
+  --info-bg: var(--primary-light);
 
   /* Text */
   --text-primary: #0F172A;
@@ -43,6 +47,26 @@
   --shadow-hover: 0 4px 6px -1px rgba(15,23,42,0.07), 0 2px 4px -2px rgba(15,23,42,0.05);
   --shadow-flyout: 0 10px 15px -3px rgba(15,23,42,0.08), 0 4px 6px -4px rgba(15,23,42,0.04);
   --shadow-modal: 0 20px 25px -5px rgba(15,23,42,0.1), 0 8px 10px -6px rgba(15,23,42,0.05);
+}
+
+@theme inline {
+  --color-primary: var(--primary-base);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-dark: var(--primary-dark);
+  --color-primary-light: var(--primary-light);
+  --color-primary-border: var(--primary-border);
+  --color-accent: var(--accent-base);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-light: var(--accent-light);
+  --color-accent-dark: var(--accent-dark);
+  --color-canvas: var(--canvas);
+  --color-canvas-subtle: var(--canvas-subtle);
+  --color-surface-muted: var(--surface-muted);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --font-sans: Inter, system-ui, -apple-system, sans-serif;
 }
 
 /* ─── Base ─── */
@@ -67,146 +91,220 @@ body {
   font-feature-settings: 'tnum' 1, 'cv05' 1;
 }
 
-/* ─── Custom scrollbar ─── */
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
-  border-radius: 9999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
-}
-
+/* Scrollbar styles apply only to containers that opt in. */
 .custom-scrollbar::-webkit-scrollbar {
   height: 6px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: var(--canvas-subtle);
   border-radius: 10px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
+  background: var(--border-strong);
   border-radius: 10px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+  background: var(--text-muted);
 }
 
 /* ─── Table row hover ─── */
 .crm-table tr:hover td {
-  background-color: #F8FAFC;
+  background-color: var(--canvas);
 }
 .crm-table tr.selected td {
-  background-color: #EDF2FC;
-  border-left: 2px solid #294998;
+  background-color: var(--primary-light);
+  border-left: 2px solid var(--primary-base);
 }
 
-/* ─── Transition utilities ─── */
-.transition-shadow-hover {
-  transition: box-shadow 150ms ease, border-color 150ms ease;
+.crm-page-shell {
+  min-height: 100%;
+  background: var(--canvas);
+  color: var(--text-primary);
 }
 
-/* ─── KPI card pulse animation ─── */
-@keyframes pulse-soft {
+.crm-page-title {
+  color: var(--text-primary);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+
+.crm-data-table {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: var(--surface-card);
+  box-shadow: var(--shadow-card);
+}
+
+.crm-data-table--embedded {
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.crm-data-table__scroll {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.crm-data-table table {
+  width: 100%;
+  min-width: var(--crm-table-min-width, auto);
+  border-collapse: collapse;
+}
+
+.crm-data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: 40px;
+  padding: 8px 12px;
+  background: var(--canvas-subtle);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.crm-data-table tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.875rem;
+}
+
+.crm-data-table--compact thead th {
+  height: 32px;
+  padding: 6px 8px;
+  font-size: 0.625rem;
+}
+
+.crm-data-table--compact tbody td {
+  padding: 6px 8px;
+  font-size: 0.75rem;
+}
+
+.crm-pagination {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+@media (min-width: 640px) {
+  .crm-pagination { flex-direction: row; }
+}
+
+/* ─── CRM badge pulse animation ─── */
+@keyframes crmPulseSoft {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.7; }
 }
-.badge-pulse {
-  animation: pulse-soft 2s ease-in-out infinite;
+.crm-badge-pulse {
+  animation: crmPulseSoft 2s ease-in-out infinite;
 }
 
-/* ─── Focus ring brand (#294998) ─── */
+/* ─── Focus ring brand (var(--primary)) ─── */
 .focus-ring-brand:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(41, 73, 152, 0.15);
-  border-color: #294998;
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15);
+  border-color: var(--primary-base);
 }
 
 /* ─── Radix UI / shadcn animation keyframes ─── */
-@keyframes fadeIn {
+@keyframes crmFadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
-@keyframes fadeOut {
+@keyframes crmFadeOut {
   from { opacity: 1; }
   to { opacity: 0; }
 }
 
-@keyframes zoomIn95 {
+@keyframes crmZoomIn95 {
   from { opacity: 0; transform: scale(0.95); }
   to { opacity: 1; transform: scale(1); }
 }
 
-@keyframes zoomOut95 {
+@keyframes crmZoomOut95 {
   from { opacity: 1; transform: scale(1); }
   to { opacity: 0; transform: scale(0.95); }
 }
 
-@keyframes slideInFromTop {
+@keyframes crmSlideInFromTop {
   from { opacity: 0; transform: translateY(-8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes slideInFromBottom {
+@keyframes crmSlideInFromBottom {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes slideInFromLeft {
+@keyframes crmSlideInFromLeft {
   from { opacity: 0; transform: translateX(-8px); }
   to { opacity: 1; transform: translateX(0); }
 }
 
-@keyframes slideInFromRight {
+@keyframes crmSlideInFromRight {
   from { opacity: 0; transform: translateX(8px); }
   to { opacity: 1; transform: translateX(0); }
 }
 
 /* animate-in / animate-out utility classes for shadcn components */
-.animate-in {
+.crm-animate-in {
   animation-duration: 200ms;
   animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
   animation-fill-mode: both;
 }
 
-.animate-out {
+.crm-animate-out {
   animation-duration: 150ms;
   animation-timing-function: ease-in;
   animation-fill-mode: both;
 }
 
-.fade-in-0 { animation-name: fadeIn; }
-.fade-out-0 { animation-name: fadeOut; }
-.zoom-in-95 { animation-name: zoomIn95; }
-.zoom-out-95 { animation-name: zoomOut95; }
+.crm-fade-in-0 { animation-name: crmFadeIn; }
+.crm-fade-out-0 { animation-name: crmFadeOut; }
+.crm-zoom-in-95 { animation-name: crmZoomIn95; }
+.crm-zoom-out-95 { animation-name: crmZoomOut95; }
 
-.slide-in-from-top-2 { animation-name: slideInFromTop; }
-.slide-in-from-bottom-2 { animation-name: slideInFromBottom; }
-.slide-in-from-left-2 { animation-name: slideInFromLeft; }
-.slide-in-from-right-2 { animation-name: slideInFromRight; }
-.slide-out-to-top-2 { animation-name: slideInFromBottom; }
-.slide-out-to-bottom-2 { animation-name: slideInFromTop; }
+.crm-slide-in-from-top-2 { animation-name: crmSlideInFromTop; }
+.crm-slide-in-from-bottom-2 { animation-name: crmSlideInFromBottom; }
+.crm-slide-in-from-left-2 { animation-name: crmSlideInFromLeft; }
+.crm-slide-in-from-right-2 { animation-name: crmSlideInFromRight; }
+.crm-slide-out-to-top-2 { animation-name: crmSlideInFromBottom; }
+.crm-slide-out-to-bottom-2 { animation-name: crmSlideInFromTop; }
+.crm-slide-in-from-left-1\/2 { animation-name: crmSlideInFromLeft; }
+.crm-slide-in-from-top-\[48\%\] { animation-name: crmSlideInFromTop; }
+.crm-slide-out-to-left-1\/2 { animation-name: crmSlideInFromRight; }
+.crm-slide-out-to-top-\[48\%\] { animation-name: crmSlideInFromBottom; }
 
 /* Composite animation shorthands used by Radix Dialog */
-[data-state=open].data-\[state\=open\]\:animate-in { animation-name: zoomIn95, fadeIn; }
-[data-state=closed].data-\[state\=closed\]\:animate-out { animation-name: zoomOut95, fadeOut; }
+[data-state=open].data-\[state\=open\]\:crm-animate-in { animation-name: crmZoomIn95, crmFadeIn; }
+[data-state=closed].data-\[state\=closed\]\:crm-animate-out { animation-name: crmZoomOut95, crmFadeOut; }
+[data-state=open].data-\[state\=open\]\:crm-fade-in-0 { animation-name: crmFadeIn; }
+[data-state=closed].data-\[state\=closed\]\:crm-fade-out-0 { animation-name: crmFadeOut; }
+[data-state=open].data-\[state\=open\]\:crm-zoom-in-95 { animation-name: crmZoomIn95; }
+[data-state=closed].data-\[state\=closed\]\:crm-zoom-out-95 { animation-name: crmZoomOut95; }
 
-/* Duration utilities */
-.duration-200 { animation-duration: 200ms; }
-.duration-300 { animation-duration: 300ms; }
+.crm-animate-in { animation-duration: 200ms; }
+.crm-animate-out { animation-duration: 150ms; }
 
 /* ─── Recharts custom tooltip ─── */
 .recharts-tooltip-wrapper .recharts-default-tooltip {
   border-radius: 8px !important;
-  border: 1px solid #E2E8F0 !important;
-  box-shadow: 0 4px 6px -1px rgba(15,23,42,0.07) !important;
+  border: 1px solid var(--border-subtle) !important;
+  box-shadow: var(--shadow-hover) !important;
   font-size: 12px !important;
   font-family: 'Inter', sans-serif !important;
 }

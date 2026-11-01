@@ -1,10 +1,10 @@
 import { useState } from "react";
 
-export default function useEnrollmentFilters(allStudents, initialSearch = "") {
+export default function useEnrollmentFilters(allClients, initialSearch = "") {
   const [searchQuery, setSearchQuery] = useState(initialSearch);
   return {
     searchQuery,
     setSearchQuery,
-    filteredStudents: Array.isArray(allStudents) ? allStudents : [],
+    filteredClients: Array.isArray(allClients) ? allClients : [],
   };
 }

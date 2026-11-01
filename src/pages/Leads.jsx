@@ -8,6 +8,7 @@ import LeadsHeader from "../components/LeadsHeader";
 import LeadsFilters from "../components/LeadsFilters";
 import Toast from "../components/common/Toast";
 import PageLoadingState from "../components/common/PageLoadingState.jsx";
+import { PageShell } from "../components/common/PageShell.jsx";
 import Loader from "../components/common/Loader";
 import {
   AlertDialog,
@@ -20,7 +21,7 @@ import {
   AlertDialogTitle,
 } from "../components/ui/alert-dialog";
 
-import useCourses from "./leads/useCourses";
+import useClasses from "./leads/useClasses";
 import useGlobalLeadEvents from "./leads/useGlobalLeadEvents";
 import useLeadExports from "./leads/useLeadExports";
 import useLeadsHandlers from "./leads/useLeadsHandlers";
@@ -58,8 +59,8 @@ const Leads = () => {
   const role = String(user?.role || "").toLowerCase();
   const canManageLeads = ["admin", "super admin", "superadmin", "super-admin", "b2b"].includes(role);
 
-  // Courses populate the lead creation form.
-  const { courses } = useCourses(authToken);
+  // The Class Catalog supplies the lead interest choices.
+  const { classes, error: classLoadError } = useClasses(authToken);
 
   // Toast and Filters UI
   const [toast, setToast] = useState({
@@ -78,7 +79,6 @@ const Leads = () => {
     error,
     setError,
     handleRefresh,
-    fetchAllLeads,
     currentPage,
     totalPages,
     goToPage,
@@ -88,9 +88,16 @@ const Leads = () => {
 
   const [subStatusChoices, setSubStatusChoices] = useState([]);
   useEffect(() => {
+    if (!authToken) return undefined;
     let cancelled = false;
     leadService.getSubStatusChoices(authToken).then((choices) => {
       if (!cancelled && choices.length) setSubStatusChoices(choices);
+    }).catch((choiceError) => {
+      if (!cancelled) setToast({
+        show: true,
+        type: "error",
+        message: choiceError.message || "Could not load lead sub-status choices.",
+      });
     });
     return () => { cancelled = true; };
   }, [authToken]);
@@ -110,10 +117,12 @@ const Leads = () => {
       const search = searchTerm.trim();
       if (search) filters.search = search;
       if (filterSubStatus !== "SubStatus") filters.sub_status = filterSubStatus;
-      const from = filterFollowupFrom || filterFollowupDate;
-      const to = filterFollowupTo || filterFollowupDate;
-      if (from) filters.followup_from = dateBound(from);
-      if (to) filters.followup_to = dateBound(to, true);
+      if (filterFollowupDate && !filterFollowupFrom && !filterFollowupTo) {
+        filters.followup = filterFollowupDate;
+      } else {
+        if (filterFollowupFrom) filters.followup_from = dateBound(filterFollowupFrom);
+        if (filterFollowupTo) filters.followup_to = dateBound(filterFollowupTo, true);
+      }
       return filters;
     };
     const filters = buildFilters();
@@ -169,11 +178,7 @@ const Leads = () => {
     currentPage
   );
 
-  const { fetchingAll: exportingAll, handleExport } = useLeadExports({
-    authToken,
-    fetchAllLeads,
-    setError,
-  });
+  const { exporting, handleExport } = useLeadExports({ setError });
 
   const {
     isEditModalOpen,
@@ -254,11 +259,11 @@ const Leads = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
             </svg>
           </div>
-          <h3 className="text-[16px] font-semibold text-slate-900 mb-1">Failed to load leads</h3>
-          <p className="text-[13px] text-slate-500 mb-4">{error}</p>
+          <h3 className="text-base font-semibold text-slate-900 mb-1">Failed to load leads</h3>
+          <p className="text-sm text-slate-500 mb-4">{error}</p>
           <button
             onClick={handleRefresh}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[#294998] text-white text-[13px] font-medium rounded-lg hover:bg-[#1E3776] transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-hover transition-colors"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -273,7 +278,7 @@ const Leads = () => {
   // removed noisy debug logging
 
   return (
-    <div className="flex flex-col min-h-full bg-[#F8FAFC] text-slate-900">
+    <PageShell className="flex flex-col">
       {toast.show && (
         <Toast
           message={toast.message}
@@ -290,15 +295,8 @@ const Leads = () => {
         canManageLeads={canManageLeads}
         authToken={authToken}
         handleRefresh={handleRefresh}
-        handleExport={() =>
-          handleExport({
-            searchTerm,
-            filterSubStatus,
-            followupFrom: dateBound(filterFollowupFrom || filterFollowupDate),
-            followupTo: dateBound(filterFollowupTo || filterFollowupDate, true),
-          })
-        }
-        fetchingAll={exportingAll}
+        handleExport={() => handleExport(currentLeads)}
+        exporting={exporting}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
         showFilters={showFilters}
@@ -307,10 +305,10 @@ const Leads = () => {
       />
 
       {/* Non-blocking export progress indicator */}
-      {exportingAll && (
-        <div className="fixed top-4 right-4 z-50 bg-white border border-gray-200 shadow-lg rounded-md p-3">
+      {exporting && (
+        <div className="fixed top-4 right-4 z-50 bg-white border border-slate-200 shadow-lg rounded-md p-3">
           <Loader
-            message={"Preparing export — fetching all leads..."}
+            message={"Exporting the current filtered page..."}
             fullScreen={false}
           />
         </div>
@@ -346,7 +344,7 @@ const Leads = () => {
 
       <div className="flex-1 overflow-x-auto bg-white">
         {error ? (
-          <div className="text-red-500 text-center">{error}</div>
+          <div className="text-rose-500 text-center">{error}</div>
         ) : (
           <LeadTableDisplay
             leads={currentLeads}
@@ -370,14 +368,16 @@ const Leads = () => {
           lead={editingLead}
           onClose={handleCloseEditModal}
           onSave={handleSaveEdit}
-          courses={courses}
+          classes={classes}
+          classLoadError={classLoadError}
         />
       )}
       {canManageLeads && isAddModalOpen && (
         <AddLeadModal
           onClose={handleCloseAddModal}
           onSave={handleAddNewLead}
-          courses={courses}
+          classes={classes}
+          classLoadError={classLoadError}
           authToken={authToken}
         />
       )}
@@ -397,7 +397,7 @@ const Leads = () => {
                 value={archiveReason}
                 onChange={(event) => setArchiveReason(event.target.value)}
                 rows={2}
-                className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-[#294998] focus:outline-none focus:ring-2 focus:ring-[#294998]/15"
+                className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
                 placeholder="Why is this lead being archived?"
               />
             </label>
@@ -406,7 +406,7 @@ const Leads = () => {
                 type="checkbox"
                 checked={archiveNextYearProbability}
                 onChange={(event) => setArchiveNextYearProbability(event.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-[#294998] focus:ring-[#294998]"
+                className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
               />
               Likely to return next year
             </label>
@@ -436,7 +436,7 @@ const Leads = () => {
                 value={archiveReason}
                 onChange={(event) => setArchiveReason(event.target.value)}
                 rows={2}
-                className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-[#294998] focus:outline-none focus:ring-2 focus:ring-[#294998]/15"
+                className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
                 placeholder="Why are these leads being archived?"
               />
             </label>
@@ -445,7 +445,7 @@ const Leads = () => {
                 type="checkbox"
                 checked={archiveNextYearProbability}
                 onChange={(event) => setArchiveNextYearProbability(event.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-[#294998] focus:ring-[#294998]"
+                className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
               />
               Likely to return next year
             </label>
@@ -458,7 +458,7 @@ const Leads = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </PageShell>
   );
 };
 

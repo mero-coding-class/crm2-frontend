@@ -3,7 +3,7 @@
 // Shows: Substatus, activity log of each meeting (all historical entries)
 // NO editing allowed — read-only. Editing only after clicking "Edit" button.
 import React, { useState, useEffect } from "react";
-import { XMarkIcon, EyeIcon } from "@heroicons/react/24/outline";
+import { X as XMarkIcon, Eye as EyeIcon } from "lucide-react";
 import { activityService } from "../services/api";
 
 const SUB_STATUS_BADGE = {
@@ -23,7 +23,7 @@ const ActivityLogViewModal = ({ lead, authToken, onClose }) => {
   const [error, setError] = useState(null);
 
   const leadId = lead?.id || lead?._id;
-  const subStatus = lead?.sub_status || lead?.substatus || "New";
+  const subStatus = lead?.sub_status || "New";
 
   useEffect(() => {
     if (!leadId || !authToken) {
@@ -76,11 +76,11 @@ const ActivityLogViewModal = ({ lead, authToken, onClose }) => {
         <div className="px-6 py-4 border-b border-slate-100 flex items-start justify-between bg-white shrink-0">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#EDF2FC] text-[#294998]">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-light text-primary">
                 <EyeIcon className="h-4 w-4" />
               </span>
               <h2 className="text-base font-bold text-slate-900">Activity Log — View</h2>
-              <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-slate-100 text-slate-500 border border-slate-200 uppercase tracking-wider">
+              <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-slate-100 text-slate-500 border border-slate-200 uppercase tracking-wider">
                 Read Only
               </span>
             </div>
@@ -102,14 +102,14 @@ const ActivityLogViewModal = ({ lead, authToken, onClose }) => {
           {/* Task 3.4: Substatus prominently displayed (read-only) */}
           <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
             <div className="flex-1">
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Current Substatus</p>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Current Substatus</p>
               <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold border ${badgeClass}`}>
                 {subStatus}
               </span>
             </div>
             {lead?.contact_number && (
               <div>
-                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Contact</p>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Contact</p>
                 <p className="text-sm text-slate-700 font-medium">{lead.contact_number}</p>
               </div>
             )}
@@ -117,13 +117,13 @@ const ActivityLogViewModal = ({ lead, authToken, onClose }) => {
 
           {/* Task 3.4: Activity Log of each meeting — all historical entries */}
           <div>
-            <h3 className="text-[12px] font-semibold text-slate-500 uppercase tracking-wider mb-3">
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
               Activity History ({activities.length} entries)
             </h3>
 
             {loading && (
               <div className="flex items-center justify-center py-8">
-                <div className="h-5 w-5 border-2 border-[#294998]/30 border-t-[#294998] rounded-full animate-spin" />
+                <div className="h-5 w-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
                 <span className="ml-2 text-sm text-slate-500">Loading activities...</span>
               </div>
             )}
@@ -144,7 +144,7 @@ const ActivityLogViewModal = ({ lead, authToken, onClose }) => {
             {!loading && !error && activities.length > 0 && (
               <div className="space-y-3">
                 {activities.map((activity, idx) => {
-                  const actSubStatus = activity.sub_status || activity.substatus;
+                  const actSubStatus = activity.sub_status;
                   const actBadge = SUB_STATUS_BADGE[actSubStatus] || "bg-slate-100 text-slate-600 border-slate-200";
                   const actDate = activity.activity_at || activity.created_at;
                   const followupDate = activity.followup_at;
@@ -152,28 +152,28 @@ const ActivityLogViewModal = ({ lead, authToken, onClose }) => {
                   return (
                     <div
                       key={activity.id || idx}
-                      className={`p-4 rounded-xl border ${idx === 0 ? "border-[#CDDBF6] bg-[#EDF2FC]/30" : "border-slate-200 bg-white"}`}
+                      className={`p-4 rounded-xl border ${idx === 0 ? "border-primary-border bg-primary-light/30" : "border-slate-200 bg-white"}`}
                     >
                       <div className="flex items-start justify-between gap-3 mb-2">
                         <div className="flex items-center gap-2">
                           {/* Latest badge */}
                           {idx === 0 && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[#294998] text-white">
+                            <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-primary text-white">
                               Latest
                             </span>
                           )}
                           {activity.type && (
-                            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                               {activity.type}
                             </span>
                           )}
                           {actSubStatus && (
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${actBadge}`}>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${actBadge}`}>
                               {actSubStatus}
                             </span>
                           )}
                         </div>
-                        <span className="text-[11px] text-slate-400 shrink-0">
+                        <span className="text-xs text-slate-400 shrink-0">
                           {actDate ? new Date(actDate).toLocaleString() : "—"}
                         </span>
                       </div>
@@ -188,8 +188,8 @@ const ActivityLogViewModal = ({ lead, authToken, onClose }) => {
                       {/* Followup Date */}
                       {followupDate && (
                         <div className="flex items-center gap-1.5 mt-1">
-                          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Followup:</span>
-                          <span className="text-[11px] text-slate-600 font-medium">
+                          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Followup:</span>
+                          <span className="text-xs text-slate-600 font-medium">
                             {new Date(followupDate).toLocaleString()}
                           </span>
                         </div>
@@ -204,7 +204,7 @@ const ActivityLogViewModal = ({ lead, authToken, onClose }) => {
 
         {/* Footer — read-only notice */}
         <div className="px-6 py-3 border-t border-slate-100 bg-slate-50 shrink-0">
-          <p className="text-[11px] text-slate-400 text-center">
+          <p className="text-xs text-slate-400 text-center">
             This view is read-only. Click <strong>Edit</strong> to make changes.
           </p>
         </div>

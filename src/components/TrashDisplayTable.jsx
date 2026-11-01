@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { ArrowUturnLeftIcon } from "@heroicons/react/24/outline";
+import { Undo2 as ArrowUturnLeftIcon } from "lucide-react";
+import DataTableShell from "./common/DataTableShell.jsx";
+import Pagination from "./common/Pagination.jsx";
+import { Button } from "./ui/button.jsx";
 
 const formatDate = (value) => {
   if (!value) return "—";
@@ -36,26 +39,32 @@ const TrashDisplayTable = ({
   };
 
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+    <DataTableShell
+      minWidth="100%"
+      pagination={(
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={onPageChange} disabled={busy} />
+      )}
+    >
       {canRestore && selectedIds.size > 0 && (
         <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
           <span className="text-sm text-slate-600">{selectedIds.size} selected</span>
-          <button
+          <Button
+            variant="restore"
+            size="sm"
             type="button"
             disabled={busy}
             onClick={() => {
               onBulkRestore([...selectedIds]);
               setSelectedIds(new Set());
             }}
-            className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
           >
             <ArrowUturnLeftIcon className="h-4 w-4" /> Restore selected
-          </button>
+          </Button>
         </div>
       )}
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-slate-200">
+      <div className="crm-data-table__scroll">
+        <table className="divide-y divide-slate-200">
           <thead className="bg-slate-50">
             <tr>
               {canRestore && (
@@ -89,9 +98,9 @@ const TrashDisplayTable = ({
                 <td className="max-w-[260px] px-3 py-3 text-sm text-slate-700">{lead.archive_reason || "—"}</td>
                 {canRestore && (
                   <td className="whitespace-nowrap px-3 py-3 text-right">
-                    <button type="button" disabled={busy} onClick={() => onRestoreLead(lead.id)} className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50">
+                    <Button type="button" variant="restore" size="sm" disabled={busy} onClick={() => onRestoreLead(lead.id)}>
                       <ArrowUturnLeftIcon className="h-3.5 w-3.5" /> Restore
-                    </button>
+                    </Button>
                   </td>
                 )}
               </tr>
@@ -100,14 +109,7 @@ const TrashDisplayTable = ({
         </table>
       </div>
 
-      <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3">
-        <span className="text-sm text-slate-500">Page {currentPage} of {totalPages}</span>
-        <div className="flex gap-2">
-          <button type="button" onClick={() => onPageChange?.(currentPage - 1)} disabled={currentPage <= 1 || busy} className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 disabled:opacity-40">Previous</button>
-          <button type="button" onClick={() => onPageChange?.(currentPage + 1)} disabled={currentPage >= totalPages || busy} className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 disabled:opacity-40">Next</button>
-        </div>
-      </div>
-    </div>
+    </DataTableShell>
   );
 };
 

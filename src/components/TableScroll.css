@@ -1,37 +1,37 @@
-.table-scroll-container {
+.crm-table-scroll {
   position: relative;
   overflow: hidden;
   border-radius: 0.5rem;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-card);
   width: 100%;
 }
 
-.table-container {
+.crm-table-scroll .crm-table-scroll__container {
   position: relative;
   width: 100%;
   overflow-x: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+  scrollbar-color: var(--border-strong) transparent;
 }
 
-.table-container::-webkit-scrollbar {
+.crm-table-scroll .crm-table-scroll__container::-webkit-scrollbar {
   height: 6px;
 }
 
-.table-container::-webkit-scrollbar-track {
+.crm-table-scroll .crm-table-scroll__container::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.table-container::-webkit-scrollbar-thumb {
-  background-color: rgba(156, 163, 175, 0.5);
+.crm-table-scroll .crm-table-scroll__container::-webkit-scrollbar-thumb {
+  background-color: var(--border-strong);
   border-radius: 3px;
 }
 
-.table-container::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(156, 163, 175, 0.7);
+.crm-table-scroll .crm-table-scroll__container::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-muted);
 }
 
-.scroll-area {
+.crm-table-scroll .crm-table-scroll__area {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -42,61 +42,61 @@
   pointer-events: none;
 }
 
-.scroll-area:hover {
+.crm-table-scroll .crm-table-scroll__area:hover {
   opacity: 0.8;
   pointer-events: auto;
 }
 
-.scroll-area-left {
+.crm-table-scroll .crm-table-scroll__area--left {
   left: 0;
-  background: linear-gradient(to right, rgba(255, 255, 255, 0.95), transparent);
+  background: linear-gradient(to right, var(--surface-card), transparent);
 }
 
-.scroll-area-right {
+.crm-table-scroll .crm-table-scroll__area--right {
   right: 0;
-  background: linear-gradient(to left, rgba(255, 255, 255, 0.95), transparent);
+  background: linear-gradient(to left, var(--surface-card), transparent);
 }
 
-.table-container:hover .scroll-area {
+.crm-table-scroll .crm-table-scroll__container:hover .crm-table-scroll__area {
   opacity: 0.6;
   pointer-events: auto;
 }
 
 /* Hide scroll areas when at boundaries */
-.table-container[data-at-start] .scroll-area-left,
-.table-container[data-at-end] .scroll-area-right {
+.crm-table-scroll .crm-table-scroll__container[data-at-start] .crm-table-scroll__area--left,
+.crm-table-scroll .crm-table-scroll__container[data-at-end] .crm-table-scroll__area--right {
   opacity: 0 !important;
   pointer-events: none;
 }
 
 /* Ensure table headers stay fixed */
-thead th {
+.crm-table-scroll thead th {
   position: sticky;
   top: 0;
   z-index: 1;
-  background-color: #f9fafb;
+  background-color: var(--canvas-subtle);
 }
 
 /* Add white background to the table to prevent content bleed-through */
-.table-container table {
+.crm-table-scroll .crm-table-scroll__container table {
   background-color: white;
 }
 
 /* Ensure consistent column widths */
-th, td {
+.crm-table-scroll th, .crm-table-scroll td {
   white-space: nowrap;
   min-width: 120px;
 }
 
 /* Fixed width for action columns */
-th:last-child, td:last-child {
+.crm-table-scroll th:last-child, .crm-table-scroll td:last-child {
   min-width: 100px;
   width: 100px;
 }
 
 /* Fixed width for checkbox and drag columns */
-th:first-child, td:first-child,
-th:nth-child(2), td:nth-child(2) {
+.crm-table-scroll th:first-child, .crm-table-scroll td:first-child,
+.crm-table-scroll th:nth-child(2), .crm-table-scroll td:nth-child(2) {
   min-width: 40px;
   width: 40px;
 }

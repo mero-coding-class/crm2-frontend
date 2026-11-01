@@ -1,7 +1,15 @@
 import React from "react";
 import { RotateCcw, Search, X } from "lucide-react";
 
-export default function FiltersPanel({ searchQuery, setSearchQuery, onClear, loading }) {
+export default function FiltersPanel({
+  searchQuery,
+  setSearchQuery,
+  onClear,
+  loading,
+  academicUsers = [],
+  assignedTo = "",
+  onAcademicFilterChange,
+}) {
   return (
     <div className="px-6 py-3 border-b border-slate-200 bg-slate-50">
       <div className="flex flex-wrap items-center gap-2.5">
@@ -12,7 +20,7 @@ export default function FiltersPanel({ searchQuery, setSearchQuery, onClear, loa
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder="Search school, system ID, principal, or contact name..."
-            className="w-full pl-9 pr-8 py-1.5 text-[13px] bg-white border border-slate-200 rounded-[8px] placeholder:text-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] transition-all"
+            className="w-full pl-9 pr-8 py-1.5 text-sm bg-white border border-slate-200 rounded-[8px] placeholder:text-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary transition-all"
           />
           {searchQuery && (
             <button
@@ -26,12 +34,27 @@ export default function FiltersPanel({ searchQuery, setSearchQuery, onClear, loa
           )}
         </div>
 
+        <label className="flex items-center gap-2 text-xs font-medium text-slate-500">
+          <span className="whitespace-nowrap">Academic assignee</span>
+          <select
+            value={assignedTo}
+            onChange={(event) => onAcademicFilterChange?.(event.target.value)}
+            disabled={loading}
+            className="h-9 min-w-40 rounded-[8px] border border-slate-200 bg-white px-2.5 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
+          >
+            <option value="">All academic users</option>
+            {academicUsers.map((academicUser) => (
+              <option key={academicUser.id} value={academicUser.id}>{academicUser.name}</option>
+            ))}
+          </select>
+        </label>
+
         {searchQuery && (
           <button
             type="button"
             onClick={onClear}
             disabled={loading}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-[500] text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-[6px] border border-rose-200 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-[6px] border border-rose-200 transition-colors disabled:opacity-50"
           >
             <RotateCcw className="h-3 w-3" />
             Clear Search

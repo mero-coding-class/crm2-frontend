@@ -3,6 +3,18 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 
+const PDF_TOKENS = {
+  primary: "#294998",
+  primaryLight: "#EDF2FC",
+  accentLight: "#FEF7EB",
+  canvas: "#F8FAFC",
+  canvasSubtle: "#F1F5F9",
+  textPrimary: "#0F172A",
+  textSecondary: "#475569",
+  textMuted: "#94A3B8",
+  border: "#CBD5E1",
+};
+
 // PDF date helper
 const formatDateForPdf = (dateString) => {
   if (!dateString) return "";
@@ -22,26 +34,26 @@ const styles = StyleSheet.create({
     fontSize: 24,
     marginBottom: 10,
     textAlign: "center",
-    color: "#333",
+    color: PDF_TOKENS.textPrimary,
     fontWeight: "bold",
   },
   subHeader: {
     fontSize: 12,
     marginBottom: 20,
     textAlign: "center",
-    color: "#666",
+    color: PDF_TOKENS.textSecondary,
   },
   section: {
     marginBottom: 15,
     padding: 10,
-    backgroundColor: "#f9f9f9",
+    backgroundColor: PDF_TOKENS.canvas,
     borderRadius: 5,
   },
   sectionTitle: {
     fontSize: 18,
     marginBottom: 10,
     fontWeight: "bold",
-    color: "#555",
+    color: PDF_TOKENS.textPrimary,
   },
   statsGrid: {
     display: "flex",
@@ -56,11 +68,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderRadius: 5,
     textAlign: "center",
-    backgroundColor: "#e0f7fa",
-    border: "1px solid #b2ebf2",
+    backgroundColor: PDF_TOKENS.primaryLight,
+    border: `1px solid ${PDF_TOKENS.primaryLight}`,
   },
-  statTitle: { fontSize: 12, color: "#666" },
-  statValue: { fontSize: 20, fontWeight: "bold", color: "#007bff" },
+  statTitle: { fontSize: 12, color: PDF_TOKENS.textSecondary },
+  statValue: { fontSize: 20, fontWeight: "bold", color: PDF_TOKENS.primary },
 
   listContainer: { marginTop: 20 },
   table: {
@@ -68,7 +80,7 @@ const styles = StyleSheet.create({
     width: "auto",
     borderStyle: "solid",
     borderWidth: 1,
-    borderColor: "#bfbfbf",
+    borderColor: PDF_TOKENS.border,
     marginBottom: 10,
   },
   tableRow: { margin: "auto", flexDirection: "row" },
@@ -77,9 +89,9 @@ const styles = StyleSheet.create({
     borderStyle: "solid",
     borderBottomWidth: 1,
     borderRightWidth: 1,
-    borderColor: "#bfbfbf",
+    borderColor: PDF_TOKENS.border,
     padding: 5,
-    backgroundColor: "#f2f2f2",
+    backgroundColor: PDF_TOKENS.canvasSubtle,
     textAlign: "center",
     fontWeight: "bold",
     fontSize: 7,
@@ -89,7 +101,7 @@ const styles = StyleSheet.create({
     borderStyle: "solid",
     borderBottomWidth: 0,
     borderRightWidth: 1,
-    borderColor: "#bfbfbf",
+    borderColor: PDF_TOKENS.border,
     padding: 5,
     fontSize: 6,
   },
@@ -109,10 +121,10 @@ const styles = StyleSheet.create({
 
 // Columns used in the PDF table (subset for readability)
 const convertedStudentsPdfTableColumns = [
-  { header: "Name", accessor: "studentName", style: styles.colName },
+  { header: "School", accessor: "studentName", style: styles.colName },
   { header: "Email", accessor: "email", style: styles.colEmail },
   { header: "Phone", accessor: "phone", style: styles.colPhone },
-  { header: "Course", accessor: "course", style: styles.colCourse },
+  { header: "Class", accessor: "course", style: styles.colCourse },
   { header: "Status", accessor: "status", style: styles.colStatus },
   { header: "Add Date", accessor: "addDate", style: styles.colAddDate },
   {
@@ -124,7 +136,7 @@ const convertedStudentsPdfTableColumns = [
   { header: "Address", accessor: "address", style: styles.colAddress },
   { header: "City", accessor: "city", style: styles.colCity },
   {
-    header: "Course Type",
+    header: "Class Type",
     accessor: "courseType",
     style: styles.colCourseType,
   },
@@ -182,7 +194,7 @@ const ReportDocument = ({ reportData, filterCriteria }) => {
               <Text style={styles.statValue}>{reportData.activeLeads}</Text>
             </View>
             <View style={styles.statCard}>
-              <Text style={styles.statTitle}>Converted Leads</Text>
+              <Text style={styles.statTitle}>Enrolled Schools</Text>
               <Text style={styles.statValue}>{reportData.convertedLeads}</Text>
             </View>
             <View style={styles.statCard}>
@@ -190,15 +202,15 @@ const ReportDocument = ({ reportData, filterCriteria }) => {
               <Text style={styles.statValue}>{reportData.lostLeads}</Text>
             </View>
             <View style={styles.statCard}>
-              <Text style={styles.statTitle}>Missed Leads</Text>
+              <Text style={styles.statTitle}>Leads Not Enrolled</Text>
               <Text style={styles.statValue}>{reportData.missedLeads}</Text>
             </View>
           </View>
         </View>
 
-        {/* Converted Students */}
+        {/* Enrolled Schools */}
         <View style={[styles.section, styles.listContainer]}>
-          <Text style={styles.sectionTitle}>Converted Students List</Text>
+          <Text style={styles.sectionTitle}>Enrolled Schools List</Text>
           <View style={styles.table}>
             <TableHeader columns={convertedStudentsPdfTableColumns} />
             {reportData.convertedStudentsList.map((row) => (
@@ -210,8 +222,8 @@ const ReportDocument = ({ reportData, filterCriteria }) => {
             ))}
           </View>
           {reportData.convertedStudentsList.length === 0 && (
-            <Text style={{ fontSize: 10, textAlign: "center", color: "#777" }}>
-              No converted students found for this report period.
+            <Text style={{ fontSize: 10, textAlign: "center", color: PDF_TOKENS.textMuted }}>
+              No enrolled schools found for this report period.
             </Text>
           )}
         </View>

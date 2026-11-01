@@ -99,11 +99,11 @@ const LeadMap = ({ leads = [], defaultCountry = "Nepal", defaultCity = "Kathmand
       const leadsToIterate = hasQuery
         ? leads
         : (leads || []).filter((lead) => {
-            const c = (lead.city || lead.student_city || lead.address_city || "").toString().toLowerCase();
+            const c = String(lead.municipality || "").toLowerCase();
             return DEFAULT_DISPLAY_CITIES.includes(c);
           });
       for (const lead of leadsToIterate) {
-        const city = (lead.city || lead.student_city || lead.address_city || "").trim();
+        const city = String(lead.municipality || "").trim();
         const country = (lead.country || defaultCountry).trim() || defaultCountry;
         if (!city) continue;
         const key = `${city}|${country}`;
@@ -119,8 +119,8 @@ const LeadMap = ({ leads = [], defaultCountry = "Nepal", defaultCity = "Kathmand
       if (mounted) {
         // determine if new marker was added compared to previous
         setMarkers((prev) => {
-          const prevKeys = new Set(prev.map((m) => `${m.lead.id || m.lead.email || m.lead.phone_number}-${m.pos.lat}-${m.pos.lng}`));
-          const added = results.find((r) => !prevKeys.has(`${r.lead.id || r.lead.email || r.lead.phone_number}-${r.pos.lat}-${r.pos.lng}`));
+          const prevKeys = new Set(prev.map((m) => `${m.lead.id || m.lead.email || m.lead.contact_number}-${m.pos.lat}-${m.pos.lng}`));
+          const added = results.find((r) => !prevKeys.has(`${r.lead.id || r.lead.email || r.lead.contact_number}-${r.pos.lat}-${r.pos.lng}`));
           if (added) {
             // center on newly added marker; FitBounds will also adjust map when appropriate
             setCenter(added.pos);
@@ -138,7 +138,7 @@ const LeadMap = ({ leads = [], defaultCountry = "Nepal", defaultCity = "Kathmand
     const qcountry = queryCountry.trim().toLowerCase();
     if (!qc && !qcountry) return markers;
     return markers.filter(({ lead }) => {
-      const c = (lead.city || lead.student_city || lead.address_city || "").toLowerCase();
+      const c = String(lead.municipality || "").toLowerCase();
       const co = (lead.country || defaultCountry || "").toLowerCase();
       const okCity = qc ? c.includes(qc) : true;
       const okCountry = qcountry ? co.includes(qcountry) : true;
@@ -150,7 +150,7 @@ const LeadMap = ({ leads = [], defaultCountry = "Nepal", defaultCity = "Kathmand
     <div className="h-full flex flex-col">
       <div className="flex gap-2 mb-3">
         <input
-          placeholder="Search city (e.g., Kathmandu)"
+          placeholder="Search municipality (e.g., Kathmandu)"
           value={queryCity}
           onChange={(e) => setQueryCity(e.target.value)}
           className="border rounded px-3 py-1 w-64"
@@ -162,7 +162,7 @@ const LeadMap = ({ leads = [], defaultCountry = "Nepal", defaultCity = "Kathmand
           className="border rounded px-3 py-1 w-48"
         />
         <button
-          className="bg-[#294998] hover:bg-[#1E3776] text-white px-3 py-1 rounded text-sm font-medium transition-colors"
+          className="bg-primary hover:bg-primary-hover text-white px-3 py-1 rounded text-sm font-medium transition-colors"
           onClick={async () => {
             const city = queryCity || defaultCity;
             const country = queryCountry || defaultCountry;
@@ -186,21 +186,21 @@ const LeadMap = ({ leads = [], defaultCountry = "Nepal", defaultCity = "Kathmand
             <Marker key={i} position={[pos.lat, pos.lng]}>
               {/* Tooltip shows on hover by default; do not make it permanent */}
               <Tooltip direction="top" offset={[0, -8]} opacity={0.95}>
-                <div className="text-xs font-semibold">{lead.student_name || lead.name || "Lead"}</div>
+                <div className="text-xs font-semibold">{lead.school_name || lead.name || "School"}</div>
               </Tooltip>
               <Popup>
                 <div className="text-sm">
-                  <strong>{lead.student_name || lead.name || "Lead"}</strong>
-                  <div>{lead.course_name || lead.course || ""}</div>
-                  <div>{lead.city || lead.student_city || ""}</div>
-                  <div className="text-xs text-gray-600">{lead.email || ""}</div>
+                  <strong>{lead.school_name || lead.name || "School"}</strong>
+                  <div>{lead.course_interest || lead.class_name || ""}</div>
+                  <div>{lead.municipality || ""}</div>
+                  <div className="text-xs text-slate-600">{lead.email || ""}</div>
                 </div>
               </Popup>
             </Marker>
           ))}
         </MapContainer>
         {markers.length === 0 && (
-          <div className="p-3 text-sm text-gray-500">No locations found yet; ensure leads include a city. The map will center on Kathmandu by default.</div>
+          <div className="p-3 text-sm text-slate-500">No locations found yet; ensure leads include a city. The map will center on Kathmandu by default.</div>
         )}
       </div>
     </div>

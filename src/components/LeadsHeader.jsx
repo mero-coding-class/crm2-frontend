@@ -1,6 +1,9 @@
 import React from "react";
 import { Plus, RotateCw, ListFilter, FileUp, FileDown } from "lucide-react";
 import ImportCsvButton from "./ImportCsvButton";
+import { Button } from "./ui/button.jsx";
+import { buttonVariants } from "./ui/buttonVariants.js";
+import { PageHeader } from "./common/PageShell.jsx";
 
 const LeadsHeader = ({
   handleOpenAddModal,
@@ -8,90 +11,84 @@ const LeadsHeader = ({
   authToken,
   handleRefresh,
   handleExport,
-  fetchingAll,
+  exporting,
   showFilters,
   setShowFilters,
   totalCount = 0,
 }) => {
   return (
-    <div className="px-6 py-5 border-b border-slate-200 bg-white">
-      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-        {/* Left: Title + Badge + Subtitle */}
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-[22px] font-[700] text-slate-900 tracking-[-0.015em]">
-              Leads Management
-            </h1>
-            <span className="px-2.5 py-0.5 rounded-full text-[12px] font-[500] bg-[#EEF2F6] text-slate-600">
-              {totalCount} Total
-            </span>
-          </div>
-          <p className="text-[13px] text-slate-500 mt-1">
-            Manage, filter, import and track school leads across intake channels.
-          </p>
-        </div>
-
-        {/* Right: Actions (all in the same row) */}
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <button
+    <>
+      <PageHeader
+        title="Leads Management"
+        description="Manage, filter, import and track school leads across intake channels."
+        badge={(
+          <span className="rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-slate-600">
+            {totalCount} Total
+          </span>
+        )}
+        actions={(
+          <>
+          <Button
+            type="button"
+            variant={showFilters ? "outline" : "secondary"}
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-[8px] text-[13px] font-[500] transition-colors ${showFilters
-                ? "bg-[#edf2fc] text-[#294998] ring-1 ring-[#cddbf6]"
-                : "bg-[#EEF2F6] hover:bg-slate-200 text-slate-700"
-              }`}
           >
             <ListFilter className="h-4 w-4" />
             {showFilters ? "Hide Filters" : "Show Filters"}
-          </button>
+          </Button>
 
-          <button
+          <Button
+            type="button"
+            variant="refresh"
             onClick={handleRefresh}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-[8px] text-[13px] font-[500] bg-[#EEF2F6] hover:bg-slate-200 text-slate-700 transition-colors"
           >
             <RotateCw className="h-4 w-4" />
             Refresh
-          </button>
+          </Button>
 
           {canManageLeads && (
             <ImportCsvButton
               authToken={authToken}
               id="headerCsvUpload"
               customButton={
-                <div className="flex items-center gap-2 px-3.5 py-2 rounded-[8px] text-[13px] font-[500] bg-[#EEF2F6] hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors">
+                <span className={buttonVariants({ variant: "secondary" })}>
                   <FileUp className="h-4 w-4" />
                   Import CSV / Excel
-                </div>
+                </span>
               }
             />
           )}
 
-          <button
+          <Button
+            type="button"
+            variant="secondary"
             onClick={handleExport}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-[8px] text-[13px] font-[500] bg-[#EEF2F6] hover:bg-slate-200 text-slate-700 transition-colors"
           >
             <FileDown className="h-4 w-4" />
             Export CSV
-          </button>
+          </Button>
 
           {canManageLeads && (
-            <button
+            <Button
+              type="button"
+              variant="primary"
               onClick={handleOpenAddModal}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-[8px] text-[13px] font-[500] bg-[#294998] hover:bg-[#1e3776] text-white shadow-xs transition-colors"
             >
               <Plus className="h-4 w-4" />
               Add New Lead
-            </button>
+            </Button>
           )}
-        </div>
-      </div>
+          </>
+        )}
+      />
 
-      {fetchingAll && (
-        <div className="mt-3 flex items-center gap-2 text-[12px] text-slate-500">
-          <div className="h-1.5 w-1.5 rounded-full bg-[#294998] animate-pulse" />
-          Fetching full dataset — this may take a moment…
+      {exporting && (
+        <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+          <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+          Exporting the current filtered page…
         </div>
       )}
-    </div>
+    </>
   );
 };
 

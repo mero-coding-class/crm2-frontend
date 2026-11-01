@@ -42,12 +42,12 @@ const ChartTooltipContent = ({ active, payload, label }) => {
 
   return (
     <div className="min-w-36 rounded-xl border border-slate-200 bg-white px-3.5 py-3 shadow-[0_8px_24px_rgba(15,23,42,0.12)]">
-      <p className="mb-2 text-[11px] font-semibold text-slate-800">
+      <p className="mb-2 text-xs font-semibold text-slate-800">
         {label || entry.payload?.stage || series?.label || entry.name}
       </p>
       <div className="flex items-center justify-between gap-5">
-        <span className="flex items-center gap-2 text-[11px] text-slate-500">
-          <span className="h-2 w-2 rounded-[3px]" style={{ backgroundColor: series?.color || "#294998" }} />
+        <span className="flex items-center gap-2 text-xs text-slate-500">
+          <span className="h-2 w-2 rounded-[3px]" style={{ backgroundColor: series?.color || "var(--primary-base)" }} />
           {series?.label || entry.name || "Schools"}
         </span>
         <span className="text-xs font-semibold tabular-nums text-slate-900">

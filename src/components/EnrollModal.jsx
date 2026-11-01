@@ -4,12 +4,23 @@ import { clientService, catalogService, leadService } from "../services/api";
 import { forgetReturnedLeadIds } from "../pages/clients/returnedToLeadsStore";
 import { isValidEmail, isValidPhoneNumber } from "../utils/validation";
 
+const toLocalDateInputValue = (date) => new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+  .toISOString()
+  .slice(0, 10);
+
+const addDaysToDateInputValue = (value, days) => {
+  const date = new Date(value + "T00:00:00");
+  date.setDate(date.getDate() + days);
+  return toLocalDateInputValue(date);
+};
+
 export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
   const [loading, setLoading] = useState(false);
   const [loadingCatalogs, setLoadingCatalogs] = useState(true);
   const [loadingLeadDetails, setLoadingLeadDetails] = useState(false);
   const [leadApproval, setLeadApproval] = useState(null);
   const [error, setError] = useState(null);
+  const today = toLocalDateInputValue(new Date());
 
   // Catalog options from backend
   const [packages, setPackages] = useState([]);
@@ -47,13 +58,10 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
     let mounted = true;
     setLoadingCatalogs(true);
 
-    const toLocalDate = (date) => new Date(date.getTime() - date.getTimezoneOffset() * 60000)
-      .toISOString()
-      .slice(0, 10);
-    const today = toLocalDate(new Date());
+    const enrollmentDate = toLocalDateInputValue(new Date());
     const nextYearDate = new Date();
     nextYearDate.setFullYear(nextYearDate.getFullYear() + 1);
-    const nextYear = toLocalDate(nextYearDate);
+    const nextYear = toLocalDateInputValue(nextYearDate);
 
     // Pre-fill from lead
     const defaultPrincipalName = lead?.contact_person || "";
@@ -71,9 +79,9 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
       contact_name: defaultContactName,
       contact_number: defaultContactNumber,
       contact_email: defaultContactEmail,
-      mou_start: today,
+      mou_start: enrollmentDate,
       mou_end: nextYear,
-      signed_date: today,
+      signed_date: enrollmentDate,
       start_date: "",
       end_date: "",
       first_class_date: "",
@@ -88,22 +96,37 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
     }));
 
     Promise.all([
-      catalogService.getPackages(authToken).catch(() => []),
-      catalogService.getClasses(authToken).catch(() => []),
-      catalogService.getSyllabi(authToken).catch(() => []),
+      catalogService.getPackages(authToken),
+      catalogService.getClasses(authToken),
+      catalogService.getSyllabi(authToken),
     ])
       .then(([pkgs, cls, syllabusOptions]) => {
         if (!mounted) return;
-        setPackages(pkgs);
-        setClassesList(cls);
-        setSyllabi(syllabusOptions);
+        const activePackages = pkgs.filter((item) => item.active);
+        setPackages(activePackages);
+        setClassesList(cls.filter((item) => item.active));
+        setSyllabi(syllabusOptions.filter((item) => item.active));
 
         setFormData((prev) => ({
           ...prev,
-          package_type: pkgs[0]?.id || "",
+          package_type: activePackages[0]?.id || "",
           syllabus_type: "",
-          included_classes: cls.map((c) => c.id),
+          included_classes: (() => {
+            const requestedClasses = new Set(
+              String(lead?.course_interest || "")
+                .split(",")
+                .map((name) => name.trim().toLocaleLowerCase())
+                .filter(Boolean)
+            );
+            const matchedClasses = cls
+              .filter((item) => requestedClasses.has(String(item.name || "").trim().toLocaleLowerCase()))
+              .map((item) => item.id);
+            return requestedClasses.size ? matchedClasses : cls.map((item) => item.id);
+          })(),
         }));
+      })
+      .catch((catalogError) => {
+        if (mounted) setError(catalogError.message || "Could not load enrollment catalogs.");
       })
       .finally(() => {
         if (mounted) setLoadingCatalogs(false);
@@ -255,8 +278,20 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
       setError("Exam and event counts must be whole numbers from 0 to 32,767.");
       return;
     }
-    if (new Date(formData.mou_end) < new Date(formData.mou_start)) {
-      setError("MOU end date must be on or after start date.");
+    if (formData.mou_end <= formData.mou_start) {
+      setError("MOU end date must be after start date.");
+      return;
+    }
+    const dateValues = [
+      formData.mou_start,
+      formData.mou_end,
+      formData.signed_date,
+      formData.start_date,
+      formData.end_date,
+      formData.first_class_date,
+    ].filter(Boolean);
+    if (dateValues.some((date) => date < today)) {
+      setError("Dates cannot be in the past.");
       return;
     }
     if (!formData.signed_date || !formData.start_date || !formData.end_date) {
@@ -310,12 +345,12 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm crm-animate-in crm-fade-in-0">
       <div className="relative w-full max-w-3xl max-h-[92vh] overflow-hidden bg-white rounded-2xl shadow-2xl flex flex-col border border-slate-100">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-[#F8FAFC]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-canvas">
           <div className="flex items-center space-x-3">
-            <div className="p-2.5 bg-[#294998] rounded-xl text-white shadow-sm">
+            <div className="p-2.5 bg-primary rounded-xl text-white shadow-sm">
               <School className="w-6 h-6" />
             </div>
             <div>
@@ -323,7 +358,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                 Enroll School as Client
               </h2>
               <p className="text-xs text-slate-500">
-                {lead.school_name} &bull; <span className="font-mono text-[#294998] font-semibold">{lead.system_id || "SCH-Pending"}</span> &bull; {lead.municipality || lead.district || "Nepal"}
+                {lead.school_name} &bull; <span className="font-mono text-primary font-semibold">{lead.system_id || "SCH-Pending"}</span> &bull; {lead.municipality || lead.district || "Nepal"}
               </p>
             </div>
           </div>
@@ -338,7 +373,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
         {/* Content / Form */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600 font-medium">
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-sm text-rose-600 font-medium">
               {error}
             </div>
           )}
@@ -347,12 +382,12 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
           <div>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                <User className="w-4 h-4 text-[#294998]" /> Principal / School Head
+                <User className="w-4 h-4 text-primary" /> Principal / School Head
               </h3>
               <button
                 type="button"
                 onClick={handleCopyContactToPrincipal}
-                className="text-xs text-[#294998] hover:text-[#1E3776] font-medium hover:underline flex items-center gap-1 cursor-pointer"
+                className="text-xs text-primary hover:text-primary-hover font-medium hover:underline flex items-center gap-1 cursor-pointer"
                 title="Copy details from contact person below"
               >
                 Same as Contact Person
@@ -371,7 +406,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                   required
                   maxLength={255}
                   placeholder="e.g. Dr. Ramesh Shrestha"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
                 />
               </div>
               <div>
@@ -388,7 +423,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                   inputMode="tel"
                   title="Enter exactly 10 local digits. A +977 country code is accepted."
                   placeholder="98XXXXXXXX"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
                 />
               </div>
               <div>
@@ -403,7 +438,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                   required
                   maxLength={254}
                   placeholder="principal@school.edu.np"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
                 />
               </div>
             </div>
@@ -412,7 +447,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
           {/* Section 2: Operational Contact */}
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
-              <Phone className="w-4 h-4 text-[#294998]" /> Operational Point of Contact
+              <Phone className="w-4 h-4 text-primary" /> Operational Point of Contact
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
@@ -426,7 +461,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                   onChange={handleChange}
                   required
                   maxLength={255}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
                 />
               </div>
               <div>
@@ -442,7 +477,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                   maxLength={32}
                   inputMode="tel"
                   title="Enter exactly 10 local digits. A +977 country code is accepted."
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
                 />
               </div>
               <div>
@@ -456,7 +491,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                   onChange={handleChange}
                   required
                   maxLength={254}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
                 />
               </div>
             </div>
@@ -465,7 +500,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
           {/* Section 3: MOU & Financials */}
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
-              <Calendar className="w-4 h-4 text-[#294998]" /> MOU & Financial Terms
+              <Calendar className="w-4 h-4 text-primary" /> MOU & Financial Terms
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div>
@@ -478,7 +513,8 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                   value={formData.mou_start}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                  min={today}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
                 />
               </div>
               <div>
@@ -491,8 +527,8 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                   value={formData.mou_end}
                   onChange={handleChange}
                   required
-                  min={formData.mou_start || undefined}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                  min={addDaysToDateInputValue(formData.mou_start >= today ? formData.mou_start : today, 1)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
                 />
               </div>
               <div>
@@ -504,7 +540,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                   value={formData.pricing_basis}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none bg-white"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none bg-white"
                 >
                   <option value="per_month">Per Month</option>
                   <option value="per_class">Per Class</option>
@@ -524,7 +560,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                   max="9223372036854775807"
                   step="1"
                   placeholder="e.g. 45000"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none font-semibold text-slate-800"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none font-semibold text-slate-800"
                 />
               </div>
             </div>
@@ -533,7 +569,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
           {/* Initial contract dates are separate from the MOU dates. */}
           <div>
             <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-500">
-              <Calendar className="h-4 w-4 text-[#294998]" /> Initial Contract
+              <Calendar className="h-4 w-4 text-primary" /> Initial Contract
             </h3>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               {[
@@ -549,18 +585,20 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                     value={formData[name]}
                     onChange={handleChange}
                     required
-                    min={name === "end_date" ? formData.start_date || undefined : undefined}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#294998] focus:ring-2 focus:ring-[#294998]/15"
+                    min={name === "end_date"
+                      ? (formData.start_date > today ? formData.start_date : today)
+                      : today}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
                   />
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Section 4: Academic Program */}
+          {/* Section 4: Curriculum and package details */}
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
-              <BookOpen className="w-4 h-4 text-[#294998]" /> Curriculum & Classes
+              <BookOpen className="w-4 h-4 text-primary" /> Curriculum & Package Details
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
               <div>
@@ -572,7 +610,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                   value={formData.package_type}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none bg-white capitalize"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none bg-white capitalize"
                 >
                   {packages.map((pkg) => (
                     <option key={pkg.id} value={pkg.id}>
@@ -589,7 +627,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                   name="syllabus_type"
                   value={formData.syllabus_type}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#294998] focus:ring-2 focus:ring-[#294998]/15"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
                 >
                   <option value="">No syllabus selected</option>
                   {syllabi.map((syllabus) => (
@@ -610,7 +648,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                   min="1"
                   max="14"
                   step="1"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
                 />
               </div>
             </div>
@@ -630,12 +668,12 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                       onClick={() => handleClassToggle(cls.id)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
                         isChecked
-                          ? "bg-[#294998] text-white shadow-sm"
+                          ? "bg-primary text-white shadow-sm"
                           : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
                       }`}
                     >
                       {isChecked && <CheckCircle className="w-3.5 h-3.5" />}
-                      <span className="capitalize">{cls.name}</span>
+                      <span className="capitalize">{cls.class_name || cls.name}</span>
                     </button>
                   );
                 })}
@@ -654,7 +692,8 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                 name="first_class_date"
                 value={formData.first_class_date}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                min={today}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
               />
             </div>
             <div>
@@ -669,7 +708,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                 min="0"
                 max="32767"
                 step="1"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
               />
             </div>
             <div>
@@ -684,7 +723,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
                 min="0"
                 max="32767"
                 step="1"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
               />
             </div>
           </div>
@@ -702,7 +741,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
             <button
               type="submit"
               disabled={loading || loadingCatalogs || loadingLeadDetails || leadApproval !== "approved"}
-              className="px-5 py-2.5 bg-[#294998] hover:bg-[#1E3776] text-white rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 transition-all disabled:opacity-50"
+              className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 transition-all disabled:opacity-50"
             >
               {loading ? (
                 <span>Converting...</span>

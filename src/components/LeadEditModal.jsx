@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/useAuth.js";
-import { XMarkIcon } from "@heroicons/react/24/outline";
+import { X as XMarkIcon } from "lucide-react";
 import LeadEditForm from "./LeadEditForm";
 import { leadService } from "../services/api";
 import {
   isValidEmail,
+  isValidAlphabeticName,
+  containsLetter,
   isValidLandlineNumber,
   isValidPhoneNumber,
 } from "../utils/validation";
@@ -36,6 +38,7 @@ const DEFAULT_FORM = {
     contact_person: "",
     contact_number: "",
     alt_number: "",
+    landline: "",
     alt_contact_person: "",
     email: "",
     source: "",
@@ -62,7 +65,7 @@ const isAdminRole = (role) =>
     String(role || "").toLowerCase()
   );
 
-const LeadEditModal = ({ lead, onClose, onSave }) => {
+const LeadEditModal = ({ lead, onClose, onSave, classes = [], classLoadError = "" }) => {
 
   const [formData, setFormData] = useState(DEFAULT_FORM);
   const { user, authToken } = useAuth();
@@ -110,6 +113,7 @@ const LeadEditModal = ({ lead, onClose, onSave }) => {
       contact_person: source.contact_person || "",
       contact_number: source.contact_number || "",
       alt_number: source.alt_number || "",
+      landline: source.landline || "",
       alt_contact_person: source.alt_contact_person || "",
       email: source.email || "",
       source: source.source || "",
@@ -184,13 +188,29 @@ const LeadEditModal = ({ lead, onClose, onSave }) => {
       setValidationError("Enter a contact number with exactly 10 local digits. +977 is accepted.");
       return;
     }
+    for (const field of ["district", "municipality", "contact_person"]) {
+      if (!isValidAlphabeticName(formData[field])) {
+        setValidationError(`${field.replaceAll("_", " ")} must contain letters and standard name punctuation only.`);
+        return;
+      }
+    }
+    for (const field of ["school_name", "address"]) {
+      if (!containsLetter(formData[field])) {
+        setValidationError(`${field.replaceAll("_", " ")} must contain at least one letter.`);
+        return;
+      }
+    }
     if (formData.alt_number && !isValidLandlineNumber(formData.alt_number)) {
+      setValidationError("Enter an alternate number with 7 to 10 local digits.");
+      return;
+    }
+    if (formData.landline && !isValidLandlineNumber(formData.landline)) {
       setValidationError("Enter a landline number with 7 to 10 local digits.");
       return;
     }
     const maxLengths = {
       school_name: 255, district: 100, municipality: 100, address: 255,
-      contact_person: 255, contact_number: 32, alt_number: 32,
+      contact_person: 255, contact_number: 32, alt_number: 32, landline: 32,
       alt_contact_person: 255, email: 254, source: 100,
       course_interest: 255, social_media: 500,
     };
@@ -211,6 +231,7 @@ const LeadEditModal = ({ lead, onClose, onSave }) => {
       contact_person: formData.contact_person,
       contact_number: formData.contact_number,
       alt_number: formData.alt_number || "",
+      landline: formData.landline || "",
       alt_contact_person: formData.alt_contact_person || "",
       email: formData.email,
       course_interest: formData.course_interest || "",
@@ -227,7 +248,7 @@ const LeadEditModal = ({ lead, onClose, onSave }) => {
 
   return (
     <div
-      className="fixed inset-0 bg-gray-600/50 flex items-center justify-center z-50 p-4 animate-fade-in"
+      className="fixed inset-0 bg-slate-600/50 flex items-center justify-center z-50 p-4 crm-animate-in crm-fade-in-0"
       onClick={handleOverlayClick}
     >
       <div
@@ -237,9 +258,9 @@ const LeadEditModal = ({ lead, onClose, onSave }) => {
         <div className="flex justify-end">
           <button
             onClick={onClose}
-            className="p-2 rounded-md hover:bg-gray-100"
+            className="p-2 rounded-md hover:bg-slate-100"
           >
-            <XMarkIcon className="h-5 w-5 text-gray-600" />
+            <XMarkIcon className="h-5 w-5 text-slate-600" />
           </button>
         </div>
         {loadingLead ? (
@@ -247,7 +268,7 @@ const LeadEditModal = ({ lead, onClose, onSave }) => {
         ) : loadError ? (
           <div className="space-y-4 p-8 text-center">
             <p className="text-sm text-rose-700">{loadError}</p>
-            <button type="button" onClick={() => setReloadToken((value) => value + 1)} className="rounded-md bg-[#294998] px-4 py-2 text-sm font-medium text-white hover:bg-[#1E3776]">Retry</button>
+            <button type="button" onClick={() => setReloadToken((value) => value + 1)} className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover">Retry</button>
           </div>
         ) : (
           <LeadEditForm
@@ -257,6 +278,8 @@ const LeadEditModal = ({ lead, onClose, onSave }) => {
             validationError={validationError}
             user={user}
             onClose={onClose}
+            classes={classes}
+            classLoadError={classLoadError}
           />
         )}
       </div>

@@ -47,7 +47,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           fontFamily: "Inter, system-ui, sans-serif",
           fontSize: "13px",
           borderRadius: "10px",
-          border: "1px solid #E2E8F0",
+          border: "1px solid var(--border-subtle)",
           boxShadow: "0 10px 15px -3px rgba(15,23,42,0.08), 0 4px 6px -4px rgba(15,23,42,0.04)",
         },
       }}

@@ -14,7 +14,7 @@ const DropdownMenuSubTrigger = React.forwardRef(({ className, inset, children, .
   <DropdownMenuPrimitive.SubTrigger
     ref={ref}
     className={cn(
-      "flex cursor-default select-none items-center rounded-[6px] px-2 py-1.5 text-[13px] outline-none focus:bg-slate-50 data-[state=open]:bg-slate-50",
+      "flex cursor-default select-none items-center rounded-[6px] px-2 py-1.5 text-sm outline-none focus:bg-slate-50 data-[state=open]:bg-slate-50",
       inset && "pl-8",
       className
     )}
@@ -44,7 +44,7 @@ const DropdownMenuContent = React.forwardRef(({ className, sideOffset = 4, ...pr
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        "z-50 min-w-[8rem] overflow-hidden rounded-[8px] border border-slate-200 bg-white p-1 shadow-md animate-in data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+        "z-50 min-w-[8rem] overflow-hidden rounded-[8px] border border-slate-200 bg-white p-1 shadow-md crm-animate-in data-[side=bottom]:crm-slide-in-from-top-2 data-[side=left]:crm-slide-in-from-right-2 data-[side=right]:crm-slide-in-from-left-2 data-[side=top]:crm-slide-in-from-bottom-2",
         className
       )}
       {...props}
@@ -57,7 +57,7 @@ const DropdownMenuItem = React.forwardRef(({ className, inset, ...props }, ref) 
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex cursor-pointer select-none items-center rounded-[6px] px-2 py-1.5 text-[13px] outline-none transition-colors focus:bg-slate-50 focus:text-slate-900 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "relative flex cursor-pointer select-none items-center rounded-[6px] px-2 py-1.5 text-sm outline-none transition-colors focus:bg-slate-50 focus:text-slate-900 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       inset && "pl-8",
       className
     )}
@@ -70,7 +70,7 @@ const DropdownMenuCheckboxItem = React.forwardRef(({ className, children, checke
   <DropdownMenuPrimitive.CheckboxItem
     ref={ref}
     className={cn(
-      "relative flex cursor-pointer select-none items-center rounded-[6px] py-1.5 pl-8 pr-2 text-[13px] outline-none transition-colors focus:bg-slate-50 focus:text-slate-900 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "relative flex cursor-pointer select-none items-center rounded-[6px] py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-slate-50 focus:text-slate-900 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className
     )}
     checked={checked}
@@ -90,7 +90,7 @@ const DropdownMenuRadioItem = React.forwardRef(({ className, children, ...props 
   <DropdownMenuPrimitive.RadioItem
     ref={ref}
     className={cn(
-      "relative flex cursor-pointer select-none items-center rounded-[6px] py-1.5 pl-8 pr-2 text-[13px] outline-none transition-colors focus:bg-slate-50 focus:text-slate-900 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "relative flex cursor-pointer select-none items-center rounded-[6px] py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-slate-50 focus:text-slate-900 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className
     )}
     {...props}
@@ -109,7 +109,7 @@ const DropdownMenuLabel = React.forwardRef(({ className, inset, ...props }, ref)
   <DropdownMenuPrimitive.Label
     ref={ref}
     className={cn(
-      "px-2 py-1.5 text-[11px] font-[600] text-slate-500 uppercase tracking-[0.04em]",
+      "px-2 py-1.5 text-xs font-semibold text-slate-500 uppercase tracking-[0.04em]",
       inset && "pl-8",
       className
     )}
@@ -130,7 +130,7 @@ DropdownMenuSeparator.displayName = DropdownMenuPrimitive.Separator.displayName;
 const DropdownMenuShortcut = ({ className, ...props }) => {
   return (
     <span
-      className={cn("ml-auto text-[11px] tracking-widest text-slate-400", className)}
+      className={cn("ml-auto text-xs tracking-widest text-slate-400", className)}
       {...props}
     />
   );

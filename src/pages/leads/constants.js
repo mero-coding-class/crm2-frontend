@@ -1,5 +1,5 @@
 // Centralized constants/options for Leads page
-export const statusOptions = ["All", "Active", "Converted", "Lost"];
+export const statusOptions = ["Active", "Enrolled", "Not Interested"];
 
 export const classTypeOptions = ["Class", "Online", "Physical"];
 

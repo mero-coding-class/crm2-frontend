@@ -1,11 +1,11 @@
 import React from "react";
 import {
-  AcademicCapIcon,
-  ClipboardDocumentListIcon,
-  EyeIcon,
-  PencilIcon,
-  TrashIcon,
-} from "@heroicons/react/24/outline";
+  GraduationCap as AcademicCapIcon,
+  ClipboardList as ClipboardDocumentListIcon,
+  Eye as EyeIcon,
+  Pencil as PencilIcon,
+  Trash2 as TrashIcon,
+} from "lucide-react";
 import { getSubStatusClasses } from "./helpers";
 
 const formatValue = (value) => {
@@ -59,7 +59,7 @@ const DraggableRow = ({
                 type="button"
                 title="View Activity Log"
                 onClick={() => onOpenViewModal?.(lead)}
-                className="rounded p-1 text-slate-400 transition-colors hover:bg-[#EDF2FC] hover:text-[#294998]"
+                className="rounded p-1 text-slate-400 transition-colors hover:bg-primary-light hover:text-primary"
               >
                 <EyeIcon className="h-3.5 w-3.5" />
               </button>
@@ -72,7 +72,7 @@ const DraggableRow = ({
         return (
           <td key={key} className="whitespace-nowrap px-3 py-4 text-right text-sm font-medium">
             <div className="flex items-center justify-end gap-1">
-              {canLogActivity && <button type="button" onClick={() => onOpenActivityModal?.(lead)} className="inline-flex items-center gap-1 rounded-md border border-[#CDDBF6] bg-[#EDF2FC] px-2 py-1 text-xs font-semibold text-[#294998] hover:bg-[#DCE6F9]" title="Log activity">
+              {canLogActivity && <button type="button" onClick={() => onOpenActivityModal?.(lead)} className="inline-flex items-center gap-1 rounded-md border border-primary-border bg-primary-light px-2 py-1 text-xs font-semibold text-primary hover:bg-primary-light" title="Log activity">
                 <ClipboardDocumentListIcon className="h-3.5 w-3.5" /> Log
               </button>}
               {canManageLeads && (
@@ -80,10 +80,10 @@ const DraggableRow = ({
                   {canConvert && <button type="button" onClick={() => onOpenEnrollModal?.(lead)} className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100" title="Convert lead to client">
                     <AcademicCapIcon className="h-3.5 w-3.5" /> Convert
                   </button>}
-                  <button type="button" onClick={() => handleEdit(lead)} className="rounded-md p-1 text-[#294998] hover:bg-[#EDF2FC]" title="Edit lead">
+                  <button type="button" onClick={() => handleEdit(lead)} className="rounded-md p-1 text-primary hover:bg-primary-light" title="Edit lead">
                     <PencilIcon className="h-4 w-4" />
                   </button>
-                  <button type="button" onClick={() => handleDelete(lead.id || lead._id)} className="rounded-md p-1 text-red-600 hover:bg-red-50" title="Move lead to Archive">
+                  <button type="button" onClick={() => handleDelete(lead.id || lead._id)} className="rounded-md p-1 text-rose-600 hover:bg-rose-50" title="Move lead to Archive">
                     <TrashIcon className="h-4 w-4" />
                   </button>
                 </>
@@ -100,14 +100,14 @@ const DraggableRow = ({
   const visibleColumns = columnOrder || Object.keys(columns || {}).filter((key) => columns[key]?.visible);
 
   return (
-    <tr className={`transition-colors hover:bg-slate-50/80 ${selected ? "bg-[#EDF2FC]/60" : ""}`}>
+    <tr className={`transition-colors hover:bg-slate-50/80 ${selected ? "bg-primary-light/60" : ""}`}>
       <td className="w-10 whitespace-nowrap px-3 py-3 text-center">
         <input
           type="checkbox"
           checked={selected}
           onChange={() => onSelect(lead._id || lead.id)}
           aria-label={`Select ${lead.school_name || "lead"}`}
-          className="h-3.5 w-3.5 cursor-pointer rounded-[4px] border-slate-300 text-[#294998] focus:ring-[#294998]"
+          className="h-3.5 w-3.5 cursor-pointer rounded-[4px] border-slate-300 text-primary focus:ring-primary"
         />
       </td>
       {visibleColumns.map(cell)}

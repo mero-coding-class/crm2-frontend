@@ -102,36 +102,36 @@ const Login = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-[#F8FAFC] p-4" style={{
-      backgroundImage: "radial-gradient(circle at 60% 20%, rgba(41,73,152,0.06) 0%, transparent 55%), radial-gradient(circle at 20% 80%, rgba(232,160,38,0.05) 0%, transparent 40%)"
+    <div className="flex items-center justify-center min-h-screen bg-canvas p-4" style={{
+      backgroundImage: "radial-gradient(circle at 60% 20%, rgba(var(--primary-rgb),0.06) 0%, transparent 55%), radial-gradient(circle at 20% 80%, rgba(var(--accent-rgb),0.05) 0%, transparent 40%)"
     }}>
       <div className="w-full max-w-[400px]">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="h-14 w-14 rounded-2xl bg-white border border-[#CDDBF6] p-2.5 flex items-center justify-center shadow-sm mb-3">
+          <div className="h-14 w-14 rounded-2xl bg-white border border-primary-border p-2.5 flex items-center justify-center shadow-sm mb-3">
             <img
               src="/merocoding-logo.png"
               alt="MeroCoding"
               className="h-full w-full object-contain"
             />
           </div>
-          <h1 className="text-[22px] font-[700] text-slate-900 tracking-[-0.02em] leading-[28px]">
+          <h1 className="crm-page-title">
             MeroCoding
           </h1>
-          <p className="text-[13px] text-slate-500 mt-1">School CRM &amp; LMS ERP System</p>
+          <p className="text-sm text-slate-500 mt-1">School CRM &amp; LMS ERP System</p>
         </div>
 
         {/* Card */}
         <div className="bg-white rounded-[16px] border border-slate-200 shadow-[0_4px_6px_-1px_rgba(15,23,42,0.07),_0_2px_4px_-2px_rgba(15,23,42,0.05)] p-8">
           <div className="mb-6">
-            <h2 className="text-[20px] font-[600] text-slate-900 tracking-[-0.015em] leading-[28px]">
+            <h2 className="text-xl font-semibold text-slate-900 tracking-[-0.015em] leading-[28px]">
               Sign in to your account
             </h2>
-            <p className="text-[13px] text-slate-500 mt-1">Welcome back — enter your credentials below</p>
+            <p className="text-sm text-slate-500 mt-1">Welcome back — enter your credentials below</p>
           </div>
 
           {error && (
-            <div className={`flex items-start gap-2 p-3 rounded-[8px] mb-5 text-[13px] leading-[18px] border ${error.includes("successful")
+            <div className={`flex items-start gap-2 p-3 rounded-[8px] mb-5 text-sm leading-5 border ${error.includes("successful")
                 ? "bg-emerald-50 border-emerald-200 text-emerald-700"
                 : "bg-rose-50 border-rose-200 text-rose-600"
               }`}>
@@ -144,7 +144,7 @@ const Login = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="username" className="block text-[13px] font-[500] text-slate-700 mb-1.5">
+              <label htmlFor="username" className="block text-sm font-medium text-slate-700 mb-1.5">
                 Username
               </label>
               <input
@@ -155,14 +155,14 @@ const Login = () => {
                 maxLength={150}
                 onChange={handleChange}
                 placeholder="Enter your username"
-                className="w-full h-10 px-3 text-[14px] rounded-[8px] border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#294998] focus:ring-[3px] focus:ring-[#294998]/15 hover:border-slate-300 transition-colors"
+                className="w-full h-10 px-3 text-sm rounded-[8px] border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-primary focus:ring-[3px] focus:ring-primary/15 hover:border-slate-300 transition-colors"
                 required
               />
             </div>
 
             {/* Task 1.1: Password field with show/hide toggle */}
             <div>
-              <label htmlFor="password" className="block text-[13px] font-[500] text-slate-700 mb-1.5">
+              <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1.5">
                 Password
               </label>
               <div className="relative">
@@ -173,7 +173,7 @@ const Login = () => {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="Enter your password"
-                  className="w-full h-10 px-3 pr-10 text-[14px] rounded-[8px] border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#294998] focus:ring-[3px] focus:ring-[#294998]/15 hover:border-slate-300 transition-colors"
+                  className="w-full h-10 px-3 pr-10 text-sm rounded-[8px] border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-primary focus:ring-[3px] focus:ring-primary/15 hover:border-slate-300 transition-colors"
                   required
                 />
                 {/* Eye icon toggle */}
@@ -209,9 +209,9 @@ const Login = () => {
                   name="rememberMe"
                   checked={formData.rememberMe}
                   onChange={handleChange}
-                  className="h-3.5 w-3.5 rounded-[4px] border-slate-300 text-[#294998] focus:ring-[#294998]"
+                  className="h-3.5 w-3.5 rounded-[4px] border-slate-300 text-primary focus:ring-primary"
                 />
-                <label htmlFor="rememberMe" className="text-[13px] text-slate-600 cursor-pointer">
+                <label htmlFor="rememberMe" className="text-sm text-slate-600 cursor-pointer">
                   Remember me
                 </label>
               </div>
@@ -221,7 +221,7 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-10 bg-[#294998] text-white text-[14px] font-[600] rounded-[8px] hover:bg-[#1E3776] active:bg-[#172B5C] transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+              className="w-full h-10 bg-primary text-white text-sm font-semibold rounded-[8px] hover:bg-primary-hover active:bg-primary-dark transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed mt-2"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">

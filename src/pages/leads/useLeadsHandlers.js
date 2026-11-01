@@ -54,7 +54,6 @@ export default function useLeadsHandlers(ctx) {
                 ? {
                     ...l,
                     sub_status: activityData.sub_status ?? l.sub_status,
-                    substatus: activityData.sub_status ?? l.substatus,
                   }
                 : l
             )

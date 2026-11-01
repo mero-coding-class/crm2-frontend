@@ -2,6 +2,8 @@ import { useState } from "react";
 import { leadService } from "../../services/api";
 import {
   isValidEmail,
+  isValidAlphabeticName,
+  containsLetter,
   isValidLandlineNumber,
   isValidPhoneNumber,
 } from "../../utils/validation";
@@ -31,6 +33,7 @@ export default function useAddLeadForm({ authToken, onClose, onSave, isAdmin }) 
     email: "",
     // Optional fields
     alt_number: "",
+    landline: "",
     alt_contact_person: "",
     owner: "",           // FK id (integer) — admin only
     source: "",
@@ -76,6 +79,17 @@ export default function useAddLeadForm({ authToken, onClose, onSave, isAdmin }) 
     const fieldErrors = {};
     missing.forEach((field) => { fieldErrors[field] = "This field is required"; });
 
+    ["district", "municipality", "contact_person"].forEach((field) => {
+      if (String(formData[field] || "").trim() && !isValidAlphabeticName(formData[field])) {
+        fieldErrors[field] = "Use letters, spaces, periods, apostrophes, or hyphens only.";
+      }
+    });
+    ["school_name", "address"].forEach((field) => {
+      if (String(formData[field] || "").trim() && !containsLetter(formData[field])) {
+        fieldErrors[field] = "Enter text that includes at least one letter.";
+      }
+    });
+
     const maxLengths = {
       school_name: 255,
       district: 100,
@@ -85,6 +99,7 @@ export default function useAddLeadForm({ authToken, onClose, onSave, isAdmin }) 
       alt_contact_person: 255,
       contact_number: 32,
       alt_number: 32,
+      landline: 32,
       email: 254,
       source: 100,
       course_interest: 255,
@@ -103,7 +118,10 @@ export default function useAddLeadForm({ authToken, onClose, onSave, isAdmin }) 
       fieldErrors.contact_number = "Enter a phone number with exactly 10 local digits. +977 is accepted.";
     }
     if (formData.alt_number.trim() && !isValidLandlineNumber(formData.alt_number)) {
-      fieldErrors.alt_number = "Enter a landline number with 7 to 10 local digits.";
+      fieldErrors.alt_number = "Enter an alternate number with 7 to 10 local digits.";
+    }
+    if (formData.landline.trim() && !isValidLandlineNumber(formData.landline)) {
+      fieldErrors.landline = "Enter a landline number with 7 to 10 local digits.";
     }
 
     if (Object.keys(fieldErrors).length) {
@@ -125,6 +143,7 @@ export default function useAddLeadForm({ authToken, onClose, onSave, isAdmin }) 
 
     // Optional fields — only include if non-empty
     if (formData.alt_number?.trim()) backendPayload.alt_number = formData.alt_number.trim();
+    if (formData.landline?.trim()) backendPayload.landline = formData.landline.trim();
     if (formData.alt_contact_person?.trim()) backendPayload.alt_contact_person = formData.alt_contact_person.trim();
     if (formData.source?.trim()) backendPayload.source = formData.source.trim();
     if (formData.course_interest?.trim()) backendPayload.course_interest = formData.course_interest.trim();

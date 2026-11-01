@@ -1,47 +1,52 @@
 // src/components/ColumnToggler.jsx
 import React from "react";
-import { Menu } from "@headlessui/react";
-import { Cog6ToothIcon } from "@heroicons/react/24/outline";
+import { useEffect, useRef, useState } from "react";
+import { SlidersHorizontal } from "lucide-react";
 
-const ColumnToggler = ({ columns, setColumns }) => {
-  const toggleColumn = (key) => {
-    setColumns((prev) => ({
-      ...prev,
-      [key]: { ...prev[key], visible: !prev[key].visible },
-    }));
-  };
+const ColumnToggler = ({ columns, setColumns, canManage = true }) => {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const closeOnOutsideClick = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+  }, []);
 
   return (
-    <Menu as="div" className="relative inline-block text-left">
-      <Menu.Button className="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-        <Cog6ToothIcon className="h-5 w-5 mr-2" />
+    <div className="relative inline-block text-left" ref={menuRef}>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+      >
+        <SlidersHorizontal className="h-4 w-4 text-slate-500" />
         Columns
-      </Menu.Button>
-      <Menu.Items className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10 max-h-60 overflow-y-auto">
-        <div className="py-1">
-          {Object.entries(columns).map(([key, { label, visible }]) => (
-            <Menu.Item key={key} as="div">
-              {({ active }) => (
-                <label
-                  onClick={(e) => e.preventDefault()}
-                  className={`${
-                    active ? "bg-gray-100 text-gray-900" : "text-gray-700"
-                  } flex items-center px-4 py-2 text-sm cursor-pointer`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={visible}
-                    onChange={() => toggleColumn(key)}
-                    className="h-4 w-4 rounded border-gray-300 text-[#294998] focus:ring-[#294998] mr-3"
-                  />
-                  {label}
-                </label>
-              )}
-            </Menu.Item>
-          ))}
+      </button>
+      {open && (
+        <div className="absolute right-0 z-30 mt-2 max-h-72 w-56 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg">
+          {Object.entries(columns)
+            .filter(([key]) => canManage || key !== "actions")
+            .map(([key, column]) => (
+              <label key={key} className="flex cursor-pointer items-center rounded-md px-2.5 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  checked={column.visible}
+                  onChange={() => setColumns((previous) => ({
+                    ...previous,
+                    [key]: { ...previous[key], visible: !previous[key].visible },
+                  }))}
+                  className="mr-2.5 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                />
+                {column.label}
+              </label>
+            ))}
         </div>
-      </Menu.Items>
-    </Menu>
+      )}
+    </div>
   );
 };
 

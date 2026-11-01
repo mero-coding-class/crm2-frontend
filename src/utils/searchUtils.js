@@ -18,25 +18,22 @@ export const searchLeads = (leads, searchTerm, filters = {}) => {
 
     // Search across all lead fields
     const searchableFields = [
-      'student_name',
-      'parents_name',
+      'school_name',
+      'contact_person',
       'email',
-      'phone_number',
-      'whatsapp_number',
-      'age',
-      'grade',
-      'course_name',
+      'contact_number',
+      'alt_number',
+      'landline',
+      'class_name',
+      'course_interest',
       'source',
       'class_type',
       'shift',
       'status',
-      'substatus',
       'remarks',
-      'school_college_name',
-      'address_line_1',
-      'address_line_2',
-      'city',
-      'county',
+      'address',
+      'municipality',
+      'district',
     ];
 
     const termLower = searchTerm.toLowerCase();

@@ -4,16 +4,25 @@ import { BASE_URL } from "../config";
 
 const handleResponse = async (response) => {
   if (!response.ok) {
+    let errorData = null;
     let errorMsg = "An error occurred";
     try {
-      const errData = await response.json();
-      errorMsg = errData.detail || JSON.stringify(errData);
-    } catch {
-      try {
-        errorMsg = await response.text();
-      } catch {
-        // ignore
+      const body = await response.text();
+      if (body) {
+        try {
+          errorData = JSON.parse(body);
+        } catch {
+          errorMsg = body;
+        }
       }
+      if (errorData) {
+        const detail = errorData.detail || errorData.non_field_errors;
+        errorMsg = Array.isArray(detail)
+          ? detail.join(" ")
+          : detail || Object.values(errorData).flat().join(" ") || JSON.stringify(errorData);
+      }
+    } catch {
+      // Keep the generic message when the response body cannot be read.
     }
     if (
       response.status === 401 ||
@@ -29,7 +38,11 @@ const handleResponse = async (response) => {
         // Authentication state will also be cleared by the next request.
       }
     }
-    throw new Error(errorMsg);
+    const error = new Error(errorMsg);
+    error.status = response.status;
+    error.data = errorData;
+    error.fieldErrors = errorData && typeof errorData === "object" ? errorData : {};
+    throw error;
   }
   // Some endpoints may return 204 No Content — handle that gracefully.
   if (response.status === 204) return {};
@@ -111,6 +124,7 @@ export const leadService = {
       municipality: lead.municipality || "",
       contact_person: lead.contact_person || "",
       contact_number: lead.contact_number || "",
+      course_interest: lead.course_interest || "",
       sub_status: lead.sub_status || "New",
       approval: lead.approval || "",
     }));
@@ -136,7 +150,7 @@ export const leadService = {
 
     const WRITABLE_FIELDS = [
       "school_name", "district", "municipality", "address",
-      "contact_person", "contact_number", "alt_number", "alt_contact_person",
+      "contact_person", "contact_number", "alt_number", "alt_contact_person", "landline",
       "email", "source", "course_interest", "social_media", "sub_status",
     ];
     const unsupportedFields = Object.keys(updates || {}).filter(
@@ -177,7 +191,6 @@ export const leadService = {
     merged.id = serverData.id ?? id;
     merged._id = serverData._id ?? String(merged.id);
     merged.sub_status = merged.sub_status || backendUpdates.sub_status || "New";
-    merged.substatus = merged.sub_status;
 
     return merged;
   },
@@ -226,15 +239,11 @@ export const leadService = {
 
   /** Fetch canonical sub-status choices from the backend. */
   getSubStatusChoices: async (authToken) => {
-    if (!authToken) return [];
-    try {
-      const response = await apiFetch(`${BASE_URL}/leads/sub-status-choices/`, {
-        headers: { Authorization: `Token ${authToken}` },
-      });
-      return handleResponse(response);
-    } catch {
-      return [];
-    }
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/leads/sub-status-choices/`, {
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    return handleResponse(response);
   },
 
   /** Fetch paginated archived leads. */
@@ -288,29 +297,19 @@ export const resolveServerId = (leadOrId) => {
   return /^\d+$/.test(id) ? Number(id) : id;
 };
 
-export const courseService = {
-  /** Fetch all catalog classes (replaces old /api/courses/). */
-  getCourses: async (authToken) => {
+export const classService = {
+  /** Fetch active classes from the shared catalog. */
+  getClasses: async (authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    try {
-      const response = await apiFetch(`${BASE_URL}/catalogs/classes/`, {
-        headers: { Authorization: `Token ${authToken}` },
-      });
-      if (response.status === 404) return [];
-      const data = await handleResponse(response);
-      // Normalize to [{id, course_name}] shape the rest of the UI expects
-      const list = Array.isArray(data) ? data : data?.results || [];
-      return list.map((c) => ({
-        id: c.id,
-        course_name: c.class_name || c.name || c.title || "",
-        ...c,
-      }));
-    } catch {
-      return [];
-    }
+    const response = await apiFetch(`${BASE_URL}/catalogs/classes/?active=true`, {
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    const data = await handleResponse(response);
+    const list = Array.isArray(data) ? data : data?.results || [];
+    return list.map((item) => ({ ...item, class_name: item.name || item.class_name || "" }));
   },
 
-  createCourse: async (courseName, authToken) => {
+  createClass: async (className, authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
     const response = await apiFetch(`${BASE_URL}/catalogs/classes/`, {
       method: "POST",
@@ -318,13 +317,13 @@ export const courseService = {
         Authorization: `Token ${authToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ name: courseName }),
+      body: JSON.stringify({ name: className }),
     });
-    const course = await handleResponse(response);
-    return { ...course, course_name: course.name || course.course_name || "" };
+    const result = await handleResponse(response);
+    return { ...result, class_name: result.name || result.class_name || "" };
   },
 
-  updateCourse: async (id, courseName, authToken) => {
+  updateClass: async (id, className, authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
     const response = await apiFetch(`${BASE_URL}/catalogs/classes/${id}/`, {
       method: "PATCH",
@@ -332,33 +331,38 @@ export const courseService = {
         Authorization: `Token ${authToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ name: courseName }),
+      body: JSON.stringify({ name: className }),
     });
-    const course = await handleResponse(response);
-    return { ...course, course_name: course.name || course.course_name || "" };
+    const result = await handleResponse(response);
+    return { ...result, class_name: result.name || result.class_name || "" };
   },
 
-  deleteCourse: async (id, authToken) => {
+  deactivateClass: async (id, authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
     const response = await apiFetch(`${BASE_URL}/catalogs/classes/${id}/`, {
-      method: "DELETE",
+      method: "PATCH",
+      headers: {
+        Authorization: `Token ${authToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ active: false }),
+    });
+    return handleResponse(response);
+  },
+};
+
+export const settingsService = {
+  getUsers: async (authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/users/`, {
       headers: { Authorization: `Token ${authToken}` },
     });
-    if (!response.ok) {
-      let errorMsg = "Failed to delete course";
-      try {
-        const data = await response.json();
-        errorMsg = data.detail || JSON.stringify(data);
-      } catch {
-        try {
-          errorMsg = await response.text();
-        } catch {
-          // Keep the default error message when the response body is unavailable.
-        }
-      }
-      throw new Error(errorMsg);
-    }
-    return {};
+    const data = await handleResponse(response);
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.results)) return data.results;
+    if (Array.isArray(data?.users)) return data.users;
+    if (Array.isArray(data?.data)) return data.data;
+    throw new Error("The user list response had an unexpected format.");
   },
 };
 
@@ -639,7 +643,10 @@ export const reportService = {
     const response = await apiFetch(`${BASE_URL}/reports/summary/${qs ? `?${qs}` : ""}`, {
       headers: { Authorization: `Token ${authToken}` },
     });
-    if (params.export) return response.blob();
+    if (params.export) {
+      if (!response.ok) await handleResponse(response);
+      return response.blob();
+    }
     return handleResponse(response);
   },
 
@@ -655,7 +662,10 @@ export const reportService = {
     const response = await apiFetch(`${BASE_URL}/reports/leads/${qs ? `?${qs}` : ""}`, {
       headers: { Authorization: `Token ${authToken}` },
     });
-    if (params.export) return response.blob();
+    if (params.export) {
+      if (!response.ok) await handleResponse(response);
+      return response.blob();
+    }
     return handleResponse(response);
   },
 
@@ -670,7 +680,7 @@ export const reportService = {
       `${BASE_URL}/reports/export/${dataset}/?export=${format}`,
       { headers: { Authorization: `Token ${authToken}` } }
     );
-    if (!response.ok) throw new Error(`Export failed: ${response.status}`);
+    if (!response.ok) await handleResponse(response);
     return response.blob();
   },
 
@@ -696,6 +706,30 @@ export const catalogService = {
     const data = await handleResponse(response);
     return Array.isArray(data) ? data : data?.results || [];
   },
+  createPackage: async (name, authToken) => {
+    const response = await apiFetch(`${BASE_URL}/catalogs/packages/`, {
+      method: "POST",
+      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    return handleResponse(response);
+  },
+  updatePackage: async (id, name, authToken) => {
+    const response = await apiFetch(`${BASE_URL}/catalogs/packages/${id}/`, {
+      method: "PATCH",
+      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    return handleResponse(response);
+  },
+  deactivatePackage: async (id, authToken) => {
+    const response = await apiFetch(`${BASE_URL}/catalogs/packages/${id}/`, {
+      method: "PATCH",
+      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ active: false }),
+    });
+    return handleResponse(response);
+  },
   getSyllabi: async (authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
     const response = await apiFetch(`${BASE_URL}/catalogs/syllabi/`, {
@@ -704,9 +738,33 @@ export const catalogService = {
     const data = await handleResponse(response);
     return Array.isArray(data) ? data : data?.results || [];
   },
+  createSyllabus: async (name, authToken) => {
+    const response = await apiFetch(`${BASE_URL}/catalogs/syllabi/`, {
+      method: "POST",
+      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    return handleResponse(response);
+  },
+  updateSyllabus: async (id, name, authToken) => {
+    const response = await apiFetch(`${BASE_URL}/catalogs/syllabi/${id}/`, {
+      method: "PATCH",
+      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    return handleResponse(response);
+  },
+  deactivateSyllabus: async (id, authToken) => {
+    const response = await apiFetch(`${BASE_URL}/catalogs/syllabi/${id}/`, {
+      method: "PATCH",
+      headers: { Authorization: `Token ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ active: false }),
+    });
+    return handleResponse(response);
+  },
   getClasses: async (authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await apiFetch(`${BASE_URL}/catalogs/classes/`, {
+    const response = await apiFetch(`${BASE_URL}/catalogs/classes/?active=true`, {
       headers: { Authorization: `Token ${authToken}` },
     });
     const data = await handleResponse(response);
@@ -748,6 +806,8 @@ export const clientService = {
     if (params.search) searchParams.append("search", params.search);
     if (params.district) searchParams.append("district", params.district);
     if (params.municipality) searchParams.append("municipality", params.municipality);
+    if (params.assigned_to) searchParams.append("assigned_to", params.assigned_to);
+    if (params.academic_counsellor) searchParams.append("academic_counsellor", params.academic_counsellor);
     if (params.active !== undefined && params.active !== null) searchParams.append("active", params.active);
     if (params.renewals) searchParams.append("renewals", params.renewals);
     if (params.enrolled_from) searchParams.append("enrolled_from", params.enrolled_from);

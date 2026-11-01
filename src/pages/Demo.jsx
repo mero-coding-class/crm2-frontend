@@ -11,8 +11,6 @@ import {
   Pencil,
   X,
   Eye,
-  ChevronLeft,
-  ChevronRight,
   RotateCw,
   AlertTriangle,
   Loader2,
@@ -20,9 +18,13 @@ import {
   Trash2,
 } from "lucide-react";
 import { useAuth } from "../context/useAuth.js";
-import { demoService, leadService } from "../services/api";
-import { isValidPhoneNumber } from "../utils/validation";
+import { classService, demoService, leadService } from "../services/api";
+import { containsLetter, isValidPhoneNumber } from "../utils/validation";
 import PageLoadingState from "../components/common/PageLoadingState.jsx";
+import DataTableShell from "../components/common/DataTableShell.jsx";
+import Pagination from "../components/common/Pagination.jsx";
+import { Button } from "../components/ui/button.jsx";
+import { PageShell, PageHeader } from "../components/common/PageShell.jsx";
 import useRealtimeRefresh from "../hooks/useRealtimeRefresh.js";
 
 // ─── Status config ────────────────────────────────────────────────────────────
@@ -39,13 +41,18 @@ const STATUS_CONFIG = {
   },
   cancelled: {
     label: "Cancelled",
-    badge: "bg-red-50 text-red-700 border border-red-200",
-    dot: "bg-red-500",
+    badge: "bg-rose-50 text-rose-700 border border-rose-200",
+    dot: "bg-rose-500",
   },
   rescheduled: {
     label: "Rescheduled",
     badge: "bg-amber-50 text-amber-700 border border-amber-200",
     dot: "bg-amber-500",
+  },
+  follow_up: {
+    label: "Follow-up Required",
+    badge: "bg-orange-50 text-orange-700 border border-orange-200",
+    dot: "bg-orange-500",
   },
 };
 
@@ -77,7 +84,7 @@ const toDateTimeLocal = (dt) => {
 // ─── Component ────────────────────────────────────────────────────────────────
 const Demo = () => {
   const { authToken, user } = useAuth();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const role = user?.role || "";
   const isAdmin = ["admin", "superadmin"].includes(role.toLowerCase());
   const isAcademic = role.toLowerCase() === "academic";
@@ -94,6 +101,8 @@ const Demo = () => {
   // ── Leads for create-demo picker ────────────────────────────────────────
   const [leads, setLeads] = useState([]);
   const [leadsLoading, setLeadsLoading] = useState(false);
+  const [classes, setClasses] = useState([]);
+  const [classesError, setClassesError] = useState("");
 
   // ── Filters ────────────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
@@ -129,7 +138,8 @@ const Demo = () => {
     setError(null);
     try {
       const params = {};
-      if (statusFilter && statusFilter !== "all") params.demo_status = statusFilter;
+      if (statusFilter && statusFilter !== "all" && searchParams.get("feedback") !== "pending") params.demo_status = statusFilter;
+      if (searchParams.get("upcoming") === "true") params.upcoming = "true";
       if (searchParams.get("unassigned") === "true") params.unassigned = "true";
       if (searchParams.get("feedback") === "pending") params.feedback = "pending";
       if (searchParams.get("from")) params.from = searchParams.get("from");
@@ -146,8 +156,19 @@ const Demo = () => {
   useEffect(() => { fetchDemos(); }, [fetchDemos]);
 
   useEffect(() => {
+    if (!authToken) return undefined;
+    let cancelled = false;
+    classService.getClasses(authToken).then((rows) => {
+      if (!cancelled) setClasses(rows.filter((item) => item.active !== false));
+    }).catch((loadError) => {
+      if (!cancelled) setClassesError(loadError.message || "Could not load class choices.");
+    });
+    return () => { cancelled = true; };
+  }, [authToken]);
+
+  useEffect(() => {
     setSearchQuery(searchParams.get("search") || "");
-    setStatusFilter(searchParams.get("demo_status") || (searchParams.get("feedback") === "pending" ? "scheduled" : "all"));
+    setStatusFilter(searchParams.get("demo_status") || "all");
   }, [searchParams]);
 
   // ── Fetch leads (for create picker) ────────────────────────────────────────
@@ -165,10 +186,11 @@ const Demo = () => {
   // ── Stats ──────────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
     const total = demos.length;
-    const scheduled = demos.filter((d) => d.demo_status === "scheduled").length;
-    const completed = demos.filter((d) => d.demo_status === "completed").length;
+    const scheduled = demos.filter((d) => ["scheduled", "rescheduled"].includes(d.demo_status)).length;
+    const completed = demos.filter((d) => ["completed", "follow_up"].includes(d.demo_status)).length;
     const cancelled = demos.filter((d) => d.demo_status === "cancelled").length;
-    return { total, scheduled, completed, cancelled };
+    const followUp = demos.filter((d) => d.demo_status === "follow_up").length;
+    return { total, scheduled, completed, cancelled, followUp };
   }, [demos]);
 
   // ── Filtered ───────────────────────────────────────────────────────────────
@@ -208,6 +230,15 @@ const Demo = () => {
     e.preventDefault();
     if (!createForm.lead || !createForm.demo_at) {
       setSaveError("Lead and Demo Date/Time are required.");
+      return;
+    }
+    const selectedLead = leads.find((lead) => String(lead.id) === String(createForm.lead));
+    if (!selectedLead?.school_name?.trim() || !containsLetter(selectedLead.school_name)) {
+      setSaveError("The selected lead needs a valid institution name before a demo can be scheduled.");
+      return;
+    }
+    if (new Date(createForm.demo_at) < new Date()) {
+      setSaveError("Demo Date & Time cannot be in the past.");
       return;
     }
     if (createForm.phone.trim() && !isValidPhoneNumber(createForm.phone)) {
@@ -253,6 +284,11 @@ const Demo = () => {
     if (!editingDemo) return;
     if (!editForm.demo_at) {
       setSaveError("Demo Date/Time is required.");
+      return;
+    }
+    const changedTime = new Date(editForm.demo_at).getTime() !== new Date(editingDemo.demo_at).getTime();
+    if (changedTime && new Date(editForm.demo_at) < new Date()) {
+      setSaveError("Demo Date & Time cannot be in the past.");
       return;
     }
     if ((isAdmin || isB2b || isAcademic) && editForm.phone.trim() && !isValidPhoneNumber(editForm.phone)) {
@@ -330,63 +366,72 @@ const Demo = () => {
 
   // ── UI ─────────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col min-h-full bg-[#F8FAFC] font-[Inter,system-ui,sans-serif] antialiased">
-      {/* Header */}
-      <div className="px-6 py-5 border-b border-slate-200 bg-white">
-        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-[10px] bg-[#EDF2FC] flex items-center justify-center">
-                <MonitorPlay className="w-5 h-5 text-[#294998]" />
-              </div>
-              <div>
-                <h1 className="text-[20px] font-[700] text-slate-900 leading-tight tracking-[-0.015em]">
-                  Demo Management
-                </h1>
-                <p className="text-[13px] text-slate-500 mt-0.5">
-                  Schedule and track school demonstrations.
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
+    <PageShell className="flex flex-col">
+      <PageHeader
+        title={(
+          <span className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-primary-light">
+              <MonitorPlay className="h-5 w-5 text-primary" aria-hidden="true" />
+            </span>
+            Demo Management
+          </span>
+        )}
+        description="Schedule and track school demonstrations."
+        actions={(
+          <>
+            <Button
+              type="button"
+              variant="refresh"
               onClick={fetchDemos}
               disabled={loading}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-[500] text-slate-700 bg-[#EEF2F6] rounded-[8px] hover:bg-slate-200 transition-colors disabled:opacity-50"
             >
               <RotateCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               Refresh
-            </button>
+            </Button>
             {canScheduleDemo && (
-              <button
+              <Button
+                type="button"
+                variant="primary"
                 onClick={openCreate}
-                className="flex items-center gap-2 px-4 py-2 bg-[#294998] text-white text-[13px] font-[500] rounded-[8px] hover:bg-[#1E3776] transition-colors shadow-sm"
               >
                 <Plus className="w-4 h-4" />
                 Schedule Demo
-              </button>
+              </Button>
             )}
-          </div>
+          </>
+        )}
+      />
+
+      {searchParams.get("from") && searchParams.get("to") && (
+        <div className="mx-6 mt-4 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+          Showing demos from {searchParams.get("from").slice(0, 10)} through {searchParams.get("to").slice(0, 10)}.
+          <button type="button" className="ml-2 font-semibold underline" onClick={() => { const next = new URLSearchParams(searchParams); next.delete("from"); next.delete("to"); setSearchParams(next); }}>Clear date range</button>
         </div>
-      </div>
+      )}
+      {searchParams.get("upcoming") === "true" && (
+        <div className="mx-6 mt-4 rounded-lg border border-teal-100 bg-teal-50 px-3 py-2 text-xs text-teal-800">
+          Showing future scheduled and rescheduled demos.
+          <button type="button" className="ml-2 font-semibold underline" onClick={() => { const next = new URLSearchParams(searchParams); next.delete("upcoming"); setSearchParams(next); }}>Clear upcoming filter</button>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="flex-1 p-6 space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
           {[
-            { label: "Total demos", value: stats.total, icon: MonitorPlay, color: "text-[#294998] bg-[#EDF2FC]" },
-            { label: "Scheduled", value: stats.scheduled, icon: Calendar, color: "text-blue-700 bg-blue-50" },
-            { label: "Completed", value: stats.completed, icon: CheckCircle2, color: "text-emerald-700 bg-emerald-50" },
-            { label: "Cancelled", value: stats.cancelled, icon: XCircle, color: "text-red-700 bg-red-50" },
+            { label: "Total demos", value: stats.total, icon: MonitorPlay, color: "text-primary bg-primary-light" },
+            { label: "Scheduled / rescheduled", value: stats.scheduled, icon: Calendar, color: "text-blue-700 bg-blue-50" },
+            { label: "Completed sessions", value: stats.completed, icon: CheckCircle2, color: "text-emerald-700 bg-emerald-50" },
+            { label: "Cancelled", value: stats.cancelled, icon: XCircle, color: "text-rose-700 bg-rose-50" },
+            { label: "Follow-up required", value: stats.followUp, icon: MessageSquare, color: "text-orange-700 bg-orange-50" },
           ].map((s) => (
             <div key={s.label} className="bg-white rounded-[12px] border border-slate-200 p-4 flex items-center gap-3 hover:border-slate-300 transition-colors">
               <div className={`w-9 h-9 rounded-[9px] flex items-center justify-center shrink-0 ${s.color}`}>
                 <s.icon className="w-4 h-4" />
               </div>
               <div>
-                <div className="text-[12px] font-[500] text-slate-500">{s.label}</div>
-                <div className="text-[24px] leading-7 font-[700] text-slate-900 tabular-nums">{s.value}</div>
+                <div className="text-xs font-medium text-slate-500">{s.label}</div>
+                <div className="text-2xl leading-7 font-bold text-slate-900 tabular-nums">{s.value}</div>
               </div>
             </div>
           ))}
@@ -400,19 +445,21 @@ const Demo = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search school or contact…"
-            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-[8px] text-[13px] bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#294998]/20 focus:border-[#294998]"
+            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-[8px] text-sm bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
           />
         </div>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 border border-slate-200 rounded-[8px] text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-[#294998]/20 focus:border-[#294998]"
+          className="px-3 py-2 border border-slate-200 rounded-[8px] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
         >
           <option value="all">All Statuses</option>
+          <option value="active">Scheduled or Rescheduled</option>
           <option value="scheduled">Scheduled</option>
           <option value="completed">Completed</option>
           <option value="cancelled">Cancelled</option>
           <option value="rescheduled">Rescheduled</option>
+          <option value="follow_up">Follow-up Required</option>
         </select>
       </div>
 
@@ -422,19 +469,19 @@ const Demo = () => {
             <Loader2 className="w-5 h-5 animate-spin" /> Loading demos…
           </div>
         ) : error ? (
-          <div className="flex flex-col items-center py-20 gap-3 text-red-600">
+          <div className="flex flex-col items-center py-20 gap-3 text-rose-600">
             <AlertTriangle className="w-8 h-8" />
-            <p className="text-[14px]">{error}</p>
-            <button onClick={fetchDemos} className="text-[13px] underline">Retry</button>
+            <p className="text-sm">{error}</p>
+            <button onClick={fetchDemos} className="text-sm underline">Retry</button>
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center py-20 text-slate-400 gap-3">
             <MonitorPlay className="w-10 h-10 opacity-30" />
-            <p className="text-[14px]">No demos found.</p>
+            <p className="text-sm">No demos found.</p>
             {canScheduleDemo && (
               <button
                 onClick={openCreate}
-                className="flex items-center gap-2 px-4 py-2.5 bg-[#294998] text-white text-[13px] font-[600] rounded-[8px] hover:bg-[#1E3776] transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#294998] focus-visible:ring-offset-2"
+                className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-[8px] hover:bg-primary-hover transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               >
                 <Plus className="w-4 h-4" /> Schedule your first demo
               </button>
@@ -443,13 +490,24 @@ const Demo = () => {
         ) : (
           <>
             {/* Table */}
-            <div className="bg-white rounded-[12px] border border-slate-200 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="min-w-[900px] w-full text-[13px]">
+            <DataTableShell
+              minWidth="900px"
+              pagination={totalPages > 1 ? (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                  disabled={loading}
+                  summary={<span>Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filtered.length)} of {filtered.length}</span>}
+                />
+              ) : null}
+            >
+              <div className="crm-data-table__scroll">
+                <table>
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50/60">
-                    {["School", "Demo Date/Time", "Status", "Assigned Teacher", "Contact", "Actions"].map((h) => (
-                      <th key={h} className="text-left px-4 py-3 font-[600] text-slate-500 text-[11px] uppercase tracking-wide whitespace-nowrap">
+                    {["School", "Demo Date/Time", "Status", "Instructor", "Contact", "Actions"].map((h) => (
+                      <th key={h} className="text-left px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide whitespace-nowrap">
                         {h}
                       </th>
                     ))}
@@ -461,9 +519,9 @@ const Demo = () => {
                     return (
                       <tr key={demo.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
                         <td className="px-4 py-3">
-                          <div className="font-[600] text-slate-800">{demo.school_name || demo.system_id}</div>
+                          <div className="font-semibold text-slate-800">{demo.school_name || demo.system_id}</div>
                           {demo.details && (
-                            <div className="text-[11px] text-slate-400 truncate max-w-[200px]">{demo.details}</div>
+                            <div className="text-xs text-slate-400 truncate max-w-[200px]">{demo.details}</div>
                           )}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-slate-700">
@@ -473,7 +531,7 @@ const Demo = () => {
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-[600] ${cfg.badge}`}>
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${cfg.badge}`}>
                             {cfg.icon ? <cfg.icon className="w-3.5 h-3.5" /> : <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />}
                             {cfg.label}
                           </span>
@@ -483,13 +541,13 @@ const Demo = () => {
                         </td>
                         <td className="px-4 py-3 text-slate-600">
                           {demo.contact_person || "—"}
-                          {demo.phone && <div className="text-[11px] text-slate-400">{demo.phone}</div>}
+                          {demo.phone && <div className="text-xs text-slate-400">{demo.phone}</div>}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1.5">
                             <button
                               onClick={() => setViewingDemo(demo)}
-                              className="p-1.5 rounded-[6px] text-slate-500 hover:text-[#294998] hover:bg-[#EDF2FC] transition-colors"
+                              className="p-1.5 rounded-[6px] text-slate-500 hover:text-primary hover:bg-primary-light transition-colors"
                               title="View"
                             >
                               <Eye className="w-4 h-4" />
@@ -497,7 +555,7 @@ const Demo = () => {
                             {(isAdmin || isB2b || isAcademic) && (
                               <button
                                 onClick={() => openEdit(demo)}
-                                className="p-1.5 rounded-[6px] text-slate-500 hover:text-[#294998] hover:bg-[#EDF2FC] transition-colors"
+                                className="p-1.5 rounded-[6px] text-slate-500 hover:text-primary hover:bg-primary-light transition-colors"
                                 title="Edit"
                               >
                                 <Pencil className="w-4 h-4" />
@@ -508,7 +566,7 @@ const Demo = () => {
                               (isAdmin || isAcademic) && (
                                 <button
                                   onClick={() => openFeedback(demo)}
-                                  className="p-1.5 rounded-[6px] text-slate-500 hover:text-[#294998] hover:bg-[#EDF2FC] transition-colors"
+                                  className="p-1.5 rounded-[6px] text-slate-500 hover:text-primary hover:bg-primary-light transition-colors"
                                   title="Submit Feedback"
                                 >
                                   <MessageSquare className="w-4 h-4" />
@@ -517,7 +575,7 @@ const Demo = () => {
                             {(isAdmin || isB2b) && (
                               <button
                                 onClick={() => { setDeletingDemo(demo); setSaveError(null); }}
-                                className="inline-flex items-center gap-1 rounded-[6px] px-2 py-1.5 text-[11px] font-[600] text-red-600 hover:bg-red-50 transition-colors"
+                                className="inline-flex items-center gap-1 rounded-[6px] px-2 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
                                 title="Delete demo"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -532,33 +590,8 @@ const Demo = () => {
                 </tbody>
               </table>
               </div>
-            </div>
+            </DataTableShell>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-4 text-[13px] text-slate-600">
-                <span>
-                  Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filtered.length)} of {filtered.length}
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    disabled={currentPage <= 1}
-                    onClick={() => setCurrentPage((p) => p - 1)}
-                    className="p-1.5 rounded-[6px] border border-slate-200 disabled:opacity-40 hover:bg-slate-50"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <span className="px-2">{currentPage}/{totalPages}</span>
-                  <button
-                    disabled={currentPage >= totalPages}
-                    onClick={() => setCurrentPage((p) => p + 1)}
-                    className="p-1.5 rounded-[6px] border border-slate-200 disabled:opacity-40 hover:bg-slate-50"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            )}
           </>
         )}
       </div>
@@ -569,15 +602,21 @@ const Demo = () => {
           <DetailRow label="School" value={viewingDemo.school_name} />
           <DetailRow label="System ID" value={viewingDemo.system_id} />
           <DetailRow label="Status">
-            <span className={`px-2 py-0.5 rounded-full text-[11px] font-[600] ${statusCfg(viewingDemo.demo_status).badge}`}>
+            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${statusCfg(viewingDemo.demo_status).badge}`}>
               {statusCfg(viewingDemo.demo_status).label}
             </span>
           </DetailRow>
           <DetailRow label="Demo Date" value={fmt(viewingDemo.demo_at)} />
           <DetailRow label="Contact Person" value={viewingDemo.contact_person} />
           <DetailRow label="Phone" value={viewingDemo.phone} />
-          <DetailRow label="Academic" value={viewingDemo.academic_username || (viewingDemo.academic ? `Academic #${viewingDemo.academic}` : "Unassigned")} />
-          <DetailRow label="Assigned Teacher" value={viewingDemo.assigned_teacher} />
+          <DetailRow label="Demo Academic Assignee" value={viewingDemo.academic_username || (viewingDemo.academic ? `Academic #${viewingDemo.academic}` : "Unassigned")} />
+          <DetailRow label="Instructor Name" value={viewingDemo.assigned_teacher} />
+          <DetailRow label="Class / Program" value={viewingDemo.program} />
+          <DetailRow label="Feedback outcome">
+            {({ successful: "Successful", needs_follow_up: "Needs follow-up", not_interested: "Not interested" })[viewingDemo.outcome] || viewingDemo.outcome || "—"}
+          </DetailRow>
+          <DetailRow label="Feedback notes" value={viewingDemo.feedback_notes} />
+          <DetailRow label="Feedback submitted" value={fmt(viewingDemo.feedback_at)} />
           <DetailRow label="Details" value={viewingDemo.details} />
         </Modal>
       )}
@@ -605,6 +644,7 @@ const Demo = () => {
               <input
                 type="datetime-local"
                 required
+                min={toDateTimeLocal(new Date())}
                 value={createForm.demo_at}
                 onChange={(e) => setCreateForm((f) => ({ ...f, demo_at: e.target.value }))}
                 className={inputCls}
@@ -632,14 +672,14 @@ const Demo = () => {
                 placeholder="Phone number"
               />
             </FormGroup>
-            <FormGroup label="Assigned Teacher">
+            <FormGroup label="Instructor Name">
               <input
                 type="text"
                 maxLength={255}
                 value={createForm.assigned_teacher}
                 onChange={(e) => setCreateForm((f) => ({ ...f, assigned_teacher: e.target.value }))}
                 className={inputCls}
-                placeholder="Teacher's name"
+                placeholder="Instructor name"
               />
             </FormGroup>
             <FormGroup label="Details">
@@ -651,7 +691,7 @@ const Demo = () => {
                 placeholder="Demo agenda, requirements…"
               />
             </FormGroup>
-            {saveError && <p className="text-red-600 text-[12px]">{saveError}</p>}
+            {saveError && <p className="text-rose-600 text-xs">{saveError}</p>}
             <ModalActions saving={saving} onCancel={() => setCreateOpen(false)} label="Schedule Demo" />
           </form>
         </Modal>
@@ -696,14 +736,14 @@ const Demo = () => {
                 </FormGroup>
               </>
             )}
-            <FormGroup label="Assigned Teacher">
+            <FormGroup label="Instructor Name">
               <input
                 type="text"
                 maxLength={255}
                 value={editForm.assigned_teacher}
                 onChange={(e) => setEditForm((f) => ({ ...f, assigned_teacher: e.target.value }))}
                 className={inputCls}
-                placeholder="Teacher's name"
+                placeholder="Instructor name"
               />
             </FormGroup>
             <FormGroup label="Details">
@@ -714,7 +754,7 @@ const Demo = () => {
                 className={inputCls}
               />
             </FormGroup>
-            {saveError && <p className="text-red-600 text-[12px]">{saveError}</p>}
+            {saveError && <p className="text-rose-600 text-xs">{saveError}</p>}
             <ModalActions saving={saving} onCancel={() => setEditingDemo(null)} label="Save Changes" />
           </form>
         </Modal>
@@ -724,25 +764,30 @@ const Demo = () => {
       {feedbackOpen && feedbackDemo && (
         <Modal title={`Feedback — ${feedbackDemo.school_name}`} onClose={() => setFeedbackOpen(false)}>
           <form onSubmit={handleFeedback} className="space-y-4">
-            <FormGroup label="Outcome">
-              <input
-                type="text"
-                maxLength={40}
+            <FormGroup label="Outcome *">
+              <select
+                required
                 value={feedbackForm.outcome}
                 onChange={(e) => setFeedbackForm((f) => ({ ...f, outcome: e.target.value }))}
                 className={inputCls}
-                placeholder="e.g. Positive, Needs follow-up"
-              />
+              >
+                <option value="">Choose an outcome</option>
+                <option value="successful">Successful</option>
+                <option value="needs_follow_up">Needs follow-up</option>
+                <option value="not_interested">Not interested</option>
+              </select>
             </FormGroup>
-            <FormGroup label="Program">
-              <input
-                type="text"
-                maxLength={100}
+            <FormGroup label="Class / Program *">
+              <select
+                required
                 value={feedbackForm.program}
                 onChange={(e) => setFeedbackForm((f) => ({ ...f, program: e.target.value }))}
                 className={inputCls}
-                placeholder="Program demonstrated"
-              />
+                disabled={!!classesError}
+              >
+                <option value="">{classesError || "Choose a class / program"}</option>
+                {classes.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}
+              </select>
             </FormGroup>
             <FormGroup label="Feedback Notes">
               <textarea
@@ -753,7 +798,7 @@ const Demo = () => {
                 placeholder="Detailed notes from the demo…"
               />
             </FormGroup>
-            {saveError && <p className="text-red-600 text-[12px]">{saveError}</p>}
+            {saveError && <p className="text-rose-600 text-xs">{saveError}</p>}
             <ModalActions saving={saving} onCancel={() => setFeedbackOpen(false)} label="Submit Feedback" />
           </form>
         </Modal>
@@ -761,45 +806,45 @@ const Demo = () => {
 
       {deletingDemo && (
         <Modal title="Delete Demo" onClose={() => setDeletingDemo(null)}>
-          <p className="text-[13px] leading-5 text-slate-600">
+          <p className="text-sm leading-5 text-slate-600">
             Delete the demo for <strong>{deletingDemo.school_name || deletingDemo.system_id}</strong> scheduled on <strong>{fmt(deletingDemo.demo_at)}</strong>? This action cannot be undone.
           </p>
-          {saveError && <p className="text-red-600 text-[12px]">{saveError}</p>}
+          {saveError && <p className="text-rose-600 text-xs">{saveError}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
               onClick={() => setDeletingDemo(null)}
               disabled={saving}
-              className="px-3 py-2 text-[13px] font-[500] text-slate-600 border border-slate-200 rounded-[8px] hover:bg-slate-50 disabled:opacity-50"
+              className="px-3 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-[8px] hover:bg-slate-50 disabled:opacity-50"
             >Cancel</button>
             <button
               type="button"
               onClick={handleDelete}
               disabled={saving}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-[13px] font-[600] text-white bg-red-600 rounded-[8px] hover:bg-red-700 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-white bg-rose-600 rounded-[8px] hover:bg-rose-700 disabled:opacity-50"
             ><Trash2 className="w-3.5 h-3.5" />{saving ? "Deleting…" : "Delete Demo"}</button>
           </div>
         </Modal>
       )}
-    </div>
+    </PageShell>
   );
 };
 
 // ─── Tiny sub-components ──────────────────────────────────────────────────────
 const inputCls =
-  "w-full px-3 py-2 border border-slate-200 rounded-[8px] text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-[#294998]/20 focus:border-[#294998]";
+  "w-full px-3 py-2 border border-slate-200 rounded-[8px] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary";
 
 const FormGroup = ({ label, children }) => (
   <div>
-    <label className="block text-[12px] font-[600] text-slate-600 mb-1">{label}</label>
+    <label className="block text-xs font-semibold text-slate-600 mb-1">{label}</label>
     {children}
   </div>
 );
 
 const DetailRow = ({ label, value, children }) => (
   <div className="flex gap-3 py-1.5 border-b border-slate-50 last:border-0">
-    <span className="text-[12px] font-[600] text-slate-400 w-[130px] shrink-0">{label}</span>
-    <span className="text-[13px] text-slate-700 flex-1">{children ?? (value || "—")}</span>
+    <span className="text-xs font-semibold text-slate-400 w-[130px] shrink-0">{label}</span>
+    <span className="text-sm text-slate-700 flex-1">{children ?? (value || "—")}</span>
   </div>
 );
 
@@ -809,14 +854,14 @@ const ModalActions = ({ saving, onCancel, label }) => (
       type="button"
       onClick={onCancel}
       disabled={saving}
-      className="px-4 py-2 text-[13px] text-slate-600 border border-slate-200 rounded-[8px] hover:bg-slate-50 disabled:opacity-50"
+      className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-[8px] hover:bg-slate-50 disabled:opacity-50"
     >
       Cancel
     </button>
     <button
       type="submit"
       disabled={saving}
-      className="flex items-center gap-2 px-4 py-2 bg-[#294998] text-white text-[13px] font-[500] rounded-[8px] hover:bg-[#1E3776] disabled:opacity-60 shadow-sm"
+      className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-medium rounded-[8px] hover:bg-primary-hover disabled:opacity-60 shadow-sm"
     >
       {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
       {label}
@@ -828,7 +873,7 @@ const Modal = ({ title, onClose, children }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
     <div className="bg-white rounded-[16px] shadow-2xl w-full max-w-[520px] max-h-[90vh] overflow-y-auto">
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-        <h2 className="text-[15px] font-[700] text-slate-900">{title}</h2>
+        <h2 className="text-base font-bold text-slate-900">{title}</h2>
         <button onClick={onClose} className="p-1.5 rounded-[6px] text-slate-400 hover:bg-slate-100">
           <X className="w-4 h-4" />
         </button>

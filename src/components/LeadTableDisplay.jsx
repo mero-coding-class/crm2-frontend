@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { TrashIcon } from "@heroicons/react/24/outline";
+import { Trash2 as TrashIcon } from "lucide-react";
 import DraggableRow from "./DraggableRow";
 import ColumnToggler from "./ColumnToggler";
-import { Folder, Plus, FileUp, ChevronLeft, ChevronRight, Building2 } from "lucide-react";
+import { Folder, Plus, FileUp, Building2 } from "lucide-react";
+import DataTableShell from "./common/DataTableShell.jsx";
+import Pagination from "./common/Pagination.jsx";
+import { Button } from "./ui/button.jsx";
 import ImportCsvButton from "./ImportCsvButton";
 import ActivityModal from "./ActivityModal";
 import ActivityLogViewModal from "./ActivityLogViewModal";
@@ -195,20 +198,20 @@ const LeadTableDisplay = ({
   if (!leads || leads.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-24 px-4 text-center bg-white min-h-[420px]">
-        <div className="w-16 h-16 rounded-[18px] bg-[#EDF2FC] flex items-center justify-center mb-5 text-[#294998]">
+        <div className="w-16 h-16 rounded-[18px] bg-primary-light flex items-center justify-center mb-5 text-primary">
           <Folder className="w-8 h-8 stroke-[1.75]" />
         </div>
-        <h2 className="text-[18px] font-[600] text-slate-900 mb-2 tracking-[-0.01em]">
+        <h2 className="text-lg font-semibold text-slate-900 mb-2 tracking-[-0.01em]">
           No active leads found matching your criteria
         </h2>
-        <p className="text-[14px] text-slate-500 max-w-md mx-auto mb-6 leading-relaxed">
+        <p className="text-sm text-slate-500 max-w-md mx-auto mb-6 leading-relaxed">
           No active leads found matching your criteria. Start adding new admissions candidates or import via CSV.
         </p>
         <div className="flex items-center justify-center gap-3">
             {canManageLeads && handleOpenAddModal && (
             <button
               onClick={handleOpenAddModal}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-[8px] text-[13px] font-[500] bg-[#294998] hover:bg-[#1E3776] text-white shadow-sm transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-[8px] text-sm font-medium bg-primary hover:bg-primary-hover text-white shadow-sm transition-colors"
             >
               <Plus className="h-4 w-4" />
               Add New Lead
@@ -219,7 +222,7 @@ const LeadTableDisplay = ({
               authToken={authToken}
               id="emptyStateCsvUpload"
               customButton={
-                <div className="flex items-center gap-2 px-4 py-2.5 rounded-[8px] text-[13px] font-[500] bg-[#EEF2F6] hover:bg-slate-200 text-slate-700 transition-colors">
+                <div className="flex items-center gap-2 px-4 py-2.5 rounded-[8px] text-sm font-medium bg-surface-muted hover:bg-slate-200 text-slate-700 transition-colors">
                   <FileUp className="h-4 w-4" />
                   Import CSV
                 </div>
@@ -233,21 +236,34 @@ const LeadTableDisplay = ({
 
   return (
     <div>
+      <DataTableShell
+        minWidth="100%"
+        pagination={(
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            summary={<span>Showing {currentLeads.length} of {normalizedLeads.length} leads</span>}
+          />
+        )}
+      >
       {/* Bulk actions & Column toggler */}
       <div className="flex justify-between items-center px-4 py-2 border-b border-slate-100 bg-slate-50/60">
         <div className="flex items-center gap-2">
           {canManageLeads && selectedLeads.size > 0 && (
             <>
-              <span className="text-[13px] text-slate-600">
-                <span className="font-[600] text-[#294998]">{selectedLeads.size}</span> selected
+              <span className="text-sm text-slate-600">
+                <span className="font-semibold text-primary">{selectedLeads.size}</span> selected
               </span>
-              <button
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
                 onClick={onBulkDeleteClick}
-                className="flex items-center gap-1.5 h-7 px-3 text-[12px] font-[500] rounded-[6px] bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-600 hover:text-white transition-colors"
               >
                 <TrashIcon className="h-3.5 w-3.5" />
                 Move to Archive ({selectedLeads.size})
-              </button>
+              </Button>
             </>
           )}
         </div>
@@ -259,7 +275,7 @@ const LeadTableDisplay = ({
         className="overflow-x-auto custom-scrollbar"
         ref={tableContainerRef}
       >
-            <table className="min-w-full">
+            <table>
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
                   <th className="px-3 h-9 w-10 text-center whitespace-nowrap">
@@ -272,7 +288,7 @@ const LeadTableDisplay = ({
                         )
                       }
                       onChange={handleSelectAll}
-                      className="h-3.5 w-3.5 rounded-[4px] border-slate-300 text-[#294998] focus:ring-[#294998] cursor-pointer"
+                      className="h-3.5 w-3.5 rounded-[4px] border-slate-300 text-primary focus:ring-primary cursor-pointer"
                     />
                   </th>
                   {(() => {
@@ -282,7 +298,7 @@ const LeadTableDisplay = ({
                     return visibleEntries.map(([key, { label }]) => (
                       <th
                         key={key}
-                        className="px-3 h-9 text-left text-[11px] font-[600] text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap"
+                        className="px-3 h-9 text-left text-xs font-semibold text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap"
                       >
                         {label}
                       </th>
@@ -300,7 +316,7 @@ const LeadTableDisplay = ({
                           className="py-16 text-center"
                         >
                           <div className="flex flex-col items-center justify-center max-w-sm mx-auto text-center px-4">
-                            <div className="w-12 h-12 rounded-2xl bg-[#EDF2FC] flex items-center justify-center mb-3 text-[#294998] shadow-sm border border-[#CDDBF6]">
+                            <div className="w-12 h-12 rounded-2xl bg-primary-light flex items-center justify-center mb-3 text-primary shadow-sm border border-primary-border">
                               <Building2 className="w-6 h-6" />
                             </div>
                             <h3 className="text-sm font-semibold text-slate-800 mb-1">
@@ -313,7 +329,7 @@ const LeadTableDisplay = ({
                               <button
                                 type="button"
                                 onClick={handleOpenAddModal}
-                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#294998] hover:bg-[#1E3776] text-white text-xs font-semibold shadow-sm transition-all cursor-pointer"
+                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition-all cursor-pointer"
                               >
                                 <Plus className="w-4 h-4" />
                                 <span>Add New Lead</span>
@@ -353,37 +369,7 @@ const LeadTableDisplay = ({
               </tbody>
             </table>
       </div>
-
-      {/* ─── Pagination Footer: Identical to Archive ─── */}
-      <div className="px-6 py-3 border-t border-slate-200 bg-white flex flex-col sm:flex-row items-center justify-between gap-3 text-[13px] text-slate-500">
-        <div className="whitespace-nowrap">
-          Showing {currentLeads.length} of {normalizedLeads.length} leads
-        </div>
-
-        <div className="flex items-center gap-2 whitespace-nowrap">
-          <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-[8px] text-[12px] font-[500] bg-[#EEF2F6] hover:bg-slate-200 text-slate-700 disabled:opacity-40 disabled:pointer-events-none transition-colors whitespace-nowrap"
-          >
-            <ChevronLeft className="w-3.5 h-3.5" />
-            <span>Previous</span>
-          </button>
-
-          <span className="px-3 py-1 rounded-[6px] bg-slate-50 text-slate-700 text-[12px] font-[600] whitespace-nowrap">
-            Page {currentPage} of {totalPages}
-          </span>
-
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage >= totalPages}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-[8px] text-[12px] font-[500] bg-[#EEF2F6] hover:bg-slate-200 text-slate-700 disabled:opacity-40 disabled:pointer-events-none transition-colors whitespace-nowrap"
-          >
-            <span>Next</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
+      </DataTableShell>
 
       {activityModalLead && (
         <ActivityModal

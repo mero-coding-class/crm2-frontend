@@ -12,17 +12,6 @@ const COLUMNS = [
   ["sub_status", "Sub-Status"],
 ];
 
-const toQuery = (filters = {}) => {
-  const query = {};
-  if (filters.searchTerm?.trim()) query.search = filters.searchTerm.trim();
-  if (filters.filterSubStatus && filters.filterSubStatus !== "SubStatus") {
-    query.sub_status = filters.filterSubStatus;
-  }
-  if (filters.followupFrom) query.followup_from = filters.followupFrom;
-  if (filters.followupTo) query.followup_to = filters.followupTo;
-  return query;
-};
-
 const escapeCell = (value) => {
   const text = value === null || value === undefined ? "" : String(value);
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
@@ -55,20 +44,19 @@ const downloadCsv = (rows) => {
   window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 0);
 };
 
-export default function useLeadExports({ fetchAllLeads, setError }) {
-  const [fetchingAll, setFetchingAll] = useState(false);
+export default function useLeadExports({ setError }) {
+  const [exporting, setExporting] = useState(false);
 
-  const handleExport = useCallback(async (filters = {}) => {
-    setFetchingAll(true);
+  const handleExport = useCallback(async (rows = []) => {
+    setExporting(true);
     try {
-      const rows = await fetchAllLeads(toQuery(filters));
       downloadCsv(rows);
     } catch (error) {
       setError(error.message || "Failed to export leads.");
     } finally {
-      setFetchingAll(false);
+      setExporting(false);
     }
-  }, [fetchAllLeads, setError]);
+  }, [setError]);
 
-  return { fetchingAll, handleExport };
+  return { exporting, handleExport };
 }

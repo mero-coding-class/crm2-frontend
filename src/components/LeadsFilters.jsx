@@ -7,7 +7,7 @@ const FilterPill = ({ value, onChange, options }) => (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="h-8 pl-3 pr-7 text-[13px] font-[500] rounded-[9999px] border border-slate-200 bg-white text-slate-700 appearance-none cursor-pointer transition-colors hover:border-slate-300 focus:outline-none focus:border-[#294998] focus:ring-[3px] focus:ring-[#294998]/15"
+      className="h-8 pl-3 pr-7 text-sm font-medium rounded-[9999px] border border-slate-200 bg-white text-slate-700 appearance-none cursor-pointer transition-colors hover:border-slate-300 focus:outline-none focus:border-primary focus:ring-[3px] focus:ring-primary/15"
       style={{ minWidth: "120px" }}
     >
       {options.map((opt) => (
@@ -48,12 +48,12 @@ const LeadsFilters = ({
               placeholder="Search school names…"
               value={searchTerm || ""}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full h-8 pl-9 pr-3 text-[13px] rounded-[9999px] border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#294998] focus:ring-[3px] focus:ring-[#294998]/15 hover:border-slate-300 transition-colors"
+              className="w-full h-8 pl-9 pr-3 text-sm rounded-[9999px] border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-primary focus:ring-[3px] focus:ring-primary/15 hover:border-slate-300 transition-colors"
             />
           </div>
         )}
 
-        <span className="text-[11px] font-[600] text-slate-400 uppercase tracking-[0.04em] mr-1">
+        <span className="text-xs font-semibold text-slate-400 uppercase tracking-[0.04em] mr-1">
           Filter by:
         </span>
 
@@ -65,35 +65,35 @@ const LeadsFilters = ({
 
         {/* Follow-up activity date filters */}
         <div className="flex items-center gap-1.5">
-          <span className="text-[11px] font-[500] text-slate-500 whitespace-nowrap">Followup:</span>
+          <span className="text-xs font-medium text-slate-500 whitespace-nowrap">Followup:</span>
           <input
             type="date"
             value={filterFollowupDate || ""}
             onChange={(e) => setFilterFollowupDate && setFilterFollowupDate(e.target.value)}
-            className="h-8 px-2 text-[12px] rounded-[9999px] border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-[#294998] focus:ring-[3px] focus:ring-[#294998]/15 hover:border-slate-300 transition-colors"
+            className="h-8 px-2 text-xs rounded-[9999px] border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-primary focus:ring-[3px] focus:ring-primary/15 hover:border-slate-300 transition-colors"
             title="Filter by exact followup date"
           />
         </div>
 
         <div className="flex items-center gap-1.5">
-          <span className="text-[11px] font-[500] text-slate-500 whitespace-nowrap">From:</span>
+          <span className="text-xs font-medium text-slate-500 whitespace-nowrap">From:</span>
           <input
             type="date"
             value={filterFollowupFrom || ""}
             onChange={(e) => setFilterFollowupFrom && setFilterFollowupFrom(e.target.value)}
-            className="h-8 px-2 text-[12px] rounded-[9999px] border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-[#294998] focus:ring-[3px] focus:ring-[#294998]/15 hover:border-slate-300 transition-colors"
+            className="h-8 px-2 text-xs rounded-[9999px] border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-primary focus:ring-[3px] focus:ring-primary/15 hover:border-slate-300 transition-colors"
             title="Followup date from"
           />
         </div>
 
         {/* Followup To */}
         <div className="flex items-center gap-1.5">
-          <span className="text-[11px] font-[500] text-slate-500 whitespace-nowrap">To:</span>
+          <span className="text-xs font-medium text-slate-500 whitespace-nowrap">To:</span>
           <input
             type="date"
             value={filterFollowupTo || ""}
             onChange={(e) => setFilterFollowupTo && setFilterFollowupTo(e.target.value)}
-            className="h-8 px-2 text-[12px] rounded-[9999px] border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-[#294998] focus:ring-[3px] focus:ring-[#294998]/15 hover:border-slate-300 transition-colors"
+            className="h-8 px-2 text-xs rounded-[9999px] border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-primary focus:ring-[3px] focus:ring-primary/15 hover:border-slate-300 transition-colors"
             title="Followup date to"
           />
         </div>
@@ -105,7 +105,7 @@ const LeadsFilters = ({
         <button
           type="button"
           onClick={onClearFilters}
-          className="flex items-center gap-1 h-8 px-3 text-[13px] font-[500] rounded-[9999px] border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
+          className="flex items-center gap-1 h-8 px-3 text-sm font-medium rounded-[9999px] border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
         >
           <X className="h-3 w-3" />
           Clear all

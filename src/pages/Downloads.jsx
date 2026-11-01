@@ -63,11 +63,11 @@ const Downloads = () => {
   };
 
   return (
-    <div className="bg-[#F8FAFC] min-h-full">
+    <div className="crm-page-shell">
       {/* Page Header */}
       <div className="px-6 py-4 border-b border-slate-200 bg-white">
-        <h1 className="text-[20px] font-[600] leading-[28px] tracking-[-0.015em] text-slate-900">Downloads</h1>
-        <p className="text-[13px] text-slate-500 leading-[18px] mt-0.5">Saved exports from leads and enrollment data</p>
+        <h1 className="crm-page-title">Downloads</h1>
+        <p className="text-sm text-slate-500 leading-5 mt-0.5">Saved exports from leads and enrollment data</p>
       </div>
 
       <div className="p-6">
@@ -76,35 +76,35 @@ const Downloads = () => {
             <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-4">
               <FileText className="w-6 h-6 text-slate-400" />
             </div>
-            <p className="text-[15px] font-[500] text-slate-700 mb-1">No saved exports</p>
-            <p className="text-[13px] text-slate-400">Export leads or enrollments to see them here.</p>
+            <p className="text-base font-medium text-slate-700 mb-1">No saved exports</p>
+            <p className="text-sm text-slate-400">Export leads or enrollments to see them here.</p>
           </div>
         ) : (
           <div className="bg-white rounded-[12px] border border-slate-200 overflow-hidden">
             {/* Table Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
               <div>
-                <h2 className="text-[14px] font-[600] text-slate-900">Saved Exports</h2>
-                <p className="text-[12px] text-slate-400 mt-0.5">{items.length} file{items.length !== 1 ? "s" : ""}</p>
+                <h2 className="text-sm font-semibold text-slate-900">Saved Exports</h2>
+                <p className="text-xs text-slate-400 mt-0.5">{items.length} file{items.length !== 1 ? "s" : ""}</p>
               </div>
               <button
                 onClick={() => setClearConfirmOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[13px] font-[500] text-rose-600 hover:bg-rose-50 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 Clear All
               </button>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-[13px]">
+            <div className="crm-data-table crm-data-table--compact crm-data-table__scroll">
+              <table className="min-w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100">
-                    <th className="px-5 py-3 text-left text-[11px] font-[600] text-slate-400 uppercase tracking-[0.05em]">File</th>
-                    <th className="px-5 py-3 text-left text-[11px] font-[600] text-slate-400 uppercase tracking-[0.05em]">Source</th>
-                    <th className="px-5 py-3 text-left text-[11px] font-[600] text-slate-400 uppercase tracking-[0.05em]">Exported By</th>
-                    <th className="px-5 py-3 text-left text-[11px] font-[600] text-slate-400 uppercase tracking-[0.05em]">Created</th>
-                    <th className="px-5 py-3 text-right text-[11px] font-[600] text-slate-400 uppercase tracking-[0.05em]">Actions</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-[0.05em]">File</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-[0.05em]">Source</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-[0.05em]">Exported By</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-[0.05em]">Created</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-[0.05em]">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
@@ -112,14 +112,14 @@ const Downloads = () => {
                     <tr key={item.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-[8px] bg-[#EDF2FC] text-[#294998] flex items-center justify-center shrink-0">
+                          <div className="w-8 h-8 rounded-[8px] bg-primary-light text-primary flex items-center justify-center shrink-0">
                             <FileText className="w-4 h-4" />
                           </div>
                           <div>
-                            <div className="font-[500] text-slate-800 truncate max-w-[220px]">
+                            <div className="font-medium text-slate-800 truncate max-w-[220px]">
                               {item.fileName || "download.csv"}
                             </div>
-                            <div className="text-[11px] text-slate-400 mt-0.5">
+                            <div className="text-xs text-slate-400 mt-0.5">
                               {item.mimeType} · {formatBytes(item.size)}
                             </div>
                           </div>
@@ -132,7 +132,7 @@ const Downloads = () => {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => downloadItem(item)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#294998] hover:bg-[#1E3776] text-white text-[12px] font-[500] rounded-[8px] transition-colors"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary-hover text-white text-xs font-medium rounded-[8px] transition-colors"
                           >
                             <Download className="w-3.5 h-3.5" />
                             Download

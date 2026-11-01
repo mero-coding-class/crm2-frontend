@@ -2,9 +2,11 @@ import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { useAuth } from "../context/useAuth.js";
 import PageLoadingState from "../components/common/PageLoadingState.jsx";
 import useRealtimeRefresh from "../hooks/useRealtimeRefresh.js";
+import DataTableShell from "../components/common/DataTableShell.jsx";
+import { PageShell, PageHeader } from "../components/common/PageShell.jsx";
 import { BASE_URL } from "../config";
-import { courseService } from "../services/api";
-import { isValidEmail, isValidPrice } from "../utils/validation";
+import { catalogService, classService, settingsService } from "../services/api";
+import { isValidEmail } from "../utils/validation";
 import {
   Users,
   UserPlus,
@@ -31,27 +33,6 @@ import {
   AlertDialogTitle,
 } from "../components/ui/alert-dialog";
 
-const INITIAL_PACKAGES = [
-  {
-    id: 1,
-    name: "Standard Counseling Package",
-    description: "Documentation review & course guidance",
-    price: "$450",
-    duration: "6 Months",
-    status: "Active",
-    features: "Documentation review & course guidance",
-  },
-  {
-    id: 2,
-    name: "Premium Admission + Visa Guidance",
-    description: "Sop + 5 Univs + Visa Mock Interviews",
-    price: "$1,200",
-    duration: "1 Year",
-    status: "Active",
-    features: "Sop + 5 Univs + Visa Mock Interviews",
-  },
-];
-
 const Settings = () => {
   const { user, authToken } = useAuth();
   const role = useMemo(
@@ -60,19 +41,20 @@ const Settings = () => {
   );
   const isAdminLike = ["admin", "superadmin"].includes(role);
 
-  // Tab State: "users" (Users & Packages) | "courses" (Courses)
+  // Tab State: "users" (Users & Packages) | "classes" (Classes)
   const [tab, setTab] = useState("users");
 
   // Delete confirmation state
   const [deleteUserConfirmId, setDeleteUserConfirmId] = useState(null);
   const [deletePackageConfirmId, setDeletePackageConfirmId] = useState(null);
-  const [deleteCourseConfirmId, setDeleteCourseConfirmId] = useState(null);
+  const [deactivateClassConfirmId, setDeactivateClassConfirmId] = useState(null);
   const [deleteProcessing, setDeleteProcessing] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
   // --- Users State ---
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [userLoadError, setUserLoadError] = useState("");
   const [userForm, setUserForm] = useState({
     username: "",
     email: "",
@@ -92,101 +74,108 @@ const Settings = () => {
   });
   const [editUserLoading, setEditUserLoading] = useState(false);
 
-  // --- Packages State (Persistent in localStorage) ---
-  const [packages, setPackages] = useState(() => {
-    try {
-      const saved = localStorage.getItem("crm_packages");
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error(e);
-    }
-    return INITIAL_PACKAGES;
-  });
+  // Packages are shared catalog entries so they match the enrollment form.
+  const [packages, setPackages] = useState([]);
+  const [loadingPackages, setLoadingPackages] = useState(true);
 
   const [packageForm, setPackageForm] = useState({
     name: "",
-    price: "",           // NPR by default (Module 6)
-    validity: "6 Months",
-    features: "",
-    client_date: "",     // Module 6: new Client Date field
   });
   const [packageMsg, setPackageMsg] = useState({ type: "", text: "" });
 
   // Package Edit Modal State
   const [editingPackage, setEditingPackage] = useState(null);
-  // Module 6: Status and Phase removed from package form
-  const [editPackageForm, setEditPackageForm] = useState({
-    name: "",
-    price: "",
-    duration: "6 Months",
-    features: "",
-    client_date: "",
-  });
+  const [editPackageForm, setEditPackageForm] = useState({ name: "" });
 
-  useEffect(() => {
-    try {
-      localStorage.setItem("crm_packages", JSON.stringify(packages));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [packages]);
-
-  // --- Courses State ---
-  const [courses, setCourses] = useState([]);
-  const [loadingCourses, setLoadingCourses] = useState(true);
-  const [newCourseName, setNewCourseName] = useState("");
-  const [courseSubmitting, setCourseSubmitting] = useState(false);
-  const [courseMsg, setCourseMsg] = useState({ type: "", text: "" });
-  const [editingCourse, setEditingCourse] = useState(null);
-  const [editCourseName, setEditCourseName] = useState("");
+  // --- Classes State ---
+  const [classes, setClasses] = useState([]);
+  const [loadingClasses, setLoadingClasses] = useState(true);
+  const [newClassName, setNewClassName] = useState("");
+  const [classSubmitting, setClassSubmitting] = useState(false);
+  const [classMsg, setClassMsg] = useState({ type: "", text: "" });
+  const [editingClass, setEditingClass] = useState(null);
+  const [editClassName, setEditClassName] = useState("");
+  const [syllabi, setSyllabi] = useState([]);
+  const [loadingSyllabi, setLoadingSyllabi] = useState(true);
+  const [newSyllabusName, setNewSyllabusName] = useState("");
+  const [syllabusSubmitting, setSyllabusSubmitting] = useState(false);
+  const [syllabusMsg, setSyllabusMsg] = useState({ type: "", text: "" });
+  const [editingSyllabus, setEditingSyllabus] = useState(null);
+  const [editSyllabusName, setEditSyllabusName] = useState("");
+  const [deactivateSyllabusConfirmId, setDeactivateSyllabusConfirmId] = useState(null);
 
   const fetchUsers = useCallback(async () => {
     setLoadingUsers(true);
+    setUserLoadError("");
     try {
-      const res = await fetch(`${BASE_URL}/users/`, {
-        headers: { Authorization: `Token ${authToken}` },
-      });
-      if (!res.ok) throw new Error("Failed to fetch users");
-      const data = await res.json();
-      let usersData = [];
-      if (Array.isArray(data)) usersData = data;
-      else if (data && Array.isArray(data.results)) usersData = data.results;
-      else if (data && Array.isArray(data.users)) usersData = data.users;
-      else if (data && Array.isArray(data.data)) usersData = data.data;
-      setUsers(usersData);
+      setUsers(await settingsService.getUsers(authToken));
     } catch (err) {
-      console.error("Error fetching users:", err);
+      setUsers([]);
+      setUserLoadError(err.message || "Could not load users.");
     } finally {
       setLoadingUsers(false);
     }
   }, [authToken]);
 
-  const fetchCourses = useCallback(async () => {
-    setLoadingCourses(true);
+  const fetchClasses = useCallback(async () => {
+    setLoadingClasses(true);
     try {
-      let data = await courseService.getCourses(authToken);
+      let data = await classService.getClasses(authToken);
       if (data && !Array.isArray(data) && Array.isArray(data.results)) {
         data = data.results;
       }
-      setCourses(Array.isArray(data) ? data : []);
+      setClasses(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error("Error fetching courses:", err);
+      console.error("Error fetching classes:", err);
+      setClassMsg({ type: "error", text: err.message || "Could not load the Class Catalog." });
     } finally {
-      setLoadingCourses(false);
+      setLoadingClasses(false);
+    }
+  }, [authToken]);
+
+  const fetchPackages = useCallback(async () => {
+    setLoadingPackages(true);
+    try {
+      const data = await catalogService.getPackages(authToken);
+      setPackages(data.filter((item) => item.active));
+      setPackageMsg({ type: "", text: "" });
+    } catch (err) {
+      setPackages([]);
+      setPackageMsg({ type: "error", text: err.message || "Could not load packages." });
+    } finally {
+      setLoadingPackages(false);
+    }
+  }, [authToken]);
+
+  const fetchSyllabi = useCallback(async () => {
+    setLoadingSyllabi(true);
+    try {
+      const data = await catalogService.getSyllabi(authToken);
+      setSyllabi(data.filter((item) => item.active));
+      setSyllabusMsg({ type: "", text: "" });
+    } catch (err) {
+      setSyllabi([]);
+      setSyllabusMsg({ type: "error", text: err.message || "Could not load syllabus types." });
+    } finally {
+      setLoadingSyllabi(false);
     }
   }, [authToken]);
 
   useEffect(() => {
     if (isAdminLike && authToken) {
       fetchUsers();
-      fetchCourses();
+      fetchClasses();
+      fetchPackages();
+      fetchSyllabi();
     }
-  }, [isAdminLike, authToken, fetchUsers, fetchCourses]);
+  }, [isAdminLike, authToken, fetchUsers, fetchClasses, fetchPackages, fetchSyllabi]);
 
   useRealtimeRefresh(authToken, () => {
     if (!isAdminLike) return;
     fetchUsers();
-    fetchCourses();
+    fetchClasses();
+    fetchPackages();
+    fetchSyllabi();
   });
 
   const handleCreateUser = async (e) => {
@@ -327,7 +316,7 @@ const Settings = () => {
     }
   };
 
-  const handleAddPackage = (e) => {
+  const handleAddPackage = async (e) => {
     e.preventDefault();
     setPackageMsg({ type: "", text: "" });
 
@@ -335,213 +324,232 @@ const Settings = () => {
       setPackageMsg({ type: "error", text: "Package name is required." });
       return;
     }
-    if (!packageForm.price.trim()) {
-      setPackageMsg({ type: "error", text: "Package price is required." });
-      return;
-    }
     if (packageForm.name.trim().length > 255) {
       setPackageMsg({ type: "error", text: "Package name must be 255 characters or fewer." });
       return;
     }
-    if (!isValidPrice(packageForm.price)) {
-      setPackageMsg({ type: "error", text: "Enter a valid price, such as 4500, NPR 4,500, or $450." });
-      return;
+    try {
+      const newPackage = await catalogService.createPackage(packageForm.name.trim(), authToken);
+      setPackages((prev) => [...prev, newPackage]);
+      setPackageForm({ name: "" });
+      setPackageMsg({ type: "success", text: "Package added successfully." });
+    } catch (err) {
+      setPackageMsg({ type: "error", text: err.message || "Failed to add package." });
     }
-
-    // Module 6: No status/phase — default currency is NPR
-    const newPkg = {
-      id: Date.now(),
-      name: packageForm.name.trim(),
-      description: packageForm.features.trim() || "Course & guidance support",
-      price: packageForm.price.trim() || "NPR 0",  // Module 6: default NPR
-      duration: packageForm.validity || "6 Months",
-      client_date: packageForm.client_date || "",
-      features: packageForm.features.trim(),
-    };
-
-    setPackages((prev) => [...prev, newPkg]);
-    setPackageForm({
-      name: "",
-      price: "",
-      validity: "6 Months",
-      features: "",
-      client_date: "",
-    });
-    setPackageMsg({ type: "success", text: "Package added successfully!" });
   };
 
-  const handleDeletePackage = (id) => {
-    setPackages((prev) => prev.filter((p) => p.id !== id));
-    setDeletePackageConfirmId(null);
+  const handleDeletePackage = async (id) => {
+    setDeleteProcessing(true);
+    setDeleteError("");
+    try {
+      await catalogService.deactivatePackage(id, authToken);
+      setPackages((prev) => prev.filter((pkg) => pkg.id !== id));
+      setPackageMsg({ type: "success", text: "Package deactivated." });
+    } catch (err) {
+      setDeleteError(err.message || "Could not deactivate package.");
+    } finally {
+      setDeleteProcessing(false);
+      setDeletePackageConfirmId(null);
+    }
   };
 
   const handleOpenEditPackage = (pkg) => {
     setEditingPackage(pkg);
-    // Module 6: Status and Phase removed
-    setEditPackageForm({
-      name: pkg.name || "",
-      price: pkg.price || "",
-      duration: pkg.duration || "6 Months",
-      features: pkg.description || pkg.features || "",
-      client_date: pkg.client_date || "",
-    });
+    setEditPackageForm({ name: pkg.name || "" });
   };
 
-  const handleSaveEditPackage = (e) => {
+  const handleSaveEditPackage = async (e) => {
     e.preventDefault();
     if (!editingPackage) return;
     if (!editPackageForm.name.trim() || editPackageForm.name.trim().length > 255) {
       alert("Package name is required and must be 255 characters or fewer.");
       return;
     }
-    if (!isValidPrice(editPackageForm.price)) {
-      alert("Enter a valid price, such as 4500, NPR 4,500, or $450.");
-      return;
+    try {
+      const updated = await catalogService.updatePackage(
+        editingPackage.id, editPackageForm.name.trim(), authToken
+      );
+      setPackages((prev) => prev.map((pkg) => pkg.id === updated.id ? updated : pkg));
+      setEditingPackage(null);
+    } catch (err) {
+      alert(err.message || "Failed to update package.");
     }
-
-    setPackages((prev) =>
-      prev.map((p) =>
-        p.id === editingPackage.id
-          ? {
-              ...p,
-              name: editPackageForm.name.trim(),
-              price: editPackageForm.price.trim(),
-              duration: editPackageForm.duration,
-              description: editPackageForm.features.trim(),
-              client_date: editPackageForm.client_date || "",
-              // Module 6: status and phase removed
-            }
-          : p
-      )
-    );
-    setEditingPackage(null);
   };
 
-  const handleCreateCourse = async (e) => {
+  const handleCreateClass = async (e) => {
     e.preventDefault();
-    setCourseMsg({ type: "", text: "" });
-    if (!newCourseName.trim() || newCourseName.trim().length > 255) {
-      setCourseMsg({ type: "error", text: "Course name is required and must be 255 characters or fewer." });
+    setClassMsg({ type: "", text: "" });
+    if (!newClassName.trim() || newClassName.trim().length > 255) {
+      setClassMsg({ type: "error", text: "Class name is required and must be 255 characters or fewer." });
       return;
     }
 
-    setCourseSubmitting(true);
+    setClassSubmitting(true);
     try {
-      const res = await courseService.createCourse(newCourseName.trim(), authToken);
-      setCourses((prev) => [...prev, res]);
-      setNewCourseName("");
-      setCourseMsg({ type: "success", text: "Course added successfully!" });
+      const res = await classService.createClass(newClassName.trim(), authToken);
+      setClasses((prev) => [...prev, res]);
+      setNewClassName("");
+      setClassMsg({ type: "success", text: "Class added successfully!" });
     } catch (err) {
-      setCourseMsg({
+      setClassMsg({
         type: "error",
-        text: err.message || "Failed to add course.",
+        text: err.message || "Failed to add class.",
       });
     } finally {
-      setCourseSubmitting(false);
+      setClassSubmitting(false);
     }
   };
 
-  const handleDeleteCourse = async (id) => {
+  const handleDeactivateClass = async (id) => {
     setDeleteProcessing(true);
     try {
-      await courseService.deleteCourse(id, authToken);
-      setCourses((prev) => prev.filter((c) => c.id !== id));
-      setCourseMsg({ type: "success", text: "Course deleted." });
-      setTimeout(() => setCourseMsg({ type: "", text: "" }), 3000);
+      await classService.deactivateClass(id, authToken);
+      setClasses((prev) => prev.filter((c) => c.id !== id));
+      setClassMsg({ type: "success", text: "Class deactivated." });
+      setTimeout(() => setClassMsg({ type: "", text: "" }), 3000);
     } catch (err) {
-      setCourseMsg({ type: "error", text: "Failed to delete course: " + (err.message || "") });
+      setClassMsg({ type: "error", text: "Failed to deactivate class: " + (err.message || "") });
     } finally {
       setDeleteProcessing(false);
-      setDeleteCourseConfirmId(null);
+      setDeactivateClassConfirmId(null);
     }
   };
 
-  const handleOpenEditCourse = (course) => {
-    setEditingCourse(course);
-    setEditCourseName(course.course_name);
+  const handleOpenEditClass = (classItem) => {
+    setEditingClass(classItem);
+    setEditClassName(classItem.class_name);
   };
 
-  const handleSaveEditCourse = async (e) => {
+  const handleSaveEditClass = async (e) => {
     e.preventDefault();
-    if (!editingCourse) return;
-    if (!editCourseName.trim() || editCourseName.trim().length > 255) {
-      alert("Course name is required and must be 255 characters or fewer.");
+    if (!editingClass) return;
+    if (!editClassName.trim() || editClassName.trim().length > 255) {
+      alert("Class name is required and must be 255 characters or fewer.");
       return;
     }
     try {
-      const updated = await courseService.updateCourse(
-        editingCourse.id,
-        editCourseName.trim(),
+      const updated = await classService.updateClass(
+        editingClass.id,
+        editClassName.trim(),
         authToken
       );
-      setCourses((prev) =>
+      setClasses((prev) =>
         prev.map((c) => (c.id === updated.id ? updated : c))
       );
-      setEditingCourse(null);
+      setEditingClass(null);
     } catch (err) {
-      alert("Failed to update course: " + err.message);
+      alert("Failed to update class: " + err.message);
+    }
+  };
+
+  const handleCreateSyllabus = async (e) => {
+    e.preventDefault();
+    const name = newSyllabusName.trim();
+    setSyllabusMsg({ type: "", text: "" });
+    if (!name || name.length > 255) {
+      setSyllabusMsg({ type: "error", text: "Syllabus type is required and must be 255 characters or fewer." });
+      return;
+    }
+    setSyllabusSubmitting(true);
+    try {
+      const created = await catalogService.createSyllabus(name, authToken);
+      setSyllabi((previous) => [...previous, created]);
+      setNewSyllabusName("");
+      setSyllabusMsg({ type: "success", text: "Syllabus type added." });
+    } catch (err) {
+      setSyllabusMsg({ type: "error", text: err.message || "Could not add syllabus type." });
+    } finally {
+      setSyllabusSubmitting(false);
+    }
+  };
+
+  const handleDeactivateSyllabus = async (id) => {
+    setDeleteProcessing(true);
+    setDeleteError("");
+    try {
+      await catalogService.deactivateSyllabus(id, authToken);
+      setSyllabi((previous) => previous.filter((item) => item.id !== id));
+      setSyllabusMsg({ type: "success", text: "Syllabus type deactivated." });
+    } catch (err) {
+      setDeleteError(err.message || "Could not deactivate syllabus type.");
+    } finally {
+      setDeleteProcessing(false);
+      setDeactivateSyllabusConfirmId(null);
+    }
+  };
+
+  const handleEditSyllabus = (syllabus) => {
+    setEditingSyllabus(syllabus);
+    setEditSyllabusName(syllabus.name);
+  };
+
+  const handleSaveSyllabus = async (e) => {
+    e.preventDefault();
+    if (!editingSyllabus) return;
+    const name = editSyllabusName.trim();
+    if (!name || name.length > 255) {
+      setSyllabusMsg({ type: "error", text: "Syllabus type is required and must be 255 characters or fewer." });
+      return;
+    }
+    try {
+      const updated = await catalogService.updateSyllabus(editingSyllabus.id, name, authToken);
+      setSyllabi((previous) => previous.map((item) => item.id === updated.id ? updated : item));
+      setEditingSyllabus(null);
+    } catch (err) {
+      setSyllabusMsg({ type: "error", text: err.message || "Could not update syllabus type." });
     }
   };
 
   if (!isAdminLike) {
     return (
-      <div className="max-w-4xl mx-auto bg-white p-8 rounded-[12px] shadow-sm border border-slate-200 my-8">
-        <h1 className="text-[22px] font-[700] text-slate-900 tracking-[-0.015em] mb-2">Settings</h1>
-        <p className="text-rose-600 font-[500] text-[13px]">
+      <PageShell className="mx-auto my-8 max-w-4xl rounded-[12px] border border-slate-200 bg-white p-8 shadow-sm">
+        <h1 className="crm-page-title mb-2">Settings</h1>
+        <p className="text-rose-600 font-medium text-sm">
           Only Admins and Superadmins have permission to access Settings.
         </p>
-      </div>
+      </PageShell>
     );
   }
 
-  if ((tab === "users" && loadingUsers) || (tab === "courses" && loadingCourses)) {
+  if ((tab === "users" && (loadingUsers || loadingPackages)) || (tab === "classes" && (loadingClasses || loadingSyllabi))) {
     return <PageLoadingState />;
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#F8FAFC] font-[Inter,system-ui,sans-serif] antialiased">
-      {/* ─── Header: Identical to LeadsHeader ─── */}
-      <div className="px-6 py-5 border-b border-slate-200 bg-white">
-        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-          <div>
-            <h1 className="text-[22px] font-[700] text-slate-900 tracking-[-0.015em]">
-              Settings
-            </h1>
-            <p className="text-[13px] text-slate-500 mt-1">
-              Manage system users, counseling packages, and courses.
-            </p>
-          </div>
-
-          {/* Tab buttons */}
-          <div className="flex items-center gap-2 shrink-0">
+    <PageShell width="standard" className="flex h-full flex-col">
+      <PageHeader
+        title="Settings"
+        description="Manage system users, counseling packages, and classes."
+        actions={(
+          <>
             <button
               onClick={() => setTab("users")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-[8px] text-[13px] font-[500] transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-[8px] text-sm font-medium transition-colors ${
                 tab === "users"
-                  ? "bg-[#294998] text-white shadow-sm"
-                  : "bg-[#EEF2F6] hover:bg-slate-200 text-slate-700"
+                  ? "bg-primary text-white shadow-sm"
+                  : "bg-surface-muted hover:bg-slate-200 text-slate-700"
               }`}
             >
               <Users className="w-4 h-4" />
               Users & Packages
             </button>
             <button
-              onClick={() => setTab("courses")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-[8px] text-[13px] font-[500] transition-colors ${
-                tab === "courses"
-                  ? "bg-[#294998] text-white shadow-sm"
-                  : "bg-[#EEF2F6] hover:bg-slate-200 text-slate-700"
+              onClick={() => setTab("classes")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-[8px] text-sm font-medium transition-colors ${
+                tab === "classes"
+                  ? "bg-primary text-white shadow-sm"
+                  : "bg-surface-muted hover:bg-slate-200 text-slate-700"
               }`}
             >
               <BookOpen className="w-4 h-4" />
-              Courses
+              Classes
             </button>
-          </div>
-        </div>
-      </div>
+          </>
+        )}
+      />
 
       {/* ─── Content Area ─── */}
-      <div className="p-6 md:p-8 space-y-6 max-w-7xl">
+      <div className="w-full space-y-6 p-6 md:p-8">
         {/* ─── TAB: USERS & PACKAGES ─── */}
         {tab === "users" && (
           <div className="space-y-6">
@@ -550,14 +558,14 @@ const Settings = () => {
               {/* ─── Card 1: Create New User ─── */}
               <div className="lg:col-span-5 bg-white rounded-[12px] p-6 border border-slate-200 shadow-sm">
                 <div className="flex items-center gap-3 mb-5">
-                  <div className="w-8 h-8 rounded-[8px] bg-[#EDF2FC] text-[#294998] flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-[8px] bg-primary-light text-primary flex items-center justify-center shrink-0">
                     <UserPlus className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-[16px] font-[700] text-slate-900 tracking-[-0.01em]">
+                    <h3 className="text-base font-bold text-slate-900 tracking-[-0.01em]">
                       Create New User
                     </h3>
-                    <p className="text-[12px] text-slate-500 mt-0.5">
+                    <p className="text-xs text-slate-500 mt-0.5">
                       Add staff and counselors
                     </p>
                   </div>
@@ -565,7 +573,7 @@ const Settings = () => {
 
                 {userMsg.text && (
                   <div
-                    className={`mb-4 p-3 rounded-[8px] text-[12px] font-[500] flex items-center gap-2 ${
+                    className={`mb-4 p-3 rounded-[8px] text-xs font-medium flex items-center gap-2 ${
                       userMsg.type === "error"
                         ? "bg-rose-50 text-rose-700 border border-rose-200"
                         : "bg-emerald-50 text-emerald-700 border border-emerald-200"
@@ -584,7 +592,7 @@ const Settings = () => {
                 <form onSubmit={handleCreateUser} autoComplete="off">
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                         USERNAME <span className="text-rose-500">*</span>
                       </label>
                       <input
@@ -600,12 +608,12 @@ const Settings = () => {
                           }))
                         }
                         placeholder="Enter username"
-                        className="w-full h-10 px-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all placeholder:text-slate-400 text-slate-800"
+                        className="w-full h-10 px-3.5 text-sm rounded-[10px] bg-canvas-subtle/70 hover:bg-canvas-subtle border border-transparent focus:border-primary focus:bg-white focus:outline-none transition-all placeholder:text-slate-400 text-slate-800"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                         EMAIL <span className="text-rose-500">*</span>
                       </label>
                       <input
@@ -615,12 +623,12 @@ const Settings = () => {
                         value={userForm.email}
                         onChange={(e) => setUserForm((prev) => ({ ...prev, email: e.target.value }))}
                         placeholder="name@company.com"
-                        className="w-full h-10 px-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all placeholder:text-slate-400 text-slate-800"
+                        className="w-full h-10 px-3.5 text-sm rounded-[10px] bg-canvas-subtle/70 hover:bg-canvas-subtle border border-transparent focus:border-primary focus:bg-white focus:outline-none transition-all placeholder:text-slate-400 text-slate-800"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                         ROLE <span className="text-rose-500">*</span>
                       </label>
                       <div className="relative">
@@ -633,7 +641,7 @@ const Settings = () => {
                               role: e.target.value,
                             }))
                           }
-                          className="w-full h-10 pl-3.5 pr-8 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none appearance-none cursor-pointer transition-all text-slate-800"
+                          className="w-full h-10 pl-3.5 pr-8 text-sm rounded-[10px] bg-canvas-subtle/70 hover:bg-canvas-subtle border border-transparent focus:border-primary focus:bg-white focus:outline-none appearance-none cursor-pointer transition-all text-slate-800"
                         >
                           <option value="b2b">Sales Rep / B2B</option>
                           <option value="admin">Admin</option>
@@ -645,7 +653,7 @@ const Settings = () => {
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                         PASSWORD <span className="text-rose-500">*</span>
                       </label>
                       <input
@@ -661,7 +669,7 @@ const Settings = () => {
                         }
                         placeholder="••••••••"
                         autoComplete="new-password"
-                        className="w-full h-10 px-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all placeholder:text-slate-400 text-slate-800"
+                        className="w-full h-10 px-3.5 text-sm rounded-[10px] bg-canvas-subtle/70 hover:bg-canvas-subtle border border-transparent focus:border-primary focus:bg-white focus:outline-none transition-all placeholder:text-slate-400 text-slate-800"
                       />
                     </div>
                   </div>
@@ -669,7 +677,7 @@ const Settings = () => {
                   <button
                     type="submit"
                     disabled={userLoading}
-                    className="w-full mt-5 h-10 bg-[#294998] hover:bg-[#1E3776] text-white font-[500] rounded-[8px] transition-colors flex items-center justify-center gap-1.5 shadow-sm text-[13px] disabled:opacity-50"
+                    className="w-full mt-5 h-10 bg-primary hover:bg-primary-hover text-white font-medium rounded-[8px] transition-colors flex items-center justify-center gap-1.5 shadow-sm text-sm disabled:opacity-50"
                   >
                     {userLoading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -685,38 +693,39 @@ const Settings = () => {
               <div className="lg:col-span-7 bg-white rounded-[12px] p-6 border border-slate-200 shadow-sm overflow-hidden">
                 <div className="flex items-center justify-between mb-5">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-[8px] bg-[#EDF2FC] text-[#294998] flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-[8px] bg-primary-light text-primary flex items-center justify-center shrink-0">
                       <Users className="w-4 h-4" />
                     </div>
                     <div>
-                      <h3 className="text-[16px] font-[700] text-slate-900 tracking-[-0.01em]">
+                      <h3 className="text-base font-bold text-slate-900 tracking-[-0.01em]">
                         All Users
                       </h3>
-                      <p className="text-[12px] text-slate-500 mt-0.5">
+                      <p className="text-xs text-slate-500 mt-0.5">
                         Active system accounts
                       </p>
                     </div>
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full text-[12px] font-[500] bg-[#EEF2F6] text-slate-600">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface-muted text-slate-600">
                     {users.length} {users.length === 1 ? "User" : "Users"}
                   </span>
                 </div>
 
                 {/* Users Table */}
-                <div className="overflow-x-auto border-t border-slate-100">
-                  <table className="w-full text-left border-collapse">
+                <DataTableShell className="crm-data-table--embedded">
+                  <div className="crm-data-table__scroll">
+                  <table className="text-left">
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-50">
-                        <th className="px-4 h-9 text-left text-[11px] font-[600] text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap w-12">
+                        <th className="px-4 h-9 text-left text-xs font-semibold text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap w-12">
                           ID
                         </th>
-                        <th className="px-4 h-9 text-left text-[11px] font-[600] text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap">
+                        <th className="px-4 h-9 text-left text-xs font-semibold text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap">
                           USERNAME
                         </th>
-                        <th className="px-4 h-9 text-left text-[11px] font-[600] text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap">
+                        <th className="px-4 h-9 text-left text-xs font-semibold text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap">
                           ROLE
                         </th>
-                        <th className="px-4 h-9 text-right text-[11px] font-[600] text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap pr-4">
+                        <th className="px-4 h-9 text-right text-xs font-semibold text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap pr-4">
                           ACTIONS
                         </th>
                       </tr>
@@ -726,19 +735,25 @@ const Settings = () => {
                         <tr>
                           <td
                             colSpan={4}
-                            className="py-8 text-center text-[13px] text-slate-400 whitespace-nowrap"
+                            className="py-8 text-center text-sm text-slate-400 whitespace-nowrap"
                           >
                             <div className="flex items-center justify-center gap-2">
-                              <Loader2 className="w-4 h-4 animate-spin text-[#294998]" />
+                              <Loader2 className="w-4 h-4 animate-spin text-primary" />
                               Loading users...
                             </div>
+                          </td>
+                        </tr>
+                      ) : userLoadError ? (
+                        <tr>
+                          <td colSpan={4} role="alert" className="py-8 text-center text-sm text-rose-600">
+                            Could not load users: {userLoadError}
                           </td>
                         </tr>
                       ) : users.length === 0 ? (
                         <tr>
                           <td
                             colSpan={4}
-                            className="py-8 text-center text-[13px] text-slate-400 whitespace-nowrap"
+                            className="py-8 text-center text-sm text-slate-400 whitespace-nowrap"
                           >
                             No active users found.
                           </td>
@@ -751,21 +766,21 @@ const Settings = () => {
                               key={u.id}
                               className="hover:bg-slate-50/80 transition-colors"
                             >
-                              <td className="px-4 py-3 text-[13px] text-slate-500 font-[500] whitespace-nowrap">
+                              <td className="px-4 py-3 text-sm text-slate-500 font-medium whitespace-nowrap">
                                 {u.id}
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap">
                                 <div className="flex items-center gap-2.5">
-                                  <div className="w-7 h-7 rounded-full bg-[#EDF2FC] text-[#294998] font-[600] flex items-center justify-center text-[12px] shrink-0">
+                                  <div className="w-7 h-7 rounded-full bg-primary-light text-primary font-semibold flex items-center justify-center text-xs shrink-0">
                                     {initial}
                                   </div>
-                                  <span className="text-[13px] font-[600] text-slate-900">
+                                  <span className="text-sm font-semibold text-slate-900">
                                     {u.username}
                                   </span>
                                 </div>
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap">
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[12px] font-[500] bg-[#EEF2F6] text-slate-700">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface-muted text-slate-700">
                                   {u.role || "b2b"}
                                 </span>
                               </td>
@@ -773,7 +788,7 @@ const Settings = () => {
                                 <div className="flex items-center justify-end gap-2">
                                   <button
                                     onClick={() => handleOpenEditUser(u)}
-                                    className="p-1 text-slate-400 hover:text-[#294998] transition-colors"
+                                    className="p-1 text-slate-400 hover:text-primary transition-colors"
                                     title="Edit user"
                                   >
                                     <Pencil className="w-3.5 h-3.5" />
@@ -793,7 +808,8 @@ const Settings = () => {
                       )}
                     </tbody>
                   </table>
-                </div>
+                  </div>
+                </DataTableShell>
               </div>
             </div>
 
@@ -805,22 +821,22 @@ const Settings = () => {
                     <Package className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-[16px] font-[700] text-slate-900 tracking-[-0.01em]">
+                    <h3 className="text-base font-bold text-slate-900 tracking-[-0.01em]">
                       Manage Packages
                     </h3>
-                    <p className="text-[12px] text-slate-500 mt-0.5">
-                      Configure pricing tiers, services, and student subscription packages
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Manage package options used by client records
                     </p>
                   </div>
                 </div>
-                <span className="px-2.5 py-0.5 rounded-full text-[12px] font-[500] bg-[#EEF2F6] text-slate-600">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface-muted text-slate-600">
                   {packages.length} Active Packages
                 </span>
               </div>
 
               {packageMsg.text && (
                 <div
-                  className={`mb-4 p-3 rounded-[8px] text-[12px] font-[500] flex items-center gap-2 ${
+                  className={`mb-4 p-3 rounded-[8px] text-xs font-medium flex items-center gap-2 ${
                     packageMsg.type === "error"
                       ? "bg-rose-50 text-rose-700 border border-rose-200"
                       : "bg-emerald-50 text-emerald-700 border border-emerald-200"
@@ -839,8 +855,8 @@ const Settings = () => {
               <form onSubmit={handleAddPackage} className="mb-6">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                   {/* PACKAGE NAME */}
-                  <div className="md:col-span-4">
-                    <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
+                  <div className="md:col-span-10">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                       PACKAGE NAME <span className="text-rose-500">*</span>
                     </label>
                     <input
@@ -855,97 +871,7 @@ const Settings = () => {
                         }))
                       }
                       placeholder="e.g. Premium Admission + Visa Guidance"
-                      className="w-full h-10 px-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all placeholder:text-slate-400 text-slate-800"
-                    />
-                  </div>
-
-                  {/* Module 6: PRICE — default NPR currency */}
-                  <div className="md:col-span-2">
-                    <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
-                      PRICE (NPR) <span className="text-rose-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] font-[600] text-slate-500 pointer-events-none">NPR</span>
-                      <input
-                        type="text"
-                        maxLength={32}
-                        required
-                        pattern="(?:(?:NPR|[$]) *)?[0-9]+(?:,[0-9]{3})*(?:[.][0-9]{1,2})?"
-                        title="Use a number with an optional NPR or $ prefix, such as NPR 4,500."
-                        value={packageForm.price}
-                        onChange={(e) =>
-                          setPackageForm((prev) => ({
-                            ...prev,
-                            price: e.target.value,
-                          }))
-                        }
-                        placeholder="e.g. 45,000"
-                        className="w-full h-10 pl-12 pr-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all placeholder:text-slate-400 text-slate-800"
-                      />
-                    </div>
-                  </div>
-
-                  {/* VALIDITY */}
-                  <div className="md:col-span-2">
-                    <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
-                      VALIDITY
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={packageForm.validity}
-                        onChange={(e) =>
-                          setPackageForm((prev) => ({
-                            ...prev,
-                            validity: e.target.value,
-                          }))
-                        }
-                        className="w-full h-10 pl-3.5 pr-8 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none appearance-none cursor-pointer transition-all text-slate-800"
-                      >
-                        <option value="1 Month">1 Month</option>
-                        <option value="3 Months">3 Months</option>
-                        <option value="6 Months">6 Months</option>
-                        <option value="1 Year">1 Year</option>
-                        <option value="Lifetime">Lifetime</option>
-                      </select>
-                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    </div>
-                  </div>
-
-                  {/* Module 6: CLIENT DATE */}
-                  <div className="md:col-span-2">
-                    <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
-                      CLIENT DATE
-                    </label>
-                    <input
-                      type="date"
-                      value={packageForm.client_date}
-                      onChange={(e) =>
-                        setPackageForm((prev) => ({
-                          ...prev,
-                          client_date: e.target.value,
-                        }))
-                      }
-                      className="w-full h-10 px-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all text-slate-800"
-                    />
-                  </div>
-
-                  {/* FEATURES / SCOPE */}
-                  <div className="md:col-span-2">
-                    <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
-                      FEATURES / SCOPE
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={1000}
-                      value={packageForm.features}
-                      onChange={(e) =>
-                        setPackageForm((prev) => ({
-                          ...prev,
-                          features: e.target.value,
-                        }))
-                      }
-                      placeholder="e.g. Documentation review & guidance"
-                      className="w-full h-10 px-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all placeholder:text-slate-400 text-slate-800"
+                      className="w-full h-10 px-3.5 text-sm rounded-[10px] bg-canvas-subtle/70 hover:bg-canvas-subtle border border-transparent focus:border-primary focus:bg-white focus:outline-none transition-all placeholder:text-slate-400 text-slate-800"
                     />
                   </div>
 
@@ -953,7 +879,7 @@ const Settings = () => {
                   <div className="md:col-span-2">
                     <button
                       type="submit"
-                      className="w-full h-10 bg-[#294998] hover:bg-[#1E3776] text-white font-[500] rounded-[8px] transition-colors flex items-center justify-center gap-1.5 shadow-sm text-[13px] whitespace-nowrap"
+                      className="w-full h-10 bg-primary hover:bg-primary-hover text-white font-medium rounded-[8px] transition-colors flex items-center justify-center gap-1.5 shadow-sm text-sm whitespace-nowrap"
                     >
                       <Plus className="w-4 h-4" /> Add Package
                     </button>
@@ -962,27 +888,18 @@ const Settings = () => {
               </form>
 
               {/* Packages Table */}
-              <div className="overflow-x-auto border-t border-slate-100">
-                <table className="w-full text-left border-collapse">
+              <DataTableShell className="crm-data-table--embedded">
+                <div className="crm-data-table__scroll">
+                <table className="text-left">
                   <thead>
-                    {/* Module 6: STATUS column removed */}
                     <tr className="border-b border-slate-200 bg-slate-50">
-                      <th className="px-4 h-9 text-left text-[11px] font-[600] text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap w-12">
+                      <th className="px-4 h-9 text-left text-xs font-semibold text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap w-12">
                         ID
                       </th>
-                      <th className="px-4 h-9 text-left text-[11px] font-[600] text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap">
+                      <th className="px-4 h-9 text-left text-xs font-semibold text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap">
                         PACKAGE NAME
                       </th>
-                      <th className="px-4 h-9 text-left text-[11px] font-[600] text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap">
-                        PRICE (NPR)
-                      </th>
-                      <th className="px-4 h-9 text-left text-[11px] font-[600] text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap">
-                        DURATION
-                      </th>
-                      <th className="px-4 h-9 text-left text-[11px] font-[600] text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap">
-                        CLIENT DATE
-                      </th>
-                      <th className="px-4 h-9 text-right text-[11px] font-[600] text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap pr-4">
+                      <th className="px-4 h-9 text-right text-xs font-semibold text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap pr-4">
                         ACTIONS
                       </th>
                     </tr>
@@ -991,8 +908,8 @@ const Settings = () => {
                     {packages.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={6}
-                          className="py-8 text-center text-[13px] text-slate-400 whitespace-nowrap"
+                          colSpan={3}
+                          className="py-8 text-center text-sm text-slate-400 whitespace-nowrap"
                         >
                           No packages configured yet.
                         </td>
@@ -1003,7 +920,7 @@ const Settings = () => {
                           key={pkg.id}
                           className="hover:bg-slate-50/80 transition-colors"
                         >
-                          <td className="px-4 py-3 text-[13px] text-slate-500 font-[500] whitespace-nowrap">
+                          <td className="px-4 py-3 text-sm text-slate-500 font-medium whitespace-nowrap">
                             {idx + 1}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
@@ -1012,37 +929,17 @@ const Settings = () => {
                                 <Package className="w-3.5 h-3.5" />
                               </div>
                               <div>
-                                <span className="text-[13px] font-[600] text-slate-900 block whitespace-nowrap">
+                                <span className="text-sm font-semibold text-slate-900 block whitespace-nowrap">
                                   {pkg.name}
                                 </span>
-                                {pkg.description && (
-                                  <span className="text-[12px] text-slate-500 block mt-0.5 whitespace-nowrap">
-                                    {pkg.description}
-                                  </span>
-                                )}
                               </div>
                             </div>
-                          </td>
-                          {/* Module 6: NPR currency shown */}
-                          <td className="px-4 py-3 text-[13px] font-[600] text-slate-900 whitespace-nowrap">
-                            {pkg.price ? (
-                              String(pkg.price).startsWith("NPR") || String(pkg.price).startsWith("$")
-                                ? pkg.price
-                                : `NPR ${pkg.price}`
-                            ) : "—"}
-                          </td>
-                          <td className="px-4 py-3 text-[13px] text-slate-600 whitespace-nowrap">
-                            {pkg.duration}
-                          </td>
-                          {/* Module 6: Status removed — Client Date shown */}
-                          <td className="px-4 py-3 text-[13px] text-slate-600 whitespace-nowrap">
-                            {pkg.client_date || "—"}
                           </td>
                           <td className="px-4 py-3 text-right pr-4 whitespace-nowrap">
                             <div className="flex items-center justify-end gap-2">
                               <button
                                 onClick={() => handleOpenEditPackage(pkg)}
-                                className="p-1 text-slate-400 hover:text-[#294998] transition-colors"
+                                className="p-1 text-slate-400 hover:text-primary transition-colors"
                                 title="Edit package"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
@@ -1050,7 +947,7 @@ const Settings = () => {
                               <button
                                 onClick={() => setDeletePackageConfirmId(pkg.id)}
                                 className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
-                                title="Delete package"
+                                title="Deactivate package"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -1061,141 +958,144 @@ const Settings = () => {
                     )}
                   </tbody>
                 </table>
-              </div>
+                </div>
+              </DataTableShell>
             </div>
+
           </div>
         )}
 
-        {/* ─── TAB: COURSES ─── */}
-        {tab === "courses" && (
+        {/* ─── TAB: CLASSES ─── */}
+        {tab === "classes" && (
           <div className="space-y-6">
             <div className="bg-white rounded-[12px] p-6 border border-slate-200 shadow-sm">
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-[8px] bg-[#EDF2FC] text-[#294998] flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-[8px] bg-primary-light text-primary flex items-center justify-center shrink-0">
                     <BookOpen className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-[16px] font-[700] text-slate-900 tracking-[-0.01em]">
-                      Manage Courses
+                    <h3 className="text-base font-bold text-slate-900 tracking-[-0.01em]">
+                      Manage Classes
                     </h3>
-                    <p className="text-[12px] text-slate-500 mt-0.5">
-                      Curriculum and training course management
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Curriculum and training class management
                     </p>
                   </div>
                 </div>
-                <span className="px-2.5 py-0.5 rounded-full text-[12px] font-[500] bg-[#EEF2F6] text-slate-600">
-                  {courses.length} Active Courses
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface-muted text-slate-600">
+                  {classes.length} Active Classes
                 </span>
               </div>
 
-              {courseMsg.text && (
+              {classMsg.text && (
                 <div
-                  className={`mb-4 p-3 rounded-[8px] text-[12px] font-[500] flex items-center gap-2 ${
-                    courseMsg.type === "error"
+                  className={`mb-4 p-3 rounded-[8px] text-xs font-medium flex items-center gap-2 ${
+                    classMsg.type === "error"
                       ? "bg-rose-50 text-rose-700 border border-rose-200"
                       : "bg-emerald-50 text-emerald-700 border border-emerald-200"
                   }`}
                 >
-                  {courseMsg.type === "error" ? (
+                  {classMsg.type === "error" ? (
                     <AlertCircle className="w-4 h-4 shrink-0" />
                   ) : (
                     <CheckCircle2 className="w-4 h-4 shrink-0" />
                   )}
-                  {courseMsg.text}
+                  {classMsg.text}
                 </div>
               )}
 
               {/* Form */}
-              <form onSubmit={handleCreateCourse} className="mb-6">
+              <form onSubmit={handleCreateClass} className="mb-6">
                 <div className="flex flex-col sm:flex-row gap-3">
                   <input
                     type="text"
                     required
                     maxLength={255}
-                    value={newCourseName}
-                    onChange={(e) => setNewCourseName(e.target.value)}
-                    placeholder="Enter course name (e.g. IELTS / PTE Preparation)"
-                    className="flex-1 h-10 px-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all placeholder:text-slate-400 text-slate-800"
+                    value={newClassName}
+                    onChange={(e) => setNewClassName(e.target.value)}
+                    placeholder="Enter class name (e.g. IELTS / PTE Preparation)"
+                    className="flex-1 h-10 px-3.5 text-sm rounded-[10px] bg-canvas-subtle/70 hover:bg-canvas-subtle border border-transparent focus:border-primary focus:bg-white focus:outline-none transition-all placeholder:text-slate-400 text-slate-800"
                   />
                   <button
                     type="submit"
-                    disabled={courseSubmitting}
-                    className="h-10 bg-[#294998] hover:bg-[#1E3776] text-white font-[500] px-5 rounded-[8px] transition-colors flex items-center justify-center gap-1.5 shadow-sm text-[13px] whitespace-nowrap disabled:opacity-50"
+                    disabled={classSubmitting}
+                    className="h-10 bg-primary hover:bg-primary-hover text-white font-medium px-5 rounded-[8px] transition-colors flex items-center justify-center gap-1.5 shadow-sm text-sm whitespace-nowrap disabled:opacity-50"
                   >
-                    {courseSubmitting ? (
+                    {classSubmitting ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <Plus className="w-4 h-4" />
                     )}
-                    Add Course
+                    Add Class
                   </button>
                 </div>
               </form>
 
-              {/* Courses Table */}
-              <div className="overflow-x-auto border-t border-slate-100">
-                <table className="w-full text-left border-collapse">
+              {/* Classes Table */}
+              <DataTableShell className="crm-data-table--embedded">
+                <div className="crm-data-table__scroll">
+                <table className="text-left">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50">
-                      <th className="px-4 h-9 text-left text-[11px] font-[600] text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap w-16">
+                      <th className="px-4 h-9 text-left text-xs font-semibold text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap w-16">
                         ID
                       </th>
-                      <th className="px-4 h-9 text-left text-[11px] font-[600] text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap">
-                        COURSE NAME
+                      <th className="px-4 h-9 text-left text-xs font-semibold text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap">
+                        CLASS NAME
                       </th>
-                      <th className="px-4 h-9 text-right text-[11px] font-[600] text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap pr-4">
+                      <th className="px-4 h-9 text-right text-xs font-semibold text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap pr-4">
                         ACTIONS
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white">
-                    {loadingCourses ? (
+                    {loadingClasses ? (
                       <tr>
                         <td
                           colSpan={3}
-                          className="py-8 text-center text-[13px] text-slate-400"
+                          className="py-8 text-center text-sm text-slate-400"
                         >
                           <div className="flex items-center justify-center gap-2">
-                            <Loader2 className="w-4 h-4 animate-spin text-[#294998]" />
-                            Loading courses...
+                            <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                            Loading classes...
                           </div>
                         </td>
                       </tr>
-                    ) : courses.length === 0 ? (
+                    ) : classes.length === 0 ? (
                       <tr>
                         <td
                           colSpan={3}
-                          className="py-8 text-center text-[13px] text-slate-400"
+                          className="py-8 text-center text-sm text-slate-400"
                         >
-                          No courses available. Add one above.
+                          No classes available. Add one above.
                         </td>
                       </tr>
                     ) : (
-                      courses.map((course) => (
+                      classes.map((classItem) => (
                         <tr
-                          key={course.id}
+                          key={classItem.id}
                           className="hover:bg-slate-50/80 transition-colors"
                         >
-                          <td className="px-4 py-3 text-[13px] text-slate-500 font-[500] whitespace-nowrap">
-                            {course.id}
+                          <td className="px-4 py-3 text-sm text-slate-500 font-medium whitespace-nowrap">
+                            {classItem.id}
                           </td>
-                          <td className="px-4 py-3 text-[13px] font-[600] text-slate-900 whitespace-nowrap">
-                            {course.course_name}
+                          <td className="px-4 py-3 text-sm font-semibold text-slate-900 whitespace-nowrap">
+                            {classItem.class_name}
                           </td>
                           <td className="px-4 py-3 text-right pr-4 whitespace-nowrap">
                             <div className="flex items-center justify-end gap-2">
                               <button
-                                onClick={() => handleOpenEditCourse(course)}
-                                className="p-1 text-slate-400 hover:text-[#294998] transition-colors"
-                                title="Edit course"
+                                onClick={() => handleOpenEditClass(classItem)}
+                                className="p-1 text-slate-400 hover:text-primary transition-colors"
+                                title="Edit class"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
                               </button>
                               <button
-                                onClick={() => setDeleteCourseConfirmId(course.id)}
+                                onClick={() => setDeactivateClassConfirmId(classItem.id)}
                                 className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
-                                title="Delete course"
+                                title="Deactivate class"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -1206,7 +1106,30 @@ const Settings = () => {
                     )}
                   </tbody>
                 </table>
+                </div>
+              </DataTableShell>
+            </div>
+            <div className="bg-white rounded-[12px] p-6 border border-slate-200 shadow-sm">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Manage Syllabus Types</h3>
+                  <p className="mt-0.5 text-xs text-slate-500">These options appear in client enrollment.</p>
+                </div>
+                <span className="rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-slate-600">{syllabi.length} Active Types</span>
               </div>
+              {syllabusMsg.text && <p role="status" className={`mb-4 rounded-lg border p-3 text-xs ${syllabusMsg.type === "error" ? "border-rose-200 bg-rose-50 text-rose-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>{syllabusMsg.text}</p>}
+              <form onSubmit={handleCreateSyllabus} className="mb-5 flex flex-col gap-3 sm:flex-row">
+                <input type="text" required maxLength={255} value={newSyllabusName} onChange={(event) => setNewSyllabusName(event.target.value)} placeholder="Add a syllabus type" className="h-10 flex-1 rounded-[10px] border border-slate-200 px-3.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15" />
+                <button type="submit" disabled={syllabusSubmitting} className="flex h-10 items-center justify-center gap-1.5 rounded-[8px] bg-primary px-5 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-50">{syllabusSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}Add Syllabus Type</button>
+              </form>
+              <DataTableShell className="crm-data-table--embedded">
+                <div className="crm-data-table__scroll"><table className="text-left">
+                  <thead><tr className="border-b border-slate-200 bg-slate-50"><th className="px-4 h-9 text-left text-xs font-semibold text-slate-500">ID</th><th className="px-4 h-9 text-left text-xs font-semibold text-slate-500">SYLLABUS TYPE</th><th className="px-4 h-9 text-right text-xs font-semibold text-slate-500 pr-4">ACTIONS</th></tr></thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {syllabi.length ? syllabi.map((syllabus) => <tr key={syllabus.id}><td className="px-4 py-3 text-sm text-slate-500">{syllabus.id}</td><td className="px-4 py-3 text-sm font-semibold text-slate-900">{syllabus.name}</td><td className="px-4 py-3 text-right pr-4"><button onClick={() => handleEditSyllabus(syllabus)} className="mr-2 p-1 text-slate-400 hover:text-primary" title="Edit syllabus type"><Pencil className="h-3.5 w-3.5" /></button><button onClick={() => setDeactivateSyllabusConfirmId(syllabus.id)} className="p-1 text-slate-400 hover:text-rose-600" title="Deactivate syllabus type"><Trash2 className="h-3.5 w-3.5" /></button></td></tr>) : <tr><td colSpan={3} className="py-8 text-center text-sm text-slate-400">No syllabus types configured yet.</td></tr>}
+                  </tbody>
+                </table></div>
+              </DataTableShell>
             </div>
           </div>
         )}
@@ -1215,9 +1138,9 @@ const Settings = () => {
       {/* ─── MODAL: EDIT USER ─── */}
       {editingUser && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[16px] p-6 max-w-md w-full shadow-2xl border border-slate-200/80 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-[16px] p-6 max-w-md w-full shadow-2xl border border-slate-200/80 crm-animate-in crm-fade-in-0 crm-zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-              <h3 className="text-[17px] font-[700] text-slate-900 tracking-[-0.01em]">
+              <h3 className="text-lg font-bold text-slate-900 tracking-[-0.01em]">
                 Edit User #{editingUser.id}
               </h3>
               <button
@@ -1229,7 +1152,7 @@ const Settings = () => {
             </div>
             <form onSubmit={handleSaveEditUser} className="space-y-4">
               <div>
-                <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                   USERNAME
                 </label>
                 <input
@@ -1244,12 +1167,12 @@ const Settings = () => {
                     }))
                   }
                   required
-                  className="w-full h-10 px-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all text-slate-800"
+                  className="w-full h-10 px-3.5 text-sm rounded-[10px] bg-canvas-subtle/70 hover:bg-canvas-subtle border border-transparent focus:border-primary focus:bg-white focus:outline-none transition-all text-slate-800"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                   EMAIL
                 </label>
                 <input
@@ -1258,12 +1181,12 @@ const Settings = () => {
                   onChange={(e) => setEditUserForm((prev) => ({ ...prev, email: e.target.value }))}
                   required
                   maxLength={254}
-                  className="w-full h-10 px-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all text-slate-800"
+                  className="w-full h-10 px-3.5 text-sm rounded-[10px] bg-canvas-subtle/70 hover:bg-canvas-subtle border border-transparent focus:border-primary focus:bg-white focus:outline-none transition-all text-slate-800"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                   ROLE
                 </label>
                 <div className="relative">
@@ -1275,7 +1198,7 @@ const Settings = () => {
                         role: e.target.value,
                       }))
                     }
-                    className="w-full h-10 pl-3.5 pr-8 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none appearance-none cursor-pointer transition-all text-slate-800"
+                    className="w-full h-10 pl-3.5 pr-8 text-sm rounded-[10px] bg-canvas-subtle/70 hover:bg-canvas-subtle border border-transparent focus:border-primary focus:bg-white focus:outline-none appearance-none cursor-pointer transition-all text-slate-800"
                   >
                     <option value="b2b">Sales Rep / B2B</option>
                     <option value="admin">Admin</option>
@@ -1287,7 +1210,7 @@ const Settings = () => {
               </div>
 
               <div>
-                <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                   NEW PASSWORD (OPTIONAL)
                 </label>
                 <input
@@ -1301,7 +1224,7 @@ const Settings = () => {
                     }))
                   }
                   placeholder="Leave blank to keep unchanged"
-                  className="w-full h-10 px-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all placeholder:text-slate-400 text-slate-800"
+                  className="w-full h-10 px-3.5 text-sm rounded-[10px] bg-canvas-subtle/70 hover:bg-canvas-subtle border border-transparent focus:border-primary focus:bg-white focus:outline-none transition-all placeholder:text-slate-400 text-slate-800"
                 />
               </div>
 
@@ -1309,14 +1232,14 @@ const Settings = () => {
                 <button
                   type="button"
                   onClick={() => setEditingUser(null)}
-                  className="px-4 py-2 rounded-[8px] text-[13px] font-[500] bg-[#EEF2F6] hover:bg-slate-200 text-slate-700 transition-colors"
+                  className="px-4 py-2 rounded-[8px] text-sm font-medium bg-surface-muted hover:bg-slate-200 text-slate-700 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={editUserLoading}
-                  className="px-4 py-2 bg-[#294998] hover:bg-[#1E3776] text-white font-[500] rounded-[8px] text-[13px] transition-colors shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+                  className="px-4 py-2 bg-primary hover:bg-primary-hover text-white font-medium rounded-[8px] text-sm transition-colors shadow-sm flex items-center gap-1.5 disabled:opacity-50"
                 >
                   {editUserLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                   Save Changes
@@ -1330,9 +1253,9 @@ const Settings = () => {
       {/* ─── MODAL: EDIT PACKAGE ─── */}
       {editingPackage && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[16px] p-6 max-w-md w-full shadow-2xl border border-slate-200/80 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-[16px] p-6 max-w-md w-full shadow-2xl border border-slate-200/80 crm-animate-in crm-fade-in-0 crm-zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-              <h3 className="text-[17px] font-[700] text-slate-900 tracking-[-0.01em]">
+              <h3 className="text-lg font-bold text-slate-900 tracking-[-0.01em]">
                 Edit Package
               </h3>
               <button
@@ -1344,7 +1267,7 @@ const Settings = () => {
             </div>
             <form onSubmit={handleSaveEditPackage} className="space-y-4">
               <div>
-                <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                   PACKAGE NAME
                 </label>
                 <input
@@ -1358,94 +1281,7 @@ const Settings = () => {
                     }))
                   }
                   required
-                  className="w-full h-10 px-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all text-slate-800"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
-                  PRICE / FEE
-                </label>
-                <input
-                  type="text"
-                  value={editPackageForm.price}
-                  maxLength={32}
-                  pattern="(?:(?:NPR|[$]) *)?[0-9]+(?:,[0-9]{3})*(?:[.][0-9]{1,2})?"
-                  title="Use a number with an optional NPR or $ prefix, such as NPR 4,500."
-                  onChange={(e) =>
-                    setEditPackageForm((prev) => ({
-                      ...prev,
-                      price: e.target.value,
-                    }))
-                  }
-                  className="w-full h-10 px-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all text-slate-800"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
-                    DURATION
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={editPackageForm.duration}
-                      onChange={(e) =>
-                        setEditPackageForm((prev) => ({
-                          ...prev,
-                          duration: e.target.value,
-                        }))
-                      }
-                      className="w-full h-10 pl-3.5 pr-8 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none appearance-none cursor-pointer transition-all text-slate-800"
-                    >
-                      <option value="1 Month">1 Month</option>
-                      <option value="3 Months">3 Months</option>
-                      <option value="6 Months">6 Months</option>
-                      <option value="1 Year">1 Year</option>
-                      <option value="Lifetime">Lifetime</option>
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
-                    STATUS
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={editPackageForm.status}
-                      onChange={(e) =>
-                        setEditPackageForm((prev) => ({
-                          ...prev,
-                          status: e.target.value,
-                        }))
-                      }
-                      className="w-full h-10 pl-3.5 pr-8 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none appearance-none cursor-pointer transition-all text-slate-800"
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
-                  FEATURES / SCOPE
-                </label>
-                <textarea
-                  rows={2}
-                  value={editPackageForm.features}
-                  maxLength={1000}
-                  onChange={(e) =>
-                    setEditPackageForm((prev) => ({
-                      ...prev,
-                      features: e.target.value,
-                    }))
-                  }
-                  className="w-full p-3 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all text-slate-800"
+                  className="w-full h-10 px-3.5 text-sm rounded-[10px] bg-canvas-subtle/70 hover:bg-canvas-subtle border border-transparent focus:border-primary focus:bg-white focus:outline-none transition-all text-slate-800"
                 />
               </div>
 
@@ -1453,13 +1289,13 @@ const Settings = () => {
                 <button
                   type="button"
                   onClick={() => setEditingPackage(null)}
-                  className="px-4 py-2 rounded-[8px] text-[13px] font-[500] bg-[#EEF2F6] hover:bg-slate-200 text-slate-700 transition-colors"
+                  className="px-4 py-2 rounded-[8px] text-sm font-medium bg-surface-muted hover:bg-slate-200 text-slate-700 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#294998] hover:bg-[#1E3776] text-white font-[500] rounded-[8px] text-[13px] transition-colors shadow-sm"
+                  className="px-4 py-2 bg-primary hover:bg-primary-hover text-white font-medium rounded-[8px] text-sm transition-colors shadow-sm"
                 >
                   Save Changes
                 </button>
@@ -1469,46 +1305,66 @@ const Settings = () => {
         </div>
       )}
 
-      {/* ─── MODAL: EDIT COURSE ─── */}
-      {editingCourse && (
+      {editingSyllabus && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]">
+          <div className="w-full max-w-md rounded-[16px] border border-slate-200/80 bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-lg font-bold text-slate-900">Edit Syllabus Type</h3>
+              <button onClick={() => setEditingSyllabus(null)} className="p-1 text-slate-400 hover:text-slate-600" aria-label="Close"><X className="h-5 w-5" /></button>
+            </div>
+            <form onSubmit={handleSaveSyllabus} className="space-y-4">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">Syllabus type
+                <input type="text" required maxLength={255} value={editSyllabusName} onChange={(event) => setEditSyllabusName(event.target.value)} className="mt-1.5 h-10 w-full rounded-[10px] border border-slate-200 px-3.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15" />
+              </label>
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setEditingSyllabus(null)} className="rounded-lg bg-surface-muted px-4 py-2 text-sm font-medium text-slate-700">Cancel</button>
+                <button type="submit" className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: EDIT CLASS ─── */}
+      {editingClass && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[16px] p-6 max-w-md w-full shadow-2xl border border-slate-200/80 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-[16px] p-6 max-w-md w-full shadow-2xl border border-slate-200/80 crm-animate-in crm-fade-in-0 crm-zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-              <h3 className="text-[17px] font-[700] text-slate-900 tracking-[-0.01em]">
-                Edit Course #{editingCourse.id}
+              <h3 className="text-lg font-bold text-slate-900 tracking-[-0.01em]">
+                Edit Class #{editingClass.id}
               </h3>
               <button
-                onClick={() => setEditingCourse(null)}
+                onClick={() => setEditingClass(null)}
                 className="text-slate-400 hover:text-slate-600 p-1"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleSaveEditCourse} className="space-y-4">
+            <form onSubmit={handleSaveEditClass} className="space-y-4">
               <div>
-                <label className="block text-[11px] font-[700] text-slate-700 uppercase tracking-wider mb-1.5">
-                  COURSE NAME
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  CLASS NAME
                 </label>
                 <input
                   type="text"
-                  value={editCourseName}
+                  value={editClassName}
                   maxLength={255}
-                  onChange={(e) => setEditCourseName(e.target.value)}
+                  onChange={(e) => setEditClassName(e.target.value)}
                   required
-                  className="w-full h-10 px-3.5 text-[13px] rounded-[10px] bg-[#F1F5F9]/70 hover:bg-[#F1F5F9] border border-transparent focus:border-[#294998] focus:bg-white focus:outline-none transition-all text-slate-800"
+                  className="w-full h-10 px-3.5 text-sm rounded-[10px] bg-canvas-subtle/70 hover:bg-canvas-subtle border border-transparent focus:border-primary focus:bg-white focus:outline-none transition-all text-slate-800"
                 />
               </div>
               <div className="flex items-center justify-end gap-2.5 pt-3">
                 <button
                   type="button"
-                  onClick={() => setEditingCourse(null)}
-                  className="px-4 py-2 rounded-[8px] text-[13px] font-[500] bg-[#EEF2F6] hover:bg-slate-200 text-slate-700 transition-colors"
+                  onClick={() => setEditingClass(null)}
+                  className="px-4 py-2 rounded-[8px] text-sm font-medium bg-surface-muted hover:bg-slate-200 text-slate-700 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#294998] hover:bg-[#1E3776] text-white font-[500] rounded-[8px] text-[13px] transition-colors shadow-sm"
+                  className="px-4 py-2 bg-primary hover:bg-primary-hover text-white font-medium rounded-[8px] text-sm transition-colors shadow-sm"
                 >
                   Save Changes
                 </button>
@@ -1531,7 +1387,7 @@ const Settings = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           {deleteError && (
-            <p className="text-[13px] text-rose-600 bg-rose-50 rounded-[8px] px-3 py-2 border border-rose-200">{deleteError}</p>
+            <p className="text-sm text-rose-600 bg-rose-50 rounded-[8px] px-3 py-2 border border-rose-200">{deleteError}</p>
           )}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteProcessing}>Cancel</AlertDialogCancel>
@@ -1546,55 +1402,71 @@ const Settings = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ─── Delete Package Confirmation ─── */}
+      {/* ─── Deactivate Package Confirmation ─── */}
       <AlertDialog open={!!deletePackageConfirmId} onOpenChange={(open) => { if (!open) setDeletePackageConfirmId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-rose-500" />
-              Delete Package?
+              Deactivate Package?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove the package from the system.
+              The package will no longer be available for new client enrollments. Existing client records will retain it.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {deleteError && <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{deleteError}</p>}
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteProcessing}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => handleDeletePackage(deletePackageConfirmId)}
+              disabled={deleteProcessing}
               className="bg-rose-600 hover:bg-rose-700 text-white border-0"
             >
-              Delete Package
+              {deleteProcessing ? "Deactivating…" : "Deactivate Package"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ─── Delete Course Confirmation ─── */}
-      <AlertDialog open={!!deleteCourseConfirmId} onOpenChange={(open) => { if (!open) setDeleteCourseConfirmId(null); }}>
+      <AlertDialog open={!!deactivateSyllabusConfirmId} onOpenChange={(open) => { if (!open) setDeactivateSyllabusConfirmId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deactivate Syllabus Type?</AlertDialogTitle>
+            <AlertDialogDescription>This option will be hidden from new enrollments. Existing client records will keep their syllabus.</AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteError && <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{deleteError}</p>}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteProcessing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleDeactivateSyllabus(deactivateSyllabusConfirmId)} disabled={deleteProcessing} className="bg-rose-600 hover:bg-rose-700 text-white border-0">{deleteProcessing ? "Deactivating…" : "Deactivate Syllabus Type"}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ─── Delete Class Confirmation ─── */}
+      <AlertDialog open={!!deactivateClassConfirmId} onOpenChange={(open) => { if (!open) setDeactivateClassConfirmId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-rose-500" />
-              Delete Course?
+              Deactivate Class?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove the course. Students enrolled in this course may be affected.
+              The class will become unavailable for new lead interests and enrollments. Existing client records will retain it.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteProcessing}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => handleDeleteCourse(deleteCourseConfirmId)}
+              onClick={() => handleDeactivateClass(deactivateClassConfirmId)}
               disabled={deleteProcessing}
               className="bg-rose-600 hover:bg-rose-700 text-white border-0"
             >
-              {deleteProcessing ? "Deleting…" : "Delete Course"}
+              {deleteProcessing ? "Deactivating…" : "Deactivate Class"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </PageShell>
   );
 };
 

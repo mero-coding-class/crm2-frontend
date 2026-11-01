@@ -14,9 +14,10 @@ import ClientsTable from "../components/ClientsTable";
 import {
   RotateCw,
   FileDown,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
+import { Button } from "../components/ui/button.jsx";
+import Pagination from "../components/common/Pagination.jsx";
+import { PageShell, PageHeader } from "../components/common/PageShell.jsx";
 import ClientEditModal from "../components/ClientEditModal";
 import Toast from "../components/common/Toast";
 import { clientService } from "../services/api";
@@ -25,7 +26,7 @@ import { clientService } from "../services/api";
 import useEnrollmentsCore from "./clients/useEnrollmentsCore";
 import useEnrollmentFilters from "./clients/useEnrollmentFilters";
 import useEnrollmentExport from "./clients/useEnrollmentExport";
-import useTeachers from "./clients/useTeachers";
+import useAcademicUsers from "./clients/useAcademicUsers";
 import useEnrollmentEvents from "./clients/useEnrollmentEvents";
 import FiltersPanel from "./clients/FiltersPanel";
 import useEnrollmentUpdates from "./clients/useEnrollmentUpdates";
@@ -33,11 +34,11 @@ import useRealtimeRefresh from "../hooks/useRealtimeRefresh.js";
 
 const Clients = () => {
   const { authToken, user } = useAuth();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const routeSearch = searchParams.get("search") || "";
   const routeFilters = useMemo(() => {
     const filters = {};
-    ["renewals", "enrolled_from", "enrolled_to", "converted_from", "converted_to", "contract_from", "contract_to"].forEach((key) => {
+    ["renewals", "enrolled_from", "enrolled_to", "converted_from", "converted_to", "contract_from", "contract_to", "assigned_to", "academic_counsellor"].forEach((key) => {
       const value = searchParams.get(key);
       if (value) filters[key] = value;
     });
@@ -49,8 +50,8 @@ const Clients = () => {
   const ITEMS_PER_PAGE = 20;
   // Core paginated state and server fetcher
   const {
-    allStudents,
-    setAllStudents,
+    allClients,
+    setAllClients,
     loading,
     initialLoad,
     error,
@@ -58,26 +59,30 @@ const Clients = () => {
     setCurrentPage,
     totalPages,
     searchQueryRef,
-    fetchEnrolledStudents,
+    fetchEnrolledClients,
   } = useEnrollmentsCore(authToken, ITEMS_PER_PAGE, routeFilters);
 
   // Local UI filters and client-side filtered view
   const {
     searchQuery,
     setSearchQuery,
-    filteredStudents,
-  } = useEnrollmentFilters(allStudents, routeSearch);
+    filteredClients,
+  } = useEnrollmentFilters(allClients, routeSearch);
 
   searchQueryRef.current = searchQuery;
   useEffect(() => { setSearchQuery(routeSearch); }, [routeSearch, setSearchQuery]);
 
   // Export
-  const { exporting, handleExportEnrollments } = useEnrollmentExport(authToken);
+  const { exporting, handleExportEnrollments } = useEnrollmentExport();
 
   // Academic users can be assigned to client records.
-  const { teachers, fetchTeachers } = useTeachers(authToken, canAssignAcademic);
+  const {
+    academicUsers,
+    fetchAcademicUsers,
+    error: academicUsersError,
+  } = useAcademicUsers(authToken, canAssignAcademic);
   const [assigningClientId, setAssigningClientId] = useState(null);
-  const [editingStudent, setEditingStudent] = useState(null);
+  const [editingClient, setEditingClient] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [toast, setToast] = useState({
     show: false,
@@ -93,28 +98,28 @@ const Clients = () => {
     if (previousSearchQueryRef.current === searchQuery) return undefined;
     previousSearchQueryRef.current = searchQuery;
     const timer = window.setTimeout(() => {
-      if (currentPageRef.current === 1) fetchEnrolledStudents(1);
+      if (currentPageRef.current === 1) fetchEnrolledClients(1);
       else setCurrentPage(1);
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [fetchEnrolledStudents, searchQuery, searchQueryRef, setCurrentPage]);
+  }, [fetchEnrolledClients, searchQuery, searchQueryRef, setCurrentPage]);
 
   useEffect(() => {
-    if (authToken) fetchEnrolledStudents(currentPage);
-  }, [authToken, currentPage, fetchEnrolledStudents]);
+    if (authToken) fetchEnrolledClients(currentPage);
+  }, [authToken, currentPage, fetchEnrolledClients]);
 
   useEnrollmentEvents({
     authToken,
-    fetchEnrolledStudents,
+    fetchEnrolledClients,
     currentPage,
   });
   useEffect(() => {
-    fetchTeachers();
-  }, [fetchTeachers]);
+    fetchAcademicUsers();
+  }, [fetchAcademicUsers]);
 
   useRealtimeRefresh(authToken, () => {
-    fetchEnrolledStudents(currentPage, { silent: true });
-    if (canAssignAcademic) fetchTeachers();
+    fetchEnrolledClients(currentPage, { silent: true });
+    if (canAssignAcademic) fetchAcademicUsers();
   });
 
   useEffect(() => {
@@ -125,7 +130,7 @@ const Clients = () => {
       const now = Date.now();
       if (now - lastRefreshAt < 3000) return;
       lastRefreshAt = now;
-      fetchEnrolledStudents(currentPage, { silent: true });
+      fetchEnrolledClients(currentPage, { silent: true });
     };
     const interval = window.setInterval(refreshVisiblePage, 30000);
     window.addEventListener("focus", refreshVisiblePage);
@@ -135,44 +140,51 @@ const Clients = () => {
       window.removeEventListener("focus", refreshVisiblePage);
       document.removeEventListener("visibilitychange", refreshVisiblePage);
     };
-  }, [authToken, currentPage, fetchEnrolledStudents]);
+  }, [authToken, currentPage, fetchEnrolledClients]);
 
   const onExport = useCallback(() => {
-    handleExportEnrollments({ searchQuery }).catch((exportError) => {
+    handleExportEnrollments({ clients: filteredClients, searchQuery }).catch((exportError) => {
       setToast({ show: true, message: exportError.message || "Could not export clients", type: "error" });
     });
-  }, [handleExportEnrollments, searchQuery]);
+  }, [filteredClients, handleExportEnrollments, searchQuery]);
+
+  const setAcademicFilter = useCallback((field, value) => {
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set(field, value);
+    else next.delete(field);
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const {
     handleDelete,
     handleBulkDelete,
   } = useEnrollmentUpdates({
     authToken,
-    allStudents,
-    setAllStudents,
+    allClients,
+    setAllClients,
     setCurrentPage,
-    fetchEnrolledStudents,
+    fetchEnrolledClients,
     currentPage,
     setToast,
   });
 
-  // Open edit modal for a student
-  const handleEdit = useCallback((student) => {
-    setEditingStudent(student);
+  // Open edit modal for a client
+  const handleEdit = useCallback((client) => {
+    setEditingClient(client);
     setIsModalOpen(true);
   }, []);
 
   const handleCloseModal = useCallback(() => {
     setIsModalOpen(false);
-    setEditingStudent(null);
+    setEditingClient(null);
   }, []);
 
   const handleAssignAcademic = useCallback(async (clientId, assignedTo) => {
     setAssigningClientId(clientId);
     try {
       const updated = await clientService.assignAcademic(clientId, assignedTo, authToken);
-      setAllStudents((students) => students.map((student) =>
-        student.id === clientId ? { ...student, ...updated } : student
+      setAllClients((clients) => clients.map((client) =>
+        client.id === clientId ? { ...client, ...updated } : client
       ));
       setToast({
         show: true,
@@ -190,7 +202,7 @@ const Clients = () => {
     } finally {
       setAssigningClientId(null);
     }
-  }, [authToken, setAllStudents]);
+  }, [authToken, setAllClients]);
 
   // Show the shared page loader only on the very first load.
   if (initialLoad)
@@ -198,12 +210,12 @@ const Clients = () => {
 
   if (error) {
     return (
-      <div className="m-6 rounded-md bg-red-50 p-4 text-red-700" role="alert">
+      <div className="m-6 rounded-md bg-rose-50 p-4 text-rose-700" role="alert">
         <p>Could not load clients: {error}</p>
         <button
           type="button"
-          onClick={() => fetchEnrolledStudents(currentPage)}
-          className="mt-2 rounded border border-red-200 px-3 py-1 text-sm hover:bg-red-100"
+          onClick={() => fetchEnrolledClients(currentPage)}
+          className="mt-2 rounded border border-rose-200 px-3 py-1 text-sm hover:bg-rose-100"
         >
           Retry
         </button>
@@ -212,57 +224,59 @@ const Clients = () => {
   }
 
   return (
-    <div className="flex flex-col min-h-full bg-[#F8FAFC] font-[Inter,system-ui,sans-serif] antialiased">
-      {/* ─── Header: Aligned with Leads & Demo ─── */}
-      <div className="px-6 py-5 border-b border-slate-200 bg-white">
-        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-[22px] font-[700] text-slate-900 tracking-[-0.015em]">
-                Clients Management
-              </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-[12px] font-[500] bg-[#EEF2F6] text-slate-600">
-                {allStudents.length} on this page
-              </span>
-            </div>
-            <p className="text-[13px] text-slate-500 mt-1">
-              Manage and track school clients, institutional contracts, and fee structures.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <button
-              onClick={() => fetchEnrolledStudents(currentPage)}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-[8px] text-[13px] font-[500] bg-[#EEF2F6] hover:bg-slate-200 text-slate-700 transition-colors"
+    <PageShell className="flex flex-col">
+      <PageHeader
+        title="Clients Management"
+        description="Manage and track school clients, institutional contracts, and fee structures."
+        badge={(
+          <span className="rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-slate-600">
+            {allClients.length} on this page
+          </span>
+        )}
+        actions={(
+          <>
+            <Button
+              type="button"
+              variant="refresh"
+              onClick={() => fetchEnrolledClients(currentPage)}
             >
               <RotateCw className="h-4 w-4" />
               Refresh
-            </button>
+            </Button>
 
-            <button
+            <Button
+              type="button"
+              variant="primary"
               onClick={onExport}
               disabled={exporting}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-[8px] text-[13px] font-[500] bg-[#294998] hover:bg-[#1E3776] text-white shadow-xs transition-colors disabled:opacity-50"
             >
               <FileDown className="h-4 w-4" />
               {exporting ? "Exporting..." : "Export CSV"}
-            </button>
-          </div>
-        </div>
-      </div>
+            </Button>
+          </>
+        )}
+      />
 
       <FiltersPanel
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         onClear={() => setSearchQuery("")}
         loading={loading}
+        academicUsers={academicUsers}
+        assignedTo={routeFilters.assigned_to || ""}
+        onAcademicFilterChange={(value) => setAcademicFilter("assigned_to", value)}
       />
 
       {/* ─── Clients Table & Content ─── */}
       <div className="p-6">
+        {academicUsersError && (
+          <div role="alert" className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {academicUsersError}
+          </div>
+        )}
         <ClientsTable
-          students={filteredStudents}
-          teachers={teachers}
+          clients={filteredClients}
+          academicUsers={academicUsers}
           canManage={canManageClients}
           canAssignAcademic={canAssignAcademic}
           assigningClientId={assigningClientId}
@@ -270,61 +284,41 @@ const Clients = () => {
           handleEdit={handleEdit}
           handleDelete={handleDelete}
           handleBulkDelete={handleBulkDelete}
+          pagination={totalPages > 0 ? (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              disabled={loading}
+              summary={(
+                <span>
+                  Showing{" "}
+                  <span className="font-semibold text-slate-900">
+                    {filteredClients.length ? (currentPage - 1) * ITEMS_PER_PAGE + 1 : 0}
+                  </span>{" "}
+                  to{" "}
+                  <span className="font-semibold text-slate-900">
+                    {(currentPage - 1) * ITEMS_PER_PAGE + filteredClients.length}
+                  </span>{" "}
+                  on this page
+                </span>
+              )}
+            />
+          ) : null}
         />
 
-        {/* ─── Integrated Pagination Controls ─── */}
-        {totalPages > 0 && (
-          <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3 px-1">
-            <p className="text-[13px] text-slate-500">
-              Showing{" "}
-              <span className="font-semibold text-slate-900">
-                {filteredStudents.length ? (currentPage - 1) * ITEMS_PER_PAGE + 1 : 0}
-              </span>{" "}
-              to{" "}
-              <span className="font-semibold text-slate-900">
-                {(currentPage - 1) * ITEMS_PER_PAGE + filteredStudents.length}
-              </span>{" "}
-              on this page
-            </p>
-
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="inline-flex items-center gap-1 px-3 py-1.5 text-[13px] font-[500] text-slate-700 bg-white border border-slate-200 rounded-[8px] hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-2xs"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </button>
-              <span className="px-3 py-1.5 text-[13px] font-[500] text-slate-600 bg-slate-100 rounded-[8px] border border-slate-200/70">
-                Page {currentPage} of {Math.max(1, totalPages)}
-              </span>
-              <button
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(totalPages, p + 1))
-                }
-                disabled={currentPage === totalPages || totalPages === 0}
-                className="inline-flex items-center gap-1 px-3 py-1.5 text-[13px] font-[500] text-slate-700 bg-white border border-slate-200 rounded-[8px] hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-2xs"
-              >
-                Next
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Edit Modal */}
-        {isModalOpen && editingStudent && (
+        {isModalOpen && editingClient && (
           <ClientEditModal
             isOpen={isModalOpen}
-            client={editingStudent}
+            client={editingClient}
             authToken={authToken}
-            teachers={teachers}
+            academicUsers={academicUsers}
             onClose={handleCloseModal}
             onSave={() => {
               setIsModalOpen(false);
-              setEditingStudent(null);
-              fetchEnrolledStudents(currentPage);
+              setEditingClient(null);
+              fetchEnrolledClients(currentPage);
               setToast({
                 show: true,
                 message: "Client details updated successfully",
@@ -346,7 +340,7 @@ const Clients = () => {
           />
         )}
       </div>{/* end p-6 */}
-    </div>
+    </PageShell>
   );
 };
 

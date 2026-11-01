@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  XMarkIcon,
-  CalendarDaysIcon,
-  PhoneIcon,
-  BuildingOffice2Icon,
-  ArrowPathIcon,
-  ChatBubbleLeftRightIcon,
-  TagIcon,
-  ClockIcon,
-} from "@heroicons/react/24/outline";
+  X as XMarkIcon,
+  CalendarDays as CalendarDaysIcon,
+  Phone as PhoneIcon,
+  Building2 as BuildingOffice2Icon,
+  RefreshCw as ArrowPathIcon,
+  MessagesSquare as ChatBubbleLeftRightIcon,
+  Tag as TagIcon,
+  Clock3 as ClockIcon,
+} from "lucide-react";
 import { getSubStatusClasses } from "./helpers.js";
 import { catalogService, leadService } from "../services/api";
 
@@ -132,7 +132,7 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
 
   // sub_status — lead pipeline position — Task 3.5: editable only here
   const [subStatus, setSubStatus] = useState(
-    lead?.sub_status || lead?.substatus || "New"
+    lead?.sub_status || "New"
   );
 
   useEffect(() => {
@@ -154,6 +154,10 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
     }
     if (!followupAt) {
       setError("Follow-up date is required.");
+      return;
+    }
+    if (new Date(followupAt) < new Date()) {
+      setError("Follow-up date cannot be in the past.");
       return;
     }
     submittingRef.current = true;
@@ -203,7 +207,7 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs transition-opacity crm-animate-in crm-fade-in-0"
       onClick={(e) => {
         if (e.target === e.currentTarget && !saving) onClose();
       }}
@@ -213,7 +217,7 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
         <div className="px-6 py-4 border-b border-slate-100 flex items-start justify-between bg-white">
           <div>
             <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#EDF2FC] text-[#294998]">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-light text-primary">
                 <CalendarDaysIcon className="h-4 w-4" />
               </span>
               {/* Task 3.1: "Activity Log" label */}
@@ -249,7 +253,7 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
           {/* Task 3.2: Date field (activity_at) — auto-set to today, editable */}
           <div>
             <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-              <CalendarDaysIcon className="h-3.5 w-3.5 text-[#294998]" />
+              <CalendarDaysIcon className="h-3.5 w-3.5 text-primary" />
               <span>Date</span>
               <span className="text-rose-500 ml-0.5">*</span>
             </label>
@@ -259,16 +263,16 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
               onChange={(e) => setActivityAt(e.target.value)}
               max={todayISO}
               required
-              className="w-full h-10 px-3 text-sm rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-white focus:bg-white focus:border-[#294998] focus:ring-2 focus:ring-[#294998]/15 outline-none transition-all text-slate-800"
+              className="w-full h-10 px-3 text-sm rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-white focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/15 outline-none transition-all text-slate-800"
             />
-            <p className="mt-1 text-[11px] text-slate-400">Cannot be set in the future.</p>
+            <p className="mt-1 text-xs text-slate-400">Cannot be set in the future.</p>
           </div>
 
           {/* Task 3.6: Activity Type — dynamic dropdown */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                <TagIcon className="h-3.5 w-3.5 text-[#294998]" />
+                <TagIcon className="h-3.5 w-3.5 text-primary" />
                 <span>Activity Type</span>
                 <span className="text-rose-500 ml-0.5">*</span>
               </label>
@@ -287,7 +291,7 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
                       onClick={() => setActivityType(preset.value)}
                       className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                         isSelected
-                          ? "bg-[#294998] text-white border-[#294998] shadow-sm"
+                          ? "bg-primary text-white border-primary shadow-sm"
                           : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
                       }`}
                     >
@@ -304,7 +308,7 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
               value={activityType}
               onChange={(e) => setActivityType(e.target.value)}
               required
-              className="w-full h-10 px-3 text-sm rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-white focus:bg-white focus:border-[#294998] focus:ring-2 focus:ring-[#294998]/15 outline-none transition-all text-slate-800"
+              className="w-full h-10 px-3 text-sm rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-white focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/15 outline-none transition-all text-slate-800"
             >
               {ACTIVITY_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -316,11 +320,11 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                <ArrowPathIcon className="h-3.5 w-3.5 text-[#294998]" />
+                <ArrowPathIcon className="h-3.5 w-3.5 text-primary" />
                 <span>Substatus</span>
               </label>
               <span
-                className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold border ${getSubStatusClasses(subStatus)}`}
+                className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold border ${getSubStatusClasses(subStatus)}`}
               >
                 {subStatus}
               </span>
@@ -328,13 +332,13 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
             <select
               value={subStatus}
               onChange={(e) => setSubStatus(e.target.value)}
-              className="w-full h-10 px-3 text-sm rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-white focus:bg-white focus:border-[#294998] focus:ring-2 focus:ring-[#294998]/15 outline-none transition-all text-slate-800 font-medium"
+              className="w-full h-10 px-3 text-sm rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-white focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/15 outline-none transition-all text-slate-800 font-medium"
             >
               {subStatusOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
-            <p className="mt-1 text-[11px] text-slate-400">
+            <p className="mt-1 text-xs text-slate-400">
               Updates the lead's activity log position. (Task 3.5: only editable here)
             </p>
           </div>
@@ -343,7 +347,7 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                <ClockIcon className="h-3.5 w-3.5 text-[#294998]" />
+                <ClockIcon className="h-3.5 w-3.5 text-primary" />
                 <span>Followup Date</span>
                 <span className="text-rose-500 ml-0.5">*</span>
               </label>
@@ -357,7 +361,7 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
                     key={days}
                     type="button"
                     onClick={() => handleQuickFollowUp(days)}
-                    className="text-[11px] font-medium text-[#294998] hover:text-[#1E3776] px-1.5 py-0.5 rounded hover:bg-[#EDF2FC]"
+                    className="text-xs font-medium text-primary hover:text-primary-hover px-1.5 py-0.5 rounded hover:bg-primary-light"
                   >
                     {label}
                   </button>
@@ -366,7 +370,7 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
                   <button
                     type="button"
                     onClick={() => setFollowupAt("")}
-                    className="text-[11px] font-medium text-slate-400 hover:text-rose-600 px-1.5 py-0.5 rounded hover:bg-rose-50"
+                    className="text-xs font-medium text-slate-400 hover:text-rose-600 px-1.5 py-0.5 rounded hover:bg-rose-50"
                   >
                     Clear
                   </button>
@@ -377,15 +381,16 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
               type="datetime-local"
               value={followupAt}
               onChange={(e) => setFollowupAt(e.target.value)}
+              min={todayISO}
               required
-              className="w-full h-10 px-3 text-sm rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-white focus:bg-white focus:border-[#294998] focus:ring-2 focus:ring-[#294998]/15 outline-none transition-all text-slate-800"
+              className="w-full h-10 px-3 text-sm rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-white focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/15 outline-none transition-all text-slate-800"
             />
           </div>
 
           {/* Task 3.2: Remarks (required) */}
           <div>
             <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-              <ChatBubbleLeftRightIcon className="h-3.5 w-3.5 text-[#294998]" />
+              <ChatBubbleLeftRightIcon className="h-3.5 w-3.5 text-primary" />
               <span>Remarks</span>
               <span className="text-rose-500 ml-0.5">*</span>
             </label>
@@ -395,7 +400,7 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
               onChange={(e) => setRemarks(e.target.value)}
               required
               placeholder="What was discussed? Next steps..."
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-white focus:bg-white focus:border-[#294998] focus:ring-2 focus:ring-[#294998]/15 outline-none transition-all text-slate-800 placeholder:text-slate-400 resize-none"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-white focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/15 outline-none transition-all text-slate-800 placeholder:text-slate-400 resize-none"
             />
           </div>
 
@@ -414,7 +419,7 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-[#294998] hover:bg-[#1E3776] rounded-lg shadow-sm hover:shadow transition-all cursor-pointer disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-primary hover:bg-primary-hover rounded-lg shadow-sm hover:shadow transition-all cursor-pointer disabled:opacity-60"
             >
               {saving ? (
                 <>

@@ -230,7 +230,7 @@ const MainLayout = () => {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex h-screen bg-[#F8FAFC] font-[Inter,system-ui,sans-serif] antialiased overflow-hidden">
+      <div className="flex h-screen overflow-hidden bg-canvas">
 
         {/* ─── Mobile overlay ─── */}
         {sidebarOpen && (
@@ -258,10 +258,10 @@ const MainLayout = () => {
               />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[13.5px] font-[700] leading-[18px] tracking-[-0.01em] truncate">
-                <span className="text-[#294998]">MeroCoding</span>
+              <p className="text-sm font-bold leading-5 tracking-[-0.01em] truncate">
+                <span className="text-primary">MeroCoding</span>
               </p>
-              <p className="text-[11px] font-[500] text-slate-400 leading-[14px] truncate mt-0.5">
+              <p className="text-xs font-medium text-slate-400 leading-[14px] truncate mt-0.5">
                 School CRM
               </p>
             </div>
@@ -275,7 +275,7 @@ const MainLayout = () => {
 
           {/* Nav */}
           <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
-            <p className="px-2.5 pt-1 pb-2 text-[10px] font-[600] text-slate-400 uppercase tracking-[0.06em]">
+            <p className="px-2.5 pt-1 pb-2 text-xs font-semibold text-slate-400 uppercase tracking-[0.06em]">
               Main
             </p>
             {visibleNavItems.map(({ to, icon: Icon, label }) => (
@@ -285,10 +285,10 @@ const MainLayout = () => {
                 onClick={() => setSidebarOpen(false)}
                 className={({ isActive }) =>
                   cn(
-                    "relative isolate flex items-center gap-2.5 px-2.5 py-2 rounded-[10px] text-[13px] font-[500] transition-all duration-300 ease-out group overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#294998]/30 focus-visible:ring-offset-1 motion-reduce:transition-none",
+                    "relative isolate flex items-center gap-2.5 px-2.5 py-2 rounded-[10px] text-sm font-medium transition-all duration-300 ease-out group overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1 motion-reduce:transition-none",
                     isActive
-                      ? "bg-gradient-to-r from-[#edf2fc] via-[#edf2fc]/70 to-white text-[#172b5c] font-[600] border border-[#cddbf6]/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_6px_rgba(41,73,152,0.07)]"
-                      : "text-slate-600 border border-transparent hover:-translate-y-0.5 hover:border-[#d6e2f8] hover:bg-white hover:text-[#203b78] hover:shadow-[0_5px_14px_rgba(41,73,152,0.10)] focus-visible:border-[#d6e2f8]"
+                      ? "bg-gradient-to-r from-primary-light via-primary-light/70 to-white text-primary-dark font-semibold border border-primary-border/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_6px_rgba(var(--primary-rgb),0.07)]"
+                      : "text-slate-600 border border-transparent hover:-translate-y-0.5 hover:border-primary-border hover:bg-white hover:text-primary-hover hover:shadow-[0_5px_14px_rgba(var(--primary-rgb),0.10)] focus-visible:border-primary-border"
                   )
                 }
               >
@@ -297,7 +297,7 @@ const MainLayout = () => {
                     <span
                       aria-hidden="true"
                       className={cn(
-                        "pointer-events-none absolute inset-0 bg-gradient-to-r from-[#294998]/[0.08] via-[#294998]/[0.035] to-transparent transition-opacity duration-300 group-focus-visible:opacity-100 motion-reduce:transition-none",
+                        "pointer-events-none absolute inset-0 bg-gradient-to-r from-primary/[0.08] via-primary/[0.035] to-transparent transition-opacity duration-300 group-focus-visible:opacity-100 motion-reduce:transition-none",
                         isActive ? "opacity-0" : "opacity-0 group-hover:opacity-100"
                       )}
                     />
@@ -306,7 +306,7 @@ const MainLayout = () => {
                     <span
                       aria-hidden="true"
                       className={cn(
-                        "absolute left-0 top-2 bottom-2 w-[3px] origin-center rounded-r-full bg-[#E8A026] shadow-[0_0_9px_rgba(232,160,38,0.45)] transition-transform duration-300 ease-out motion-reduce:transition-none",
+                        "absolute left-0 top-2 bottom-2 w-[3px] origin-center rounded-r-full bg-accent shadow-[0_0_9px_rgba(var(--accent-rgb),0.45)] transition-transform duration-300 ease-out motion-reduce:transition-none",
                         isActive ? "scale-y-100" : "scale-y-0 group-hover:scale-y-100 group-focus-visible:scale-y-100"
                       )}
                     />
@@ -316,8 +316,8 @@ const MainLayout = () => {
                       className={cn(
                         "relative z-10 h-7 w-7 rounded-[8px] flex items-center justify-center shrink-0 transition-all duration-300 ease-out motion-reduce:transition-none",
                         isActive
-                          ? "bg-[#294998] text-white shadow-[0_3px_8px_rgba(41,73,152,0.28)]"
-                          : "bg-slate-100/80 text-slate-500 group-hover:-translate-y-0.5 group-hover:rotate-[-4deg] group-hover:scale-110 group-hover:bg-gradient-to-br group-hover:from-[#294998] group-hover:to-[#4569b6] group-hover:text-white group-hover:shadow-[0_5px_10px_rgba(41,73,152,0.28)] group-focus-visible:bg-[#294998] group-focus-visible:text-white group-focus-visible:shadow-[0_5px_10px_rgba(41,73,152,0.22)]"
+                          ? "bg-primary text-white shadow-[0_3px_8px_rgba(var(--primary-rgb),0.28)]"
+                          : "bg-slate-100/80 text-slate-500 group-hover:-translate-y-0.5 group-hover:rotate-[-4deg] group-hover:scale-110 group-hover:bg-gradient-to-br group-hover:from-primary group-hover:to-primary-hover group-hover:text-white group-hover:shadow-[0_5px_10px_rgba(var(--primary-rgb),0.28)] group-focus-visible:bg-primary group-focus-visible:text-white group-focus-visible:shadow-[0_5px_10px_rgba(var(--primary-rgb),0.22)]"
                       )}
                     >
                       <Icon className="h-3.5 w-3.5 transition-transform duration-300 group-hover:rotate-[4deg] group-hover:scale-110 motion-reduce:transition-none" />
@@ -326,7 +326,7 @@ const MainLayout = () => {
                     <span className="relative z-10 truncate transition-transform duration-300 group-hover:translate-x-0.5 group-focus-visible:translate-x-0.5 motion-reduce:transition-none">{label}</span>
 
                     {label === "Approvals" && pendingApprovalCount > 0 && (
-                      <span aria-label={`${pendingApprovalCount} pending approvals`} className="relative z-10 ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white shadow-sm">
+                      <span aria-label={`${pendingApprovalCount} pending approvals`} className="relative z-10 ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-xs font-bold leading-none text-white shadow-sm">
                         {pendingApprovalCount > 99 ? "99+" : pendingApprovalCount}
                       </span>
                     )}
@@ -336,8 +336,8 @@ const MainLayout = () => {
                       className={cn(
                         "relative z-10 ml-auto h-3.5 w-3.5 shrink-0 transition-all duration-300 ease-out motion-reduce:transition-none",
                         isActive
-                          ? "text-[#294998] opacity-90 translate-x-0 group-hover:translate-x-0.5"
-                          : "text-[#294998] opacity-0 -translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 group-focus-visible:opacity-80 group-focus-visible:translate-x-0"
+                          ? "text-primary opacity-90 translate-x-0 group-hover:translate-x-0.5"
+                          : "text-primary opacity-0 -translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 group-focus-visible:opacity-80 group-focus-visible:translate-x-0"
                       )}
                     />
                   </>
@@ -355,10 +355,10 @@ const MainLayout = () => {
                 onClick={() => setSidebarOpen(false)}
                 className={({ isActive }) =>
                   cn(
-                    "relative isolate flex items-center gap-2.5 px-2.5 py-2 rounded-[10px] text-[13px] font-[500] transition-all duration-300 ease-out group overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#294998]/30 focus-visible:ring-offset-1 motion-reduce:transition-none",
+                    "relative isolate flex items-center gap-2.5 px-2.5 py-2 rounded-[10px] text-sm font-medium transition-all duration-300 ease-out group overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1 motion-reduce:transition-none",
                     isActive
-                      ? "bg-gradient-to-r from-[#edf2fc] via-[#edf2fc]/70 to-white text-[#172b5c] font-[600] border border-[#cddbf6]/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_6px_rgba(41,73,152,0.07)]"
-                      : "text-slate-600 border border-transparent hover:-translate-y-0.5 hover:border-[#d6e2f8] hover:bg-white hover:text-[#203b78] hover:shadow-[0_5px_14px_rgba(41,73,152,0.10)] focus-visible:border-[#d6e2f8]"
+                      ? "bg-gradient-to-r from-primary-light via-primary-light/70 to-white text-primary-dark font-semibold border border-primary-border/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_6px_rgba(var(--primary-rgb),0.07)]"
+                      : "text-slate-600 border border-transparent hover:-translate-y-0.5 hover:border-primary-border hover:bg-white hover:text-primary-hover hover:shadow-[0_5px_14px_rgba(var(--primary-rgb),0.10)] focus-visible:border-primary-border"
                   )
                 }
               >
@@ -367,7 +367,7 @@ const MainLayout = () => {
                     <span
                       aria-hidden="true"
                       className={cn(
-                        "pointer-events-none absolute inset-0 bg-gradient-to-r from-[#294998]/[0.08] via-[#294998]/[0.035] to-transparent transition-opacity duration-300 group-focus-visible:opacity-100 motion-reduce:transition-none",
+                        "pointer-events-none absolute inset-0 bg-gradient-to-r from-primary/[0.08] via-primary/[0.035] to-transparent transition-opacity duration-300 group-focus-visible:opacity-100 motion-reduce:transition-none",
                         isActive ? "opacity-0" : "opacity-0 group-hover:opacity-100"
                       )}
                     />
@@ -376,7 +376,7 @@ const MainLayout = () => {
                     <span
                       aria-hidden="true"
                       className={cn(
-                        "absolute left-0 top-2 bottom-2 w-[3px] origin-center rounded-r-full bg-[#E8A026] shadow-[0_0_9px_rgba(232,160,38,0.45)] transition-transform duration-300 ease-out motion-reduce:transition-none",
+                        "absolute left-0 top-2 bottom-2 w-[3px] origin-center rounded-r-full bg-accent shadow-[0_0_9px_rgba(var(--accent-rgb),0.45)] transition-transform duration-300 ease-out motion-reduce:transition-none",
                         isActive ? "scale-y-100" : "scale-y-0 group-hover:scale-y-100 group-focus-visible:scale-y-100"
                       )}
                     />
@@ -386,8 +386,8 @@ const MainLayout = () => {
                       className={cn(
                         "relative z-10 h-7 w-7 rounded-[8px] flex items-center justify-center shrink-0 transition-all duration-300 ease-out motion-reduce:transition-none",
                         isActive
-                          ? "bg-[#294998] text-white shadow-[0_3px_8px_rgba(41,73,152,0.28)]"
-                          : "bg-slate-100/80 text-slate-500 group-hover:-translate-y-0.5 group-hover:rotate-[-4deg] group-hover:scale-110 group-hover:bg-gradient-to-br group-hover:from-[#294998] group-hover:to-[#4569b6] group-hover:text-white group-hover:shadow-[0_5px_10px_rgba(41,73,152,0.28)] group-focus-visible:bg-[#294998] group-focus-visible:text-white group-focus-visible:shadow-[0_5px_10px_rgba(41,73,152,0.22)]"
+                          ? "bg-primary text-white shadow-[0_3px_8px_rgba(var(--primary-rgb),0.28)]"
+                          : "bg-slate-100/80 text-slate-500 group-hover:-translate-y-0.5 group-hover:rotate-[-4deg] group-hover:scale-110 group-hover:bg-gradient-to-br group-hover:from-primary group-hover:to-primary-hover group-hover:text-white group-hover:shadow-[0_5px_10px_rgba(var(--primary-rgb),0.28)] group-focus-visible:bg-primary group-focus-visible:text-white group-focus-visible:shadow-[0_5px_10px_rgba(var(--primary-rgb),0.22)]"
                       )}
                     >
                       <Icon className="h-3.5 w-3.5 transition-transform duration-300 group-hover:rotate-[4deg] group-hover:scale-110 motion-reduce:transition-none" />
@@ -400,8 +400,8 @@ const MainLayout = () => {
                       className={cn(
                         "relative z-10 ml-auto h-3.5 w-3.5 shrink-0 transition-all duration-300 ease-out motion-reduce:transition-none",
                         isActive
-                          ? "text-[#294998] opacity-90 translate-x-0 group-hover:translate-x-0.5"
-                          : "text-[#294998] opacity-0 -translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 group-focus-visible:opacity-80 group-focus-visible:translate-x-0"
+                          ? "text-primary opacity-90 translate-x-0 group-hover:translate-x-0.5"
+                          : "text-primary opacity-0 -translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 group-focus-visible:opacity-80 group-focus-visible:translate-x-0"
                       )}
                     />
                   </>
@@ -413,10 +413,10 @@ const MainLayout = () => {
           {/* Bottom Copyright */}
           <div className="px-3 pb-3 shrink-0">
             <div className="flex items-center justify-between px-3 py-2 rounded-[9px] bg-slate-50 border border-slate-200/60 shadow-2xs">
-              <span className="text-[11px] font-[500] text-slate-600 truncate">
+              <span className="text-xs font-medium text-slate-600 truncate">
                 © 2026 MeroCoding
               </span>
-              <span className="text-[9.5px] font-[600] px-1.5 py-0.5 rounded-[5px] bg-white text-slate-500 border border-slate-200/70 uppercase tracking-wider shadow-2xs shrink-0">
+              <span className="text-xs font-semibold px-1.5 py-0.5 rounded-[5px] bg-white text-slate-500 border border-slate-200/70 uppercase tracking-wider shadow-2xs shrink-0">
                 CRM
               </span>
             </div>
@@ -435,7 +435,7 @@ const MainLayout = () => {
             </button>
 
             {/* Breadcrumb */}
-            <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-[13px] min-w-0">
+            <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-sm min-w-0">
               {breadcrumbs.map((b, i) => (
                 <React.Fragment key={`${i}-${b.to}`}>
                   {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-slate-300 shrink-0" />}
@@ -448,7 +448,7 @@ const MainLayout = () => {
                       {i > 0 && <span className="hidden sm:inline">{b.label}</span>}
                     </Link>
                   ) : (
-                    <span className="font-[600] text-slate-900 truncate">
+                    <span className="font-semibold text-slate-900 truncate">
                       {i === 0 ? (
                         <span className="flex items-center gap-1">
                           <Home className="h-3.5 w-3.5 shrink-0" />
@@ -468,11 +468,11 @@ const MainLayout = () => {
               {/* Command palette trigger */}
               <button
                 onClick={() => { setCommandOpen(true); setCommandQuery(""); }}
-                className="hidden md:flex items-center gap-2 h-8 px-3 rounded-[8px] border border-slate-200 bg-slate-50 text-slate-400 text-[13px] cursor-pointer hover:border-slate-300 transition-colors min-w-[180px]"
+                className="hidden md:flex items-center gap-2 h-8 px-3 rounded-[8px] border border-slate-200 bg-slate-50 text-slate-400 text-sm cursor-pointer hover:border-slate-300 transition-colors min-w-[180px]"
               >
                 <Search className="h-3.5 w-3.5 shrink-0" />
                 <span className="flex-1 text-left">Search…</span>
-                <span className="ml-auto text-[11px] font-[500] px-1.5 py-0.5 rounded bg-slate-200 text-slate-500 shrink-0">⌘K</span>
+                <span className="ml-auto text-xs font-medium px-1.5 py-0.5 rounded bg-slate-200 text-slate-500 shrink-0">⌘K</span>
               </button>
 
               <div className="relative">
@@ -488,23 +488,23 @@ const MainLayout = () => {
                   className="relative grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
                 >
                   <Bell className="h-4 w-4" />
-                  {unreadCount > 0 && <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-rose-600 px-1 text-[9px] font-bold leading-none text-white">{unreadCount > 9 ? "9+" : unreadCount}</span>}
+                  {unreadCount > 0 && <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-rose-600 px-1 text-xs font-bold leading-none text-white">{unreadCount > 9 ? "9+" : unreadCount}</span>}
                 </button>
                 {notificationOpen && <>
                   <div className="fixed inset-0 z-40" onClick={() => setNotificationOpen(false)} />
                   <section aria-label="Notifications" className="absolute right-0 top-full z-50 mt-2 w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
                     <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-                      <div><h2 className="text-sm font-semibold text-slate-900">Notifications</h2><p className="mt-0.5 text-[10px] text-slate-400">{unreadCount} unread</p></div>
+                      <div><h2 className="text-sm font-semibold text-slate-900">Notifications</h2><p className="mt-0.5 text-xs text-slate-400">{unreadCount} unread</p></div>
                       <button type="button" aria-label="Refresh notifications" onClick={refreshNotifications} className="rounded p-1.5 text-slate-400 hover:bg-slate-100"><RefreshCw className="h-3.5 w-3.5" /></button>
                     </div>
                     <div className="max-h-[min(65vh,26rem)] overflow-y-auto divide-y divide-slate-100">
                       {notifications.length ? notifications.map((notification) => (
                         <button key={notification.id} type="button" onClick={() => openNotification(notification)} className={`block w-full px-4 py-3 text-left transition hover:bg-slate-50 ${notification.is_read ? "" : "bg-blue-50/40"}`}>
                           <span className="flex items-start gap-2.5">
-                            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${notification.is_read ? "bg-slate-200" : "bg-[#294998]"}`} />
+                            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${notification.is_read ? "bg-slate-200" : "bg-primary"}`} />
                             <span className="min-w-0 flex-1">
                               <span className="block text-xs font-semibold leading-5 text-slate-800">{notification.message || notification.kind?.replaceAll("_", " ")}</span>
-                              <span className="mt-0.5 block truncate text-[10px] text-slate-400">{notification.lead_system_id} · {new Date(notification.sent_at).toLocaleString("en-NP", { dateStyle: "medium", timeStyle: "short" })}</span>
+                              <span className="mt-0.5 block truncate text-xs text-slate-400">{notification.lead_system_id} · {new Date(notification.sent_at).toLocaleString("en-NP", { dateStyle: "medium", timeStyle: "short" })}</span>
                             </span>
                           </span>
                         </button>
@@ -518,7 +518,7 @@ const MainLayout = () => {
               <div className="relative">
                 <button
                   onClick={() => { setNotificationOpen(false); setProfileOpen((o) => !o); }}
-                  className="h-8 w-8 rounded-full bg-[#294998] flex items-center justify-center text-[11px] font-[700] text-white cursor-pointer hover:ring-2 hover:ring-[#294998]/30 transition-all shadow-xs"
+                  className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-white cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all shadow-xs"
                 >
                   {getInitials(username)}
                 </button>
@@ -533,20 +533,20 @@ const MainLayout = () => {
                     {/* Dropdown */}
                     <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-slate-200 rounded-[10px] shadow-lg overflow-hidden z-50">
                       <div className="px-4 py-3 border-b border-slate-100">
-                        <p className="text-[13px] font-[600] text-slate-800 truncate">{username}</p>
-                        <p className="text-[11px] text-slate-400 capitalize">{role || "user"}</p>
+                        <p className="text-sm font-semibold text-slate-800 truncate">{username}</p>
+                        <p className="text-xs text-slate-400 capitalize">{role || "user"}</p>
                       </div>
                       <div className="py-1">
                         <button
                           onClick={() => { setProfileOpen(false); navigate("/profile"); }}
-                          className="w-full flex items-center gap-3 px-4 py-2 text-[13px] text-slate-700 hover:bg-slate-50 transition-colors"
+                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                         >
                           <User className="h-3.5 w-3.5 text-slate-400" />
                           My Profile
                         </button>
                         {isAdmin && <button
                           onClick={() => { setProfileOpen(false); navigate("/settings"); }}
-                          className="w-full flex items-center gap-3 px-4 py-2 text-[13px] text-slate-700 hover:bg-slate-50 transition-colors"
+                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                         >
                           <Settings className="h-3.5 w-3.5 text-slate-400" />
                           Settings
@@ -555,7 +555,7 @@ const MainLayout = () => {
                       <div className="py-1 border-t border-slate-100">
                         <button
                           onClick={() => { setProfileOpen(false); handleLogout(); }}
-                          className="w-full flex items-center gap-3 px-4 py-2 text-[13px] text-rose-500 hover:bg-rose-50 transition-colors"
+                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-rose-500 hover:bg-rose-50 transition-colors"
                         >
                           <LogOut className="h-3.5 w-3.5" />
                           Log out
@@ -592,7 +592,7 @@ const MainLayout = () => {
                     placeholder="Search pages, actions…"
                     value={commandQuery}
                     onChange={(e) => setCommandQuery(e.target.value)}
-                    className="flex-1 text-[14px] text-slate-900 placeholder:text-slate-400 outline-none bg-transparent"
+                    className="flex-1 text-sm text-slate-900 placeholder:text-slate-400 outline-none bg-transparent"
                     onKeyDown={(e) => {
                       if (e.key === "Escape") setCommandOpen(false);
                       if (e.key === "Enter" && filteredCommands.length > 0) {
@@ -602,7 +602,7 @@ const MainLayout = () => {
                   />
                   <button
                     onClick={() => setCommandOpen(false)}
-                    className="text-[11px] font-[500] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded"
+                    className="text-xs font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded"
                   >
                     ESC
                   </button>
@@ -611,23 +611,23 @@ const MainLayout = () => {
                 {/* Results */}
                 <div className="py-2 max-h-72 overflow-y-auto">
                   {filteredCommands.length === 0 ? (
-                    <div className="px-4 py-6 text-center text-[13px] text-slate-400">
+                    <div className="px-4 py-6 text-center text-sm text-slate-400">
                       No results found
                     </div>
                   ) : (
                     <>
-                      <p className="px-4 py-1.5 text-[11px] font-[600] text-slate-400 uppercase tracking-[0.04em]">
+                      <p className="px-4 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-[0.04em]">
                         Navigation
                       </p>
                       {filteredCommands.map((cmd) => (
                         <button
                           key={cmd.to}
                           onClick={() => handleCommandSelect(cmd)}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] text-slate-700 hover:bg-[#edf2fc] hover:text-[#294998] transition-colors group"
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-primary-light hover:text-primary transition-colors group"
                         >
-                          <cmd.icon className="h-4 w-4 text-slate-400 group-hover:text-[#294998] shrink-0" />
+                          <cmd.icon className="h-4 w-4 text-slate-400 group-hover:text-primary shrink-0" />
                           <span>{cmd.label}</span>
-                          <ChevronRight className="h-3.5 w-3.5 text-slate-300 group-hover:text-[#294998]/70 ml-auto" />
+                          <ChevronRight className="h-3.5 w-3.5 text-slate-300 group-hover:text-primary/70 ml-auto" />
                         </button>
                       ))}
                     </>
@@ -635,17 +635,17 @@ const MainLayout = () => {
                 </div>
 
                 {/* Footer */}
-                <div className="px-4 py-2.5 border-t border-slate-100 flex items-center gap-3 text-[11px] text-slate-400">
+                <div className="px-4 py-2.5 border-t border-slate-100 flex items-center gap-3 text-xs text-slate-400">
                   <span className="flex items-center gap-1">
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-100 font-mono text-[10px]">↑↓</kbd>
+                    <kbd className="px-1.5 py-0.5 rounded bg-slate-100 font-mono text-xs">↑↓</kbd>
                     Navigate
                   </span>
                   <span className="flex items-center gap-1">
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-100 font-mono text-[10px]">↵</kbd>
+                    <kbd className="px-1.5 py-0.5 rounded bg-slate-100 font-mono text-xs">↵</kbd>
                     Select
                   </span>
                   <span className="flex items-center gap-1">
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-100 font-mono text-[10px]">esc</kbd>
+                    <kbd className="px-1.5 py-0.5 rounded bg-slate-100 font-mono text-xs">esc</kbd>
                     Close
                   </span>
                 </div>

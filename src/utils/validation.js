@@ -1,4 +1,15 @@
 const PHONE_CHARACTERS = /^\+?[\d\s().-]+$/;
+const ALPHABETIC_NAME = /^\p{L}[\p{L}\p{M} .'-]*$/u;
+const HAS_LETTER = /\p{L}/u;
+
+export function isValidAlphabeticName(value) {
+  const text = String(value || "").trim();
+  return text.length > 0 && ALPHABETIC_NAME.test(text);
+}
+
+export function containsLetter(value) {
+  return HAS_LETTER.test(String(value || ""));
+}
 
 function phoneDigitCount(value) {
   const input = String(value || "").trim();

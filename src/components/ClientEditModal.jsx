@@ -3,12 +3,19 @@ import { X, CheckCircle, School, Calendar, DollarSign, BookOpen, User, Phone, Ma
 import { clientService, catalogService } from "../services/api";
 import { isValidEmail, isValidPhoneNumber } from "../utils/validation";
 
-export default function ClientEditModal({ isOpen, onClose, client, authToken, teachers = [], onSave }) {
+export default function ClientEditModal({ isOpen, onClose, client, authToken, academicUsers = [], onSave }) {
   const [loading, setLoading] = useState(false);
   const [loadingCatalogs, setLoadingCatalogs] = useState(true);
   const [error, setError] = useState(null);
 
   const [packages, setPackages] = useState([]);
+
+  const minimumMouEnd = (startDate) => {
+    if (!startDate) return undefined;
+    const date = new Date(`${startDate}T00:00:00`);
+    date.setDate(date.getDate() + 1);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  };
 
   const [formData, setFormData] = useState({
     principal_name: "",
@@ -25,10 +32,15 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
     pricing_basis: "per_month",
     classes_per_week: 2,
     assigned_to: "",
+    academic_counsellor: "",
     package_type: "",
     exams_count: 0,
     events_count: 0,
   });
+
+  const originalMouStart = client?.mou_start ? String(client.mou_start).split("T")[0] : "";
+  const originalMouEnd = client?.mou_end ? String(client.mou_end).split("T")[0] : "";
+  const mouDatesUnchanged = formData.mou_start === originalMouStart && formData.mou_end === originalMouEnd;
 
   useEffect(() => {
     if (!isOpen || !client) return;
@@ -52,20 +64,25 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
       pricing_basis: client.pricing_basis || "per_month",
       classes_per_week: client.classes_per_week || 2,
       assigned_to: client.assigned_to?.id ?? client.assigned_to ?? "",
+      academic_counsellor: client.academic_counsellor?.id ?? client.academic_counsellor ?? "",
       package_type: client.package_type || "",
       exams_count: client.exams_count || 0,
       events_count: client.events_count || 0,
     });
 
     Promise.all([
-      catalogService.getPackages(authToken).catch(() => []),
+      catalogService.getPackages(authToken),
     ])
       .then(([pkgs]) => {
         if (!mounted) return;
-        setPackages(pkgs);
-        if (!client.package_type && pkgs[0]) {
-          setFormData((prev) => ({ ...prev, package_type: pkgs[0].id }));
+        const activePackages = pkgs.filter((pkg) => pkg.active);
+        setPackages(activePackages);
+        if (!client.package_type && activePackages[0]) {
+          setFormData((prev) => ({ ...prev, package_type: activePackages[0].id }));
         }
+      })
+      .catch((catalogError) => {
+        if (mounted) setError(catalogError.message || "Could not load package choices.");
       })
       .finally(() => {
         if (mounted) setLoadingCatalogs(false);
@@ -133,8 +150,8 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
       return;
     }
 
-    if (new Date(formData.mou_end) < new Date(formData.mou_start)) {
-      setError("MOU end date must be on or after start date.");
+    if (!mouDatesUnchanged && formData.mou_end <= formData.mou_start) {
+      setError("MOU end date must be after start date.");
       return;
     }
 
@@ -155,6 +172,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
         pricing_basis: formData.pricing_basis,
         classes_per_week: Number(formData.classes_per_week),
         assigned_to: formData.assigned_to === "" ? null : Number(formData.assigned_to),
+        academic_counsellor: formData.academic_counsellor === "" ? null : Number(formData.academic_counsellor),
         package_type: Number(formData.package_type),
         exams_count: Number(formData.exams_count || 0),
         events_count: Number(formData.events_count || 0),
@@ -175,17 +193,21 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
   const schoolName = client.school_name || "School Client";
   const systemId = client.system_id || "SCH-000";
   const currentAssignedId = client.assigned_to?.id ?? client.assigned_to;
-  const hasCurrentTeacher = teachers.some(
-    (teacher) => String(teacher.id) === String(currentAssignedId)
+  const hasCurrentAcademicUser = academicUsers.some(
+    (academicUser) => String(academicUser.id) === String(currentAssignedId)
+  );
+  const currentCounsellorId = client.academic_counsellor?.id ?? client.academic_counsellor;
+  const hasCurrentCounsellor = academicUsers.some(
+    (academicUser) => String(academicUser.id) === String(currentCounsellorId)
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm crm-animate-in crm-fade-in-0">
       <div className="relative w-full max-w-3xl max-h-[92vh] overflow-hidden bg-white rounded-2xl shadow-2xl flex flex-col border border-slate-100">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-[#EDF2FC]/40">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-primary-light/40">
           <div className="flex items-center space-x-3">
-            <div className="p-2.5 bg-[#294998] rounded-xl text-white shadow-sm">
+            <div className="p-2.5 bg-primary rounded-xl text-white shadow-sm">
               <School className="w-6 h-6" />
             </div>
             <div>
@@ -193,7 +215,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                 Edit Client Details
               </h2>
               <p className="text-xs text-slate-500">
-                {schoolName} &bull; <span className="font-mono text-[#294998] font-semibold">{systemId}</span>
+                {schoolName} &bull; <span className="font-mono text-primary font-semibold">{systemId}</span>
               </p>
             </div>
           </div>
@@ -208,7 +230,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600 font-medium">
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-sm text-rose-600 font-medium">
               {error}
             </div>
           )}
@@ -216,7 +238,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
           {/* Section 1: Principal Details */}
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
-              <User className="w-4 h-4 text-[#294998]" /> Principal / School Head
+              <User className="w-4 h-4 text-primary" /> Principal / School Head
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
@@ -230,7 +252,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   onChange={handleChange}
                   required
                   maxLength={255}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
                 />
               </div>
               <div>
@@ -246,7 +268,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   maxLength={32}
                   inputMode="tel"
                   title="Enter exactly 10 local digits. A +977 country code is accepted."
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
                 />
               </div>
               <div>
@@ -260,7 +282,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   onChange={handleChange}
                   required
                   maxLength={254}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
                 />
               </div>
             </div>
@@ -269,9 +291,9 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
           {/* Section 2: Operational Contact & Location */}
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
-              <Phone className="w-4 h-4 text-[#294998]" /> Operational Contact & Location
+              <Phone className="w-4 h-4 text-primary" /> Operational Contact & Location
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">
                   Contact Person
@@ -283,7 +305,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   onChange={handleChange}
                   required
                   maxLength={255}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
                 />
               </div>
               <div>
@@ -299,7 +321,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   maxLength={32}
                   inputMode="tel"
                   title="Enter exactly 10 local digits. A +977 country code is accepted."
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
                 />
               </div>
               <div>
@@ -313,7 +335,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   onChange={handleChange}
                   required
                   maxLength={254}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
                 />
               </div>
             </div>
@@ -330,7 +352,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   onChange={handleChange}
                   required
                   maxLength={100}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
                 />
               </div>
               <div>
@@ -344,7 +366,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   onChange={handleChange}
                   required
                   maxLength={100}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
                 />
               </div>
             </div>
@@ -353,7 +375,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
           {/* Section 3: MOU & Financials */}
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
-              <Calendar className="w-4 h-4 text-[#294998]" /> MOU & Pricing
+              <Calendar className="w-4 h-4 text-primary" /> MOU & Pricing
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div>
@@ -366,7 +388,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   value={formData.mou_start}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
                 />
               </div>
               <div>
@@ -379,8 +401,8 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   value={formData.mou_end}
                   onChange={handleChange}
                   required
-                  min={formData.mou_start || undefined}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                  min={mouDatesUnchanged ? originalMouEnd : minimumMouEnd(formData.mou_start)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
                 />
               </div>
               <div>
@@ -392,7 +414,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   value={formData.pricing_basis}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none bg-white"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none bg-white"
                 >
                   <option value="per_month">Per Month</option>
                   <option value="per_class">Per Class</option>
@@ -410,16 +432,16 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   required
                   min="0"
                   step="1"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none font-semibold text-slate-800"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none font-semibold text-slate-800"
                 />
               </div>
             </div>
           </div>
 
-          {/* Section 4: Academic Program — Syllabus Type removed per requirement */}
+          {/* Section 4: Package and syllabus details */}
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
-              <BookOpen className="w-4 h-4 text-[#294998]" /> Package & Program
+              <BookOpen className="w-4 h-4 text-primary" /> Package & Syllabus
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
               <div>
@@ -431,7 +453,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   value={formData.package_type}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none bg-white capitalize"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none bg-white capitalize"
                 >
                   {packages.map((pkg) => (
                     <option key={pkg.id} value={pkg.id}>
@@ -453,28 +475,51 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   min="1"
                   max="14"
                   step="1"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
                 />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">
-                  Academic User
+                  Client Academic Assignee
                 </label>
                 <select
                   name="assigned_to"
                   value={formData.assigned_to}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none bg-white"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none bg-white"
                 >
                   <option value="">Unassigned</option>
-                  {currentAssignedId != null && !hasCurrentTeacher && (
+                  {currentAssignedId != null && !hasCurrentAcademicUser && (
                     <option value={currentAssignedId}>
                       {client.assigned_to_name || currentAssignedId}
                     </option>
                   )}
-                  {teachers.map((teacher) => (
-                    <option key={teacher.id} value={teacher.id}>
-                      {teacher.name}
+                  {academicUsers.map((academicUser) => (
+                    <option key={academicUser.id} value={academicUser.id}>
+                      {academicUser.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Client Academic Counsellor
+                </label>
+                <select
+                  name="academic_counsellor"
+                  value={formData.academic_counsellor}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none bg-white"
+                >
+                  <option value="">Unassigned</option>
+                  {currentCounsellorId != null && !hasCurrentCounsellor && (
+                    <option value={currentCounsellorId}>
+                      {client.academic_counsellor_name || currentCounsellorId}
+                    </option>
+                  )}
+                  {academicUsers.map((academicUser) => (
+                    <option key={academicUser.id} value={academicUser.id}>
+                      {academicUser.name}
                     </option>
                   ))}
                 </select>
@@ -495,7 +540,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   min="0"
                   max="32767"
                   step="1"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
                 />
               </div>
               <div>
@@ -511,7 +556,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
                   min="0"
                   max="32767"
                   step="1"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#294998]/15 focus:border-[#294998] outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
                 />
               </div>
             </div>
@@ -530,7 +575,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, te
             <button
               type="submit"
               disabled={loading || loadingCatalogs}
-              className="px-5 py-2.5 bg-[#294998] hover:bg-[#1E3776] text-white rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 transition-all disabled:opacity-50"
+              className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 transition-all disabled:opacity-50"
             >
               {loading ? (
                 <span>Saving...</span>

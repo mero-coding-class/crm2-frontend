@@ -29,7 +29,7 @@ const GUIDELINES = [
       "Click '+ Add Lead' on the Leads page to create a new school lead.",
       "Fill in required fields: School Name, District, Municipality, Address, Contact Person, and Email.",
       "Contact Number and Landline Number are optional.",
-      "Use 'Course Interest' dropdown to select from courses configured in Settings.",
+      "Use the 'Class Interest' dropdown to select classes configured in Settings.",
       "Assign the lead to a counsellor using the Lead Owner / Call Assignee fields (admin only).",
       "When deleting a lead, it is moved to Archive — not permanently deleted.",
       "Archived leads can be restored at any time from the Archive page.",
@@ -56,7 +56,7 @@ const GUIDELINES = [
     title: "Managing Clients",
     color: "bg-emerald-50 text-emerald-600 border-emerald-100",
     steps: [
-      "Leads become Clients once their status is set to 'Converted'.",
+      "Leads become Clients once their status is set to 'Enrolled'.",
       "Client detail pages are view-only by default — click 'Edit' to make changes.",
       "Use the 'Renew' button on a client record to: move back to Leads (Accepts), keep as Client (Continue), or Archive (Not Interested).",
       "Payment section has been removed from client management.",
@@ -69,9 +69,9 @@ const GUIDELINES = [
     title: "Settings",
     color: "bg-amber-50 text-amber-600 border-amber-100",
     steps: [
-      "Navigate to Settings to manage Users, Courses, and Packages.",
-      "Add courses in Settings → Courses; they will appear in the Course Interest dropdowns across the CRM.",
-      "Package settings: Status and Phase fields have been removed. Client Date and NPR currency are now available.",
+      "Navigate to Settings to manage users, classes, and packages.",
+      "Add classes in Settings → Classes; they will appear in the Class Interest dropdowns across the CRM.",
+      "Package settings let you name and activate packages used during enrollment.",
       "NPR (Nepalese Rupee) is set as the default currency.",
       "Activity Types and Substatuses can be configured from Settings.",
     ],
@@ -98,7 +98,7 @@ const GUIDELINES = [
     steps: [
       "Use the 'Import CSV' button on the Leads or Clients page.",
       "Required CSV columns: school_name, district, municipality, address, contact_person, email.",
-      "Optional columns: contact_number, alt_number (landline), alt_contact_person, social_media, source, course_interest, sub_status.",
+      "Optional columns: contact_number, alt_number (alternate number), landline, alt_contact_person, social_media, source, course_interest, sub_status.",
       "Ensure the CSV uses UTF-8 encoding and the header row matches exactly.",
       "Download the CSV template from the Downloads page for reference.",
       "Rows with missing required fields will be skipped and reported in the import summary.",
@@ -139,16 +139,16 @@ const GuidelineSection = ({ section }) => {
         <div className={`w-8 h-8 rounded-[8px] flex items-center justify-center shrink-0 ${section.color}`}>
           <Icon className="w-4 h-4" />
         </div>
-        <h2 className="text-[14px] font-[700] text-slate-900">{section.title}</h2>
+        <h2 className="text-sm font-bold text-slate-900">{section.title}</h2>
       </div>
       <div className="px-5 py-4">
         <ol className="space-y-2.5">
           {section.steps.map((step, idx) => (
             <li key={idx} className="flex items-start gap-3">
-              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[#EDF2FC] text-[#294998] text-[11px] font-[700] flex items-center justify-center mt-0.5">
+              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary-light text-primary text-xs font-bold flex items-center justify-center mt-0.5">
                 {idx + 1}
               </span>
-              <span className="text-[13px] text-slate-600 leading-[1.6]">{step}</span>
+              <span className="text-sm text-slate-600 leading-[1.6]">{step}</span>
             </li>
           ))}
         </ol>
@@ -159,13 +159,13 @@ const GuidelineSection = ({ section }) => {
 
 const HelpPage = () => {
   return (
-    <div className="bg-[#F8FAFC] min-h-full">
+    <div className="crm-page-shell">
       {/* Page Header */}
       <div className="px-6 py-4 border-b border-slate-200 bg-white">
-        <h1 className="text-[20px] font-[600] leading-[28px] tracking-[-0.015em] text-slate-900">
+        <h1 className="crm-page-title">
           Help &amp; Support
         </h1>
-        <p className="text-[13px] text-slate-500 leading-[18px] mt-0.5">
+        <p className="text-sm text-slate-500 leading-5 mt-0.5">
           CRM user guidelines and support contacts
         </p>
       </div>
@@ -177,14 +177,14 @@ const HelpPage = () => {
             <a
               key={title}
               href={href}
-              className="bg-white rounded-[12px] border border-slate-200 p-5 hover:border-[#CDDBF6] hover:shadow-sm transition-all group"
+              className="bg-white rounded-[12px] border border-slate-200 p-5 hover:border-primary-border hover:shadow-sm transition-all group"
             >
-              <div className="w-9 h-9 rounded-[10px] bg-[#EDF2FC] text-[#294998] flex items-center justify-center mb-3">
+              <div className="w-9 h-9 rounded-[10px] bg-primary-light text-primary flex items-center justify-center mb-3">
                 <Icon className="w-4 h-4" />
               </div>
-              <p className="text-[13px] font-[600] text-slate-900 mb-1">{title}</p>
-              <p className="text-[12px] text-slate-400 leading-[1.6] mb-3">{description}</p>
-              <span className="inline-flex items-center gap-1 text-[12px] font-[500] text-[#294998] group-hover:underline">
+              <p className="text-sm font-semibold text-slate-900 mb-1">{title}</p>
+              <p className="text-xs text-slate-400 leading-[1.6] mb-3">{description}</p>
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-primary group-hover:underline">
                 {action}
                 <ExternalLink className="w-3 h-3" />
               </span>
@@ -193,12 +193,12 @@ const HelpPage = () => {
         </div>
 
         {/* Task 7.1: Guideline Document Header */}
-        <div className="bg-gradient-to-r from-[#294998] to-[#1E3776] rounded-[12px] p-5 text-white">
+        <div className="bg-gradient-to-r from-primary to-primary-hover rounded-[12px] p-5 text-white">
           <div className="flex items-center gap-3 mb-2">
             <BookOpen className="w-5 h-5 opacity-90" />
-            <h2 className="text-[16px] font-[700]">MeroCoding CRM — User Guidelines</h2>
+            <h2 className="text-base font-bold">MeroCoding CRM — User Guidelines</h2>
           </div>
-          <p className="text-[13px] text-white/70 leading-[1.6]">
+          <p className="text-sm text-white/70 leading-[1.6]">
             Step-by-step instructions for every major feature of the CRM system. Follow these guidelines to manage leads, clients, activities, and reports effectively.
           </p>
         </div>
@@ -214,8 +214,8 @@ const HelpPage = () => {
         <div className="bg-amber-50 border border-amber-200 rounded-[12px] p-4 flex items-start gap-3">
           <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
           <div>
-            <p className="text-[13px] font-[600] text-amber-800 mb-1">Important Notes</p>
-            <ul className="text-[12px] text-amber-700 space-y-1 leading-relaxed">
+            <p className="text-sm font-semibold text-amber-800 mb-1">Important Notes</p>
+            <ul className="text-xs text-amber-700 space-y-1 leading-relaxed">
               <li>• All lead deletions are soft-deletes — data is moved to Archive, never permanently removed.</li>
               <li>• Substatus can only be changed via the Activity Log form, not from the view.</li>
               <li>• NPR (Nepalese Rupee) is the default currency for all packages.</li>

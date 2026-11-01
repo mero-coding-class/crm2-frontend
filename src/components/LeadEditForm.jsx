@@ -32,16 +32,18 @@ const LeadEditForm = ({
   validationError = "",
   user = {},
   onClose,
+  classes = [],
+  classLoadError = "",
 }) => {
   const isAdmin = ["admin", "super admin", "superadmin", "super-admin"].includes(
     (user?.role || "").toLowerCase()
   );
 
   const inputClass =
-    "mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-[#294998] focus:border-[#294998] sm:text-sm";
+    "mt-1 block w-full p-2 border border-slate-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm";
   const readOnlyClass =
-    "mt-1 block w-full p-2 border border-gray-200 rounded-md bg-gray-50 text-gray-500 sm:text-sm cursor-not-allowed";
-  const labelClass = "block text-sm font-medium text-gray-700 mb-1";
+    "mt-1 block w-full p-2 border border-slate-200 rounded-md bg-slate-50 text-slate-500 sm:text-sm cursor-not-allowed";
+  const labelClass = "block text-sm font-medium text-slate-700 mb-1";
 
   return (
     <form
@@ -54,7 +56,7 @@ const LeadEditForm = ({
         </div>
       )}
       {/* ── READ-ONLY SECTION ── */}
-      <div className="col-span-1 sm:col-span-2 lg:col-span-3 text-sm font-semibold text-gray-500 border-t pt-3 mt-1 uppercase tracking-wider">
+      <div className="col-span-1 sm:col-span-2 lg:col-span-3 text-sm font-semibold text-slate-500 border-t pt-3 mt-1 uppercase tracking-wider">
         System Info (Read-only)
       </div>
 
@@ -152,7 +154,7 @@ const LeadEditForm = ({
       </div>
 
       {/* ── EDITABLE SECTION ── */}
-      <div className="col-span-1 sm:col-span-2 lg:col-span-3 text-sm font-semibold text-gray-700 border-t pt-3 mt-1 uppercase tracking-wider">
+      <div className="col-span-1 sm:col-span-2 lg:col-span-3 text-sm font-semibold text-slate-700 border-t pt-3 mt-1 uppercase tracking-wider">
         School / Institution
       </div>
 
@@ -240,7 +242,7 @@ const LeadEditForm = ({
       </div>
 
       {/* ── CONTACT ── */}
-      <div className="col-span-1 sm:col-span-2 lg:col-span-3 text-sm font-semibold text-gray-700 border-t pt-3 mt-1 uppercase tracking-wider">
+      <div className="col-span-1 sm:col-span-2 lg:col-span-3 text-sm font-semibold text-slate-700 border-t pt-3 mt-1 uppercase tracking-wider">
         Contact Details
       </div>
 
@@ -314,16 +316,32 @@ const LeadEditForm = ({
         />
       </div>
 
-      {/* Alt Number (Landline) */}
+      {/* Alternate Number */}
       <div className="flex flex-col">
         <label htmlFor="alt_number" className={labelClass}>
-          Landline Number
+          Alternate Number
         </label>
         <input
           type="tel"
           id="alt_number"
           name="alt_number"
           value={formData.alt_number || ""}
+          maxLength={32}
+          inputMode="tel"
+          title="Enter an alternate number with 7 to 10 local digits."
+          onChange={onChange}
+          className={inputClass}
+          placeholder="01-XXXXXXX"
+        />
+      </div>
+
+      <div className="flex flex-col">
+        <label htmlFor="landline" className={labelClass}>Landline Number</label>
+        <input
+          type="tel"
+          id="landline"
+          name="landline"
+          value={formData.landline || ""}
           maxLength={32}
           inputMode="tel"
           title="Enter a landline with 7 to 10 local digits."
@@ -351,18 +369,18 @@ const LeadEditForm = ({
       </div>
 
       {/* ── ACTIVITY LOG ── */}
-      <div className="col-span-1 sm:col-span-2 lg:col-span-3 text-sm font-semibold text-gray-700 border-t pt-3 mt-1 uppercase tracking-wider">
+      <div className="col-span-1 sm:col-span-2 lg:col-span-3 text-sm font-semibold text-slate-700 border-t pt-3 mt-1 uppercase tracking-wider">
         Activity Log
       </div>
 
       {/* Sub Status — read-only, only editable via Activity Log modal */}
       <div className="flex flex-col">
         <label className={labelClass}>Sub Status</label>
-        <div className="mt-1 flex items-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded-md">
+        <div className="mt-1 flex items-center gap-2 p-2 bg-slate-50 border border-slate-200 rounded-md">
           <span className="text-sm font-semibold text-slate-700">
             {formData.sub_status || "New"}
           </span>
-          <span className="text-xs text-gray-400">— editable via Activity Log</span>
+          <span className="text-xs text-slate-400">— editable via Activity Log</span>
         </div>
       </div>
 
@@ -387,20 +405,32 @@ const LeadEditForm = ({
       </div>
       )}
 
-      {/* Course Interest */}
+      {/* Class Interest */}
       <div className="flex flex-col">
         <label htmlFor="course_interest" className={labelClass}>
-          Course Interest
+          Class Interest
         </label>
-        <input
-          type="text"
+        <select
+          multiple
           id="course_interest"
           name="course_interest"
-          value={formData.course_interest || ""}
-          onChange={onChange}
-          className={inputClass}
-          placeholder="e.g. Robotics, Coding Bootcamp..."
-        />
+          value={(formData.course_interest || "").split(",").map((value) => value.trim()).filter(Boolean)}
+          onChange={(event) => onChange({ target: {
+            name: "course_interest",
+            value: Array.from(event.target.selectedOptions, (option) => option.value).join(", "),
+          } })}
+          className={`${inputClass} min-h-24`}
+          disabled={!classes.length}
+          aria-describedby="edit-course-interest-help"
+        >
+          {classes.map((item) => {
+            const name = item.class_name || item.name || "";
+            return <option key={item.id} value={name}>{name}</option>;
+          })}
+        </select>
+        <p id="edit-course-interest-help" className="mt-1 text-xs text-slate-500">
+          {classLoadError || (classes.length ? "Select one or more classes from the catalog." : "No active classes are available in the catalog.")}
+        </p>
       </div>
 
       {/* ── ACTIONS ── */}
@@ -408,13 +438,13 @@ const LeadEditForm = ({
         <button
           type="button"
           onClick={onClose}
-          className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+          className="px-4 py-2 border border-slate-300 rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors"
         >
           Cancel
         </button>
         <button
           type="submit"
-          className="px-5 py-2 bg-[#294998] hover:bg-[#1E3776] text-white text-sm font-medium rounded-md shadow-sm transition-colors"
+          className="px-5 py-2 bg-primary hover:bg-primary-hover text-white text-sm font-medium rounded-md shadow-sm transition-colors"
         >
           Save Changes
         </button>

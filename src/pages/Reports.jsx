@@ -3,7 +3,10 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../context/useAuth.js";
 import { reportService } from "../services/api";
 import PageLoadingState from "../components/common/PageLoadingState.jsx";
+import { PageShell, PageHeader } from "../components/common/PageShell.jsx";
+import DataTableShell from "../components/common/DataTableShell.jsx";
 import useRealtimeRefresh from "../hooks/useRealtimeRefresh.js";
+import { Button } from "../components/ui/button.jsx";
 import {
   BarChart2,
   TrendingUp,
@@ -35,7 +38,7 @@ const SectionTitle = ({ title, description, titleId }) => (
 
 const MetricCard = ({ title, value, sub, icon: Icon }) => (
   <div className={`${panelClass} flex min-w-0 items-start gap-3 p-4 sm:p-5`}>
-    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#EDF2FC] text-[#294998]">
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-light text-primary">
       <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
     </div>
     <div className="min-w-0">
@@ -51,7 +54,7 @@ const FunnelRow = ({ label, count, max }) => (
     <span className="truncate text-xs text-slate-600" title={label || "—"}>{label || "—"}</span>
     <div className="h-2 overflow-hidden rounded-full bg-slate-100">
       <div
-        className="h-full rounded-full bg-[#294998] transition-[width] duration-300"
+        className="h-full rounded-full bg-primary transition-[width] duration-300"
         style={{ width: max > 0 ? `${Math.min(100, (count / max) * 100)}%` : "0%" }}
       />
     </div>
@@ -64,7 +67,7 @@ const ExportBtn = ({ label, loading, onClick }) => (
     onClick={onClick}
     disabled={loading}
     aria-label={`Download ${label} export`}
-    className={`inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#294998]/20 disabled:cursor-not-allowed disabled:opacity-50 ${
+    className={`inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50 ${
       label === "CSV"
         ? "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
         : "border-emerald-200 bg-emerald-50/70 text-emerald-800 hover:border-emerald-300 hover:bg-emerald-50"
@@ -76,7 +79,6 @@ const ExportBtn = ({ label, loading, onClick }) => (
 );
 
 const datasetOptions = [
-  { name: "leads", icon: Users, detail: "Lead records" },
   { name: "activities", icon: Activity, detail: "Interaction history" },
   { name: "tasks", icon: ClipboardList, detail: "Team follow-ups" },
   { name: "clients", icon: Building2, detail: "Client records" },
@@ -86,17 +88,17 @@ const datasetOptions = [
 const ExportCard = ({ icon: Icon, title, description, eyebrow, children }) => (
   <article className="group flex min-h-[176px] flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
     <div className="flex items-start gap-3.5">
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#EDF2FC] text-[#294998] ring-1 ring-[#CDDBF6]/70">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-light text-primary ring-1 ring-primary-border/70">
         <Icon className="h-5 w-5" aria-hidden="true" />
       </div>
       <div className="min-w-0 flex-1 pt-0.5">
-        {eyebrow && <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.09em] text-slate-400">{eyebrow}</p>}
+        {eyebrow && <p className="mb-1 text-xs font-semibold uppercase tracking-[0.09em] text-slate-400">{eyebrow}</p>}
         <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
         <p className="mt-1.5 text-xs leading-5 text-slate-500">{description}</p>
       </div>
     </div>
     <div className="mt-auto flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
-      <span className="text-[11px] font-medium text-slate-400">Export format</span>
+      <span className="text-xs font-medium text-slate-400">Export format</span>
       <div className="flex gap-2">{children}</div>
     </div>
   </article>
@@ -227,28 +229,26 @@ const Reports = () => {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-full bg-[#F8FAFC]">
-      {/* Header */}
-      <header className="border-b border-slate-200 bg-white px-4 py-5 sm:px-6">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-slate-900">Reports</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              {summary?.scope === "all" ? "All team data" : "Your assigned data"} · Report overview and exports
-            </p>
-          </div>
-          <button
+    <PageShell width="standard">
+      <PageHeader
+        title="Reports"
+        description={`${summary?.scope === "all" ? "All team data" : "Your assigned data"} · Report overview and exports`}
+        className="px-4 sm:px-6"
+        actions={(
+          <Button
+            type="button"
+            variant="refresh"
+            size="default"
             onClick={fetchSummary}
             disabled={loading}
-            className="inline-flex min-h-10 items-center justify-center gap-2 self-start rounded-lg border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#294998]/20 disabled:cursor-not-allowed disabled:opacity-50 sm:self-auto"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" aria-hidden="true" />}
             Refresh
-          </button>
-        </div>
-      </header>
+          </Button>
+        )}
+      />
 
-      <main className="mx-auto max-w-7xl space-y-5 px-4 py-5 sm:px-6 sm:py-6">
+      <div className="space-y-5 px-4 py-5 sm:px-6 sm:py-6">
         {/* Filters */}
         <section className={`${panelClass} p-4 sm:p-5`} aria-labelledby="report-filters-title">
           <SectionTitle
@@ -265,7 +265,7 @@ const Reports = () => {
                 value={from}
                 max={to || undefined}
                 onChange={(e) => setFrom(e.target.value)}
-                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#294998] focus:ring-2 focus:ring-[#294998]/15"
+                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15"
               />
             </div>
             <div>
@@ -276,7 +276,7 @@ const Reports = () => {
                 value={to}
                 min={from || undefined}
                 onChange={(e) => setTo(e.target.value)}
-                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#294998] focus:ring-2 focus:ring-[#294998]/15"
+                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15"
               />
             </div>
             <div>
@@ -287,7 +287,7 @@ const Reports = () => {
                 value={district}
                 onChange={(e) => setDistrict(e.target.value)}
                 placeholder="Filter by district"
-                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none placeholder:text-slate-400 transition focus:border-[#294998] focus:ring-2 focus:ring-[#294998]/15"
+                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none placeholder:text-slate-400 transition focus:border-primary focus:ring-2 focus:ring-primary/15"
               />
             </div>
           </div>
@@ -391,8 +391,9 @@ const Reports = () => {
             {summary.conversions?.by_converter?.length > 0 && (
               <section className={`${panelClass} overflow-hidden`}>
                 <div className="p-4 pb-0 sm:p-5 sm:pb-0"><SectionTitle title="Conversions by rep" /></div>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[480px] text-sm">
+                <DataTableShell density="compact" minWidth="480px" className="crm-data-table--embedded">
+                  <div className="crm-data-table__scroll">
+                  <table className="text-sm">
                     <thead>
                       <tr className="border-y border-slate-100 bg-slate-50/70">
                         <th scope="col" className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Representative</th>
@@ -410,7 +411,8 @@ const Reports = () => {
                       ))}
                     </tbody>
                   </table>
-                </div>
+                  </div>
+                </DataTableShell>
               </section>
             )}
 
@@ -458,7 +460,7 @@ const Reports = () => {
                         <p className="mt-0.5 text-xs text-slate-500">Admin data exports across all records.</p>
                       </div>
                     </div>
-                    <span className="w-fit rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-500">5 datasets</span>
+                    <span className="w-fit rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-500">4 datasets</span>
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -470,7 +472,7 @@ const Reports = () => {
                           </div>
                           <div className="min-w-0">
                             <h4 className="truncate text-sm font-semibold capitalize text-slate-800">{name}</h4>
-                            <p className="mt-0.5 truncate text-[11px] text-slate-400">{detail} · All records</p>
+                            <p className="mt-0.5 truncate text-xs text-slate-400">{detail} · All records</p>
                           </div>
                         </div>
                         <div className="mt-4 flex gap-2 border-t border-slate-100 pt-3">
@@ -485,8 +487,8 @@ const Reports = () => {
             </section>
           </>
         )}
-      </main>
-    </div>
+      </div>
+    </PageShell>
   );
 };
 

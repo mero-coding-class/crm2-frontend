@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/useAuth.js";
 import TrashTableDisplay from "../components/TrashDisplayTable.jsx";
-import { ArrowPathIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import { RefreshCw as ArrowPathIcon, Search as MagnifyingGlassIcon } from "lucide-react";
 import { leadService } from "../services/api.js";
 import PageLoadingState from "../components/common/PageLoadingState.jsx";
 import useRealtimeRefresh from "../hooks/useRealtimeRefresh.js";
+import { Button } from "../components/ui/button.jsx";
+import { PageShell, PageHeader } from "../components/common/PageShell.jsx";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -170,24 +172,25 @@ const TrashPage = () => {
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-screen-2xl bg-slate-50 p-4 text-slate-900 sm:p-6">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Archived Leads</h1>
-          <p className="mt-1 text-sm text-slate-500">Archived records are read-only. Admins and lead owners can restore them.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button type="button" disabled={loading || busy} onClick={() => fetchLeads(currentPage, searchTerm)} className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+    <PageShell width="wide" className="text-slate-900">
+      <PageHeader
+        title="Archived Leads"
+        description="Archived records are read-only. Admins and lead owners can restore them."
+        actions={(
+          <>
+          <Button type="button" variant="refresh" disabled={loading || busy} onClick={() => fetchLeads(currentPage, searchTerm)}>
             <ArrowPathIcon className="h-4 w-4" /> Refresh
-          </button>
-          <button type="button" disabled={!leads.length} onClick={exportCurrentPage} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50">Export page</button>
-        </div>
-      </div>
+          </Button>
+          <Button type="button" variant="secondary" disabled={!leads.length} onClick={exportCurrentPage}>Export page</Button>
+          </>
+        )}
+      />
 
+      <div className="p-4 sm:p-6">
       <div className="mb-4 flex items-center gap-2">
         <div className="relative w-full max-w-md">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input type="search" value={searchTerm} onChange={(event) => { setCurrentPage(1); setSearchTerm(event.target.value); }} placeholder="Search archived school names…" className="w-full rounded-md border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm focus:border-[#294998] focus:outline-none focus:ring-2 focus:ring-[#294998]/15" />
+          <input type="search" value={searchTerm} onChange={(event) => { setCurrentPage(1); setSearchTerm(event.target.value); }} placeholder="Search archived school names…" className="w-full rounded-md border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15" />
         </div>
         {loading && leads.length > 0 && <span className="text-xs text-slate-500">Refreshing…</span>}
       </div>
@@ -220,7 +223,8 @@ const TrashPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </main>
+      </div>
+    </PageShell>
   );
 };
 

@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { clientService } from "../../services/api";
 
 export default function useEnrollmentsCore(authToken, itemsPerPage, routeFilters = {}) {
-  const [allStudents, setAllStudents] = useState([]);
+  const [allClients, setAllClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [initialLoad, setInitialLoad] = useState(true);
   const [error, setError] = useState(null);
@@ -11,7 +11,7 @@ export default function useEnrollmentsCore(authToken, itemsPerPage, routeFilters
   const searchQueryRef = useRef("");
   const requestIdRef = useRef(0);
 
-  const fetchEnrolledStudents = useCallback(
+  const fetchEnrolledClients = useCallback(
     async (page = 1, { silent = false } = {}) => {
       if (!authToken) return;
       const requestId = ++requestIdRef.current;
@@ -32,7 +32,7 @@ export default function useEnrollmentsCore(authToken, itemsPerPage, routeFilters
         const list = Array.isArray(response)
           ? response
           : response?.results || response?.data || [];
-        setAllStudents(list);
+        setAllClients(list);
         setCurrentPage(page);
         const count = Array.isArray(response)
           ? response.length
@@ -57,8 +57,8 @@ export default function useEnrollmentsCore(authToken, itemsPerPage, routeFilters
   );
 
   return {
-    allStudents,
-    setAllStudents,
+    allClients,
+    setAllClients,
     loading,
     initialLoad,
     error,
@@ -68,6 +68,6 @@ export default function useEnrollmentsCore(authToken, itemsPerPage, routeFilters
     totalPages,
     setTotalPages,
     searchQueryRef,
-    fetchEnrolledStudents,
+    fetchEnrolledClients,
   };
 }

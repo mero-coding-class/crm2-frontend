@@ -2,12 +2,12 @@ import { useCallback } from "react";
 import { clientService } from "../../services/api";
 import { rememberReturnedLeadIds } from "./returnedToLeadsStore";
 
-const normalizeReturnedLeadId = (student) =>
-  student?.lead_id ??
-  student?.lead?.id ??
-  student?.lead?._id ??
-  student?.leadId ??
-  student?.lead?.lead_id;
+const normalizeReturnedLeadId = (client) =>
+  client?.lead_id ??
+  client?.lead?.id ??
+  client?.lead?._id ??
+  client?.leadId ??
+  client?.lead?.lead_id;
 
 const emitReturnedToLeads = (leadId) => {
   try {
@@ -21,17 +21,17 @@ const emitReturnedToLeads = (leadId) => {
 
 export default function useEnrollmentUpdates({
   authToken,
-  allStudents,
-  setAllStudents,
+  allClients,
+  setAllClients,
   setCurrentPage,
-  fetchEnrolledStudents,
+  fetchEnrolledClients,
   currentPage,
   setToast,
 }) {
   const handleDelete = useCallback(
-    async (studentId) => {
-      const student = (allStudents || []).find((item) => String(item.id) === String(studentId));
-      const leadId = normalizeReturnedLeadId(student);
+    async (clientId) => {
+      const client = (allClients || []).find((item) => String(item.id) === String(clientId));
+      const leadId = normalizeReturnedLeadId(client);
       if (leadId === null || leadId === undefined) {
         setToast({ show: true, message: "Could not find the lead linked to this client.", type: "error" });
         return;
@@ -40,40 +40,40 @@ export default function useEnrollmentUpdates({
       try {
         await clientService.returnToLeads(leadId, authToken);
         rememberReturnedLeadIds([leadId]);
-        setAllStudents((students) =>
-          (students || []).filter((item) => String(item.id) !== String(studentId))
+        setAllClients((clients) =>
+          (clients || []).filter((item) => String(item.id) !== String(clientId))
         );
         setToast({ show: true, message: "Client returned to Leads", type: "success" });
         emitReturnedToLeads(leadId);
 
-        const remainingOnPage = (allStudents || []).filter(
-          (item) => String(item.id) !== String(studentId)
+        const remainingOnPage = (allClients || []).filter(
+          (item) => String(item.id) !== String(clientId)
         ).length;
         const pageAfterReturn = currentPage > 1 && remainingOnPage === 0
           ? currentPage - 1
           : currentPage;
-        if (pageAfterReturn === currentPage) await fetchEnrolledStudents(currentPage);
+        if (pageAfterReturn === currentPage) await fetchEnrolledClients(currentPage);
         else setCurrentPage(pageAfterReturn);
       } catch (error) {
         setToast({ show: true, message: error.message || "Could not return client to Leads", type: "error" });
       }
     },
-    [allStudents, authToken, currentPage, fetchEnrolledStudents, setAllStudents, setCurrentPage, setToast]
+    [allClients, authToken, currentPage, fetchEnrolledClients, setAllClients, setCurrentPage, setToast]
   );
 
   const handleBulkDelete = useCallback(
     async (ids = []) => {
       if (!ids.length) return;
       const selectedIds = new Set(ids.map(String));
-      const selected = (allStudents || []).filter((student) => selectedIds.has(String(student.id)));
+      const selected = (allClients || []).filter((client) => selectedIds.has(String(client.id)));
       const results = await Promise.allSettled(
-        selected.map(async (student) => {
-          const leadId = normalizeReturnedLeadId(student);
+        selected.map(async (client) => {
+          const leadId = normalizeReturnedLeadId(client);
           if (leadId === null || leadId === undefined) {
-            throw new Error(`Could not find the lead linked to client ${student.id}.`);
+            throw new Error(`Could not find the lead linked to client ${client.id}.`);
           }
           await clientService.returnToLeads(leadId, authToken);
-          return { clientId: student.id, leadId };
+          return { clientId: client.id, leadId };
         })
       );
 
@@ -85,18 +85,18 @@ export default function useEnrollmentUpdates({
 
       if (returned.length) {
         rememberReturnedLeadIds(returned.map(({ leadId }) => leadId));
-        setAllStudents((students) =>
-          (students || []).filter((student) => !returnedClientIds.has(String(student.id)))
+        setAllClients((clients) =>
+          (clients || []).filter((client) => !returnedClientIds.has(String(client.id)))
         );
         returned.forEach(({ leadId }) => emitReturnedToLeads(leadId));
 
-        const remainingOnPage = (allStudents || []).filter(
-          (student) => !returnedClientIds.has(String(student.id))
+        const remainingOnPage = (allClients || []).filter(
+          (client) => !returnedClientIds.has(String(client.id))
         ).length;
         const pageAfterReturn = currentPage > 1 && remainingOnPage === 0
           ? currentPage - 1
           : currentPage;
-        if (pageAfterReturn === currentPage) await fetchEnrolledStudents(currentPage);
+        if (pageAfterReturn === currentPage) await fetchEnrolledClients(currentPage);
         else setCurrentPage(pageAfterReturn);
       }
 
@@ -108,7 +108,7 @@ export default function useEnrollmentUpdates({
         type: failedCount && !returned.length ? "error" : "success",
       });
     },
-    [allStudents, authToken, currentPage, fetchEnrolledStudents, setAllStudents, setCurrentPage, setToast]
+    [allClients, authToken, currentPage, fetchEnrolledClients, setAllClients, setCurrentPage, setToast]
   );
 
   return { handleDelete, handleBulkDelete };
