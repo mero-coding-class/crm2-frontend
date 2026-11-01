@@ -3,6 +3,7 @@ import { useAuth } from "../context/useAuth.js";
 import { X as XMarkIcon } from "lucide-react";
 import LeadEditForm from "./LeadEditForm";
 import { leadService } from "../services/api";
+import useModalScrollLock from "../hooks/useModalScrollLock.js";
 import {
   isValidEmail,
   isValidAlphabeticName,
@@ -66,6 +67,7 @@ const isAdminRole = (role) =>
   );
 
 const LeadEditModal = ({ lead, onClose, onSave, classes = [], classLoadError = "" }) => {
+  useModalScrollLock();
 
   const [formData, setFormData] = useState(DEFAULT_FORM);
   const { user, authToken } = useAuth();
@@ -137,13 +139,6 @@ const LeadEditModal = ({ lead, onClose, onSave, classes = [], classLoadError = "
 
     setFormData({ ...DEFAULT_FORM, ...normalized });
   }, [lead, leadDetails, loadingLead, loadError]);
-
-  // Prevent background scrolling while modal is open
-  useEffect(() => {
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = originalOverflow; };
-  }, []);
 
   const modalRef = useRef(null);
 
@@ -248,6 +243,7 @@ const LeadEditModal = ({ lead, onClose, onSave, classes = [], classLoadError = "
 
   return (
     <div
+      data-modal-open="true"
       className="fixed inset-0 bg-slate-600/50 flex items-center justify-center z-50 p-4 crm-animate-in crm-fade-in-0"
       onClick={handleOverlayClick}
     >

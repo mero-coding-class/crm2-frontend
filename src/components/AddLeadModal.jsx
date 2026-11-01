@@ -40,13 +40,6 @@ const AddLeadModal = ({ onClose, onSave, authToken, classes = [], classLoadError
   const modalContentRef = useRef(null);
   const { users, usersLoading } = useUsers(authToken, isAdmin);
 
-  // Prevent background scrolling while modal is open
-  useEffect(() => {
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = originalOverflow; };
-  }, []);
-
   const handleOverlayClick = (event) => {
     if (modalContentRef.current && !modalContentRef.current.contains(event.target)) {
       if (!errors || Object.keys(errors).length === 0) onClose();
@@ -75,6 +68,7 @@ const AddLeadModal = ({ onClose, onSave, authToken, classes = [], classLoadError
 
   return (
     <div
+      data-modal-open="true"
       className="fixed inset-0 bg-slate-900/50 backdrop-blur-[3px] flex items-center justify-center z-50 p-4"
       onClick={handleOverlayClick}
     >

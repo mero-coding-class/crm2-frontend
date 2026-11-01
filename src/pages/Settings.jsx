@@ -1137,7 +1137,7 @@ const Settings = () => {
 
       {/* ─── MODAL: EDIT USER ─── */}
       {editingUser && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4">
+        <div data-modal-open="true" className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-[16px] p-6 max-w-md w-full shadow-2xl border border-slate-200/80 crm-animate-in crm-fade-in-0 crm-zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
               <h3 className="text-lg font-bold text-slate-900 tracking-[-0.01em]">
@@ -1252,7 +1252,7 @@ const Settings = () => {
 
       {/* ─── MODAL: EDIT PACKAGE ─── */}
       {editingPackage && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4">
+        <div data-modal-open="true" className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-[16px] p-6 max-w-md w-full shadow-2xl border border-slate-200/80 crm-animate-in crm-fade-in-0 crm-zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
               <h3 className="text-lg font-bold text-slate-900 tracking-[-0.01em]">
@@ -1306,7 +1306,7 @@ const Settings = () => {
       )}
 
       {editingSyllabus && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]">
+        <div data-modal-open="true" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]">
           <div className="w-full max-w-md rounded-[16px] border border-slate-200/80 bg-white p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-lg font-bold text-slate-900">Edit Syllabus Type</h3>
@@ -1327,7 +1327,7 @@ const Settings = () => {
 
       {/* ─── MODAL: EDIT CLASS ─── */}
       {editingClass && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4">
+        <div data-modal-open="true" className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-[16px] p-6 max-w-md w-full shadow-2xl border border-slate-200/80 crm-animate-in crm-fade-in-0 crm-zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
               <h3 className="text-lg font-bold text-slate-900 tracking-[-0.01em]">

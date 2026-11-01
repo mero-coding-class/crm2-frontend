@@ -3,6 +3,7 @@ import { X, CheckCircle, School, Calendar, DollarSign, BookOpen, User, Phone, Ma
 import { clientService, catalogService, leadService } from "../services/api";
 import { forgetReturnedLeadIds } from "../pages/clients/returnedToLeadsStore";
 import { isValidEmail, isValidPhoneNumber } from "../utils/validation";
+import useModalScrollLock from "../hooks/useModalScrollLock.js";
 
 const toLocalDateInputValue = (date) => new Date(date.getTime() - date.getTimezoneOffset() * 60000)
   .toISOString()
@@ -15,6 +16,7 @@ const addDaysToDateInputValue = (value, days) => {
 };
 
 export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
+  useModalScrollLock(isOpen && Boolean(lead));
   const [loading, setLoading] = useState(false);
   const [loadingCatalogs, setLoadingCatalogs] = useState(true);
   const [loadingLeadDetails, setLoadingLeadDetails] = useState(false);
@@ -345,7 +347,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm crm-animate-in crm-fade-in-0">
+    <div data-modal-open="true" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm crm-animate-in crm-fade-in-0">
       <div className="relative w-full max-w-3xl max-h-[92vh] overflow-hidden bg-white rounded-2xl shadow-2xl flex flex-col border border-slate-100">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-canvas">

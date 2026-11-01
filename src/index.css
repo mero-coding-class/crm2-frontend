@@ -86,6 +86,17 @@ body {
   color: var(--text-primary);
 }
 
+html.crm-modal-scroll-locked,
+body.crm-modal-scroll-locked {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
+.crm-main-scroll.crm-main-scroll-locked {
+  overflow-y: hidden !important;
+  overscroll-behavior: none;
+}
+
 /* ─── Tabular numerals for data tables ─── */
 .tabular-nums {
   font-feature-settings: 'tnum' 1, 'cv05' 1;

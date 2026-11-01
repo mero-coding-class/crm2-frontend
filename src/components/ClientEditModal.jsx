@@ -2,8 +2,10 @@ import React, { useState, useEffect } from "react";
 import { X, CheckCircle, School, Calendar, DollarSign, BookOpen, User, Phone, Mail, MapPin } from "lucide-react";
 import { clientService, catalogService } from "../services/api";
 import { isValidEmail, isValidPhoneNumber } from "../utils/validation";
+import useModalScrollLock from "../hooks/useModalScrollLock.js";
 
 export default function ClientEditModal({ isOpen, onClose, client, authToken, academicUsers = [], onSave }) {
+  useModalScrollLock(isOpen && Boolean(client));
   const [loading, setLoading] = useState(false);
   const [loadingCatalogs, setLoadingCatalogs] = useState(true);
   const [error, setError] = useState(null);
@@ -202,7 +204,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, ac
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm crm-animate-in crm-fade-in-0">
+    <div data-modal-open="true" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm crm-animate-in crm-fade-in-0">
       <div className="relative w-full max-w-3xl max-h-[92vh] overflow-hidden bg-white rounded-2xl shadow-2xl flex flex-col border border-slate-100">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-primary-light/40">

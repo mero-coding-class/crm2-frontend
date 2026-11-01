@@ -26,6 +26,7 @@ import Pagination from "../components/common/Pagination.jsx";
 import { Button } from "../components/ui/button.jsx";
 import { PageShell, PageHeader } from "../components/common/PageShell.jsx";
 import useRealtimeRefresh from "../hooks/useRealtimeRefresh.js";
+import useModalScrollLock from "../hooks/useModalScrollLock.js";
 
 // ─── Status config ────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
@@ -117,6 +118,9 @@ const Demo = () => {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackDemo, setFeedbackDemo] = useState(null);
   const [deletingDemo, setDeletingDemo] = useState(null);
+  useModalScrollLock(
+    createOpen || Boolean(editingDemo) || Boolean(viewingDemo) || feedbackOpen || Boolean(deletingDemo)
+  );
 
   // ── Forms ──────────────────────────────────────────────────────────────────
   const emptyCreate = { lead: "", demo_at: "", details: "", contact_person: "", phone: "", assigned_teacher: "" };
@@ -870,7 +874,7 @@ const ModalActions = ({ saving, onCancel, label }) => (
 );
 
 const Modal = ({ title, onClose, children }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+  <div data-modal-open="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
     <div className="bg-white rounded-[16px] shadow-2xl w-full max-w-[520px] max-h-[90vh] overflow-y-auto">
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
         <h2 className="text-base font-bold text-slate-900">{title}</h2>

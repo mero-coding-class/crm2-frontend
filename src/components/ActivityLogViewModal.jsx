@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from "react";
 import { X as XMarkIcon, Eye as EyeIcon } from "lucide-react";
 import { activityService } from "../services/api";
+import useModalScrollLock from "../hooks/useModalScrollLock.js";
 
 const SUB_STATUS_BADGE = {
   "New": "bg-slate-100 text-slate-600 border-slate-200",
@@ -18,6 +19,7 @@ const SUB_STATUS_BADGE = {
 };
 
 const ActivityLogViewModal = ({ lead, authToken, onClose }) => {
+  useModalScrollLock();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -68,6 +70,7 @@ const ActivityLogViewModal = ({ lead, authToken, onClose }) => {
 
   return (
     <div
+      data-modal-open="true"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
@@ -147,6 +150,7 @@ const ActivityLogViewModal = ({ lead, authToken, onClose }) => {
                   const actSubStatus = activity.sub_status;
                   const actBadge = SUB_STATUS_BADGE[actSubStatus] || "bg-slate-100 text-slate-600 border-slate-200";
                   const actDate = activity.activity_at || activity.created_at;
+                  const author = activity.author_name || activity.author_username;
                   const followupDate = activity.followup_at;
 
                   return (
@@ -174,6 +178,7 @@ const ActivityLogViewModal = ({ lead, authToken, onClose }) => {
                           )}
                         </div>
                         <span className="text-xs text-slate-400 shrink-0">
+                          {author ? `By ${author} · ` : ""}
                           {actDate ? new Date(actDate).toLocaleString() : "—"}
                         </span>
                       </div>

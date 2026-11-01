@@ -172,6 +172,36 @@ const MainLayout = () => {
     return () => window.removeEventListener("crm:remoteChange", refreshRealtimeIndicators);
   }, [refreshApprovalCount, refreshNotifications]);
 
+  useEffect(() => {
+    const main = document.querySelector(".crm-main-scroll");
+    if (!main) return undefined;
+
+    const syncScrollLock = () => {
+      const modalIsOpen = document.querySelector(
+        '[data-modal-open="true"], [aria-modal="true"]'
+      );
+      document.documentElement.classList.toggle("crm-modal-scroll-locked", Boolean(modalIsOpen));
+      document.body.classList.toggle("crm-modal-scroll-locked", Boolean(modalIsOpen));
+      main.classList.toggle("crm-main-scroll-locked", Boolean(modalIsOpen));
+    };
+
+    const observer = new MutationObserver(syncScrollLock);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["data-modal-open", "aria-modal"],
+    });
+    syncScrollLock();
+
+    return () => {
+      observer.disconnect();
+      document.documentElement.classList.remove("crm-modal-scroll-locked");
+      document.body.classList.remove("crm-modal-scroll-locked");
+      main.classList.remove("crm-main-scroll-locked");
+    };
+  }, []);
+
   const handleLogout = () => {
     logout();
     navigate("/login");
@@ -569,7 +599,7 @@ const MainLayout = () => {
           </header>
 
           {/* Page content */}
-          <main className="flex-1 overflow-y-auto">
+          <main className="crm-main-scroll flex-1 overflow-y-auto">
             <Outlet />
           </main>
         </div>
@@ -578,6 +608,7 @@ const MainLayout = () => {
         {commandOpen && (
           <>
             <div
+              data-modal-open="true"
               className="fixed inset-0 bg-slate-900/40 backdrop-blur-[4px] z-50"
               onClick={() => setCommandOpen(false)}
             />

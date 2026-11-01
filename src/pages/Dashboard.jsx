@@ -41,10 +41,12 @@ const toIsoDate = (date) => {
 const getRange = (selection) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const end = new Date(today);
+  let end = new Date(today);
   let start = new Date(today);
-  if (selection === "this_month") start.setDate(1);
-  else if (selection === "last_30") start.setDate(start.getDate() - 29);
+  if (selection === "this_month") {
+    start.setDate(1);
+    end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  } else if (selection === "last_30") start.setDate(start.getDate() - 29);
   else if (selection === "last_90") start.setDate(start.getDate() - 89);
   else if (selection === "year_to_date") start = new Date(today.getFullYear(), 0, 1);
   return { from: toIsoDate(start), to: toIsoDate(end) };
@@ -333,7 +335,7 @@ const Dashboard = () => {
       value: formatNpr(current.agreed_contract_value),
       detail: "Signed during this period · payments are tracked separately",
       change: comparison(current.agreed_contract_value, previous.agreed_contract_value),
-      href: `/clients?contract_from=${summary.period?.from || ""}&contract_to=${summary.period?.to || ""}`,
+      href: "/clients",
       tone: "teal",
     });
     return common;

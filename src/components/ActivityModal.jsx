@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { getSubStatusClasses } from "./helpers.js";
 import { catalogService, leadService } from "../services/api";
+import useModalScrollLock from "../hooks/useModalScrollLock.js";
 
 /**
  * ActivityModal — renamed from "Pipeline" to "Activity Log" (Task 3.1)
@@ -71,6 +72,7 @@ const toLocalDateTimeInput = (date) =>
  *   activityTypes — optional override array of {label, value} (legacy)
  */
 const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
+  useModalScrollLock();
   // Fetch activity types dynamically from /catalogs/dropdowns/?group=activity_type
   const [dynamicTypes, setDynamicTypes] = useState(null); // null = loading
 
@@ -207,6 +209,7 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
 
   return (
     <div
+      data-modal-open="true"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs transition-opacity crm-animate-in crm-fade-in-0"
       onClick={(e) => {
         if (e.target === e.currentTarget && !saving) onClose();
