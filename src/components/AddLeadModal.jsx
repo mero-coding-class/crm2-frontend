@@ -1,9 +1,10 @@
-import React, { useEffect, useRef } from "react";
+import React, { useRef } from "react";
 import { useAuth } from "../context/useAuth.js";
 import useAddLeadForm, {
   SOURCE_CHOICES,
 } from "./addLead/useAddLeadForm";
 import useUsers from "../pages/leads/useUsers";
+import ClassTagSelector from "./common/ClassTagSelector.jsx";
 import {
   UserPlus,
   X,
@@ -394,21 +395,16 @@ const AddLeadModal = ({ onClose, onSave, authToken, classes = [], classLoadError
                 <label htmlFor="course_interest" className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                   CLASS INTEREST
                 </label>
-                <select
-                  id="course_interest"
-                  name="course_interest"
-                  multiple
-                  value={(formData.course_interest || "").split(",").map((value) => value.trim()).filter(Boolean)}
-                  onChange={(event) => setField("course_interest", Array.from(event.target.selectedOptions, (option) => option.value).join(", "))}
-                  disabled={!classChoices.length}
-                  aria-describedby="course-interest-help"
-                  className="min-h-24 w-full rounded-[10px] bg-canvas-subtle/70 px-3.5 py-2 text-sm text-slate-800 focus:border-primary focus:bg-white focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {classChoices.map((item) => {
+                <ClassTagSelector
+                  ariaLabel="Class interest"
+                  options={classChoices.map((item) => {
                     const name = item.class_name || item.name || "";
-                    return <option key={item.id} value={name}>{name}</option>;
+                    return { value: name, label: name };
                   })}
-                </select>
+                  selectedValues={(formData.course_interest || "").split(",").map((value) => value.trim()).filter(Boolean)}
+                  onChange={(values) => setField("course_interest", values.join(", "))}
+                  disabled={!classChoices.length}
+                />
                 <p id="course-interest-help" className="text-xs text-slate-500">
                   {classLoadError || (classChoices.length ? "Select one or more classes from the catalog." : "No active classes are available in the catalog.")}
                 </p>

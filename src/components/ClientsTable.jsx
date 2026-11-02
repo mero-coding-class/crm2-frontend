@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Building2, GripVertical, Pencil, Undo2 } from "lucide-react";
+import { Building2, Eye, GripVertical, Pencil, Undo2 } from "lucide-react";
 import ColumnToggler from "./ColumnToggler";
 import DataTableShell from "./common/DataTableShell.jsx";
 import { Button } from "./ui/button.jsx";
@@ -13,6 +13,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 const DEFAULT_COLUMNS = {
+  actions: { label: "Actions", visible: true },
   system_id: { label: "System ID", visible: true },
   school_name: { label: "School", visible: true },
   principal_name: { label: "Principal Name", visible: true },
@@ -28,12 +29,12 @@ const DEFAULT_COLUMNS = {
   mou_end: { label: "MOU End", visible: true },
   pricing_basis: { label: "Pricing Basis", visible: true },
   agreed_price: { label: "Agreed Price", visible: true },
-  actions: { label: "Actions", visible: true },
 };
 
 const ClientsTable = ({
   clients = [],
   handleEdit,
+  onViewDetails,
   handleDelete,
   handleBulkDelete,
   academicUsers = [],
@@ -45,17 +46,7 @@ const ClientsTable = ({
 }) => {
   const [orderedClients, setOrderedClients] = useState([]);
   const [selectedClients, setSelectedClients] = useState(new Set());
-  const [columns, setColumns] = useState(() => ({
-    ...DEFAULT_COLUMNS,
-    actions: { ...DEFAULT_COLUMNS.actions, visible: canManage },
-  }));
-
-  useEffect(() => {
-    setColumns((previous) => ({
-      ...previous,
-      actions: { ...previous.actions, visible: canManage },
-    }));
-  }, [canManage]);
+  const [columns, setColumns] = useState(DEFAULT_COLUMNS);
 
   useEffect(() => {
     setOrderedClients(clients);
@@ -112,8 +103,8 @@ const ClientsTable = ({
             <table className="table-fixed divide-y divide-slate-200 text-left">
             <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50">
               <tr>
-                <th className="w-7 px-1.5 py-2"><span className="sr-only">Reorder</span></th>
-                <th className="w-7 px-1.5 py-2 text-center">
+                <th className="w-7 px-3 h-9"><span className="sr-only">Reorder</span></th>
+                <th className="w-10 px-3 h-9 text-center">
                   <input
                     type="checkbox"
                     aria-label="Select all clients on this page"
@@ -132,7 +123,7 @@ const ClientsTable = ({
                   <th
                     key={key}
                     title={columns[key].label}
-                    className={`overflow-hidden text-ellipsis px-1.5 py-2 text-left whitespace-nowrap text-xs font-semibold uppercase tracking-[0.02em] text-slate-500 ${
+                    className={`overflow-hidden text-ellipsis px-3 h-9 text-left whitespace-nowrap text-xs font-semibold uppercase tracking-[0.04em] text-slate-500 ${
                       key === "principal_name"
                         ? "w-[200px] min-w-[200px]"
                         : key === "contact_number"
@@ -164,6 +155,7 @@ const ClientsTable = ({
                       })
                     }
                     handleEdit={handleEdit}
+                    onViewDetails={onViewDetails}
                     handleDelete={handleDelete}
                     academicUsers={academicUsers}
                     canManage={canManage}
@@ -188,6 +180,7 @@ const SortableClientRow = ({
   isSelected,
   onSelect,
   handleEdit,
+  onViewDetails,
   handleDelete,
   academicUsers,
   canManage,
@@ -207,7 +200,7 @@ const SortableClientRow = ({
       case "system_id":
         return <span title={client.system_id || "—"}>{client.system_id || "—"}</span>;
       case "school_name":
-        return <span title={client.school_name || "—"} className="font-semibold text-slate-900">{client.school_name || "—"}</span>;
+        return <button type="button" onClick={() => onViewDetails?.(client)} title={`View details for ${client.school_name || "client"}`} className="text-left font-semibold text-slate-900 hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">{client.school_name || "—"}</button>;
       case "assigned_to": {
         const assignedId = client.assigned_to?.id ?? client.assigned_to;
         const assignedName = client.assigned_to_name ||
@@ -266,25 +259,27 @@ const SortableClientRow = ({
       case "contact_name":
         return <span title={client.contact_name || "—"}>{client.contact_name || "—"}</span>;
       case "actions":
-        if (!canManage) return null;
         return (
           <div className="flex items-center justify-end gap-1">
-            <button
+            <button type="button" onClick={() => onViewDetails?.(client)} title="View client details" className="rounded-[6px] p-1.5 text-slate-400 transition-colors hover:bg-primary-light hover:text-primary">
+              <Eye className="h-3.5 w-3.5" />
+            </button>
+            {canManage && <button
               type="button"
               onClick={() => handleEdit(client)}
               title="Edit client details"
               className="rounded-[6px] p-1.5 text-slate-400 transition-colors hover:bg-primary-light hover:text-primary"
             >
               <Pencil className="h-3.5 w-3.5" />
-            </button>
-            <button
+            </button>}
+            {canManage && <button
               type="button"
               onClick={() => handleDelete(client.id)}
               title="Return client to Leads"
               className="rounded-[6px] p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
             >
               <Undo2 className="h-3.5 w-3.5" />
-            </button>
+            </button>}
           </div>
         );
       default:
@@ -298,19 +293,19 @@ const SortableClientRow = ({
       style={style}
       className={`group border-b border-slate-100 transition-colors hover:bg-slate-50/70 ${isDragging ? "bg-primary-light/70 shadow-md" : ""} ${isSelected ? "bg-primary-light/40" : ""}`}
     >
-      <td className="px-1.5 py-2 text-center">
+      <td className="px-3 py-3 text-center">
         <button {...attributes} {...listeners} type="button" aria-label="Drag to reorder" className="cursor-grab rounded p-0.5 text-slate-300 transition-colors hover:bg-slate-100 active:cursor-grabbing group-hover:text-slate-400">
           <GripVertical className="h-4 w-4" />
         </button>
       </td>
-      <td className="px-1.5 py-2 text-center">
+      <td className="px-3 py-3 text-center">
         <input type="checkbox" checked={isSelected} onChange={onSelect} aria-label={`Select ${client.school_name || "client"}`} className="h-3.5 w-3.5 rounded border-slate-300 text-primary focus:ring-primary" />
       </td>
       {visibleColumns.map((field) => (
         <td
           key={field}
           title={field === "actions" ? undefined : String(client[field] ?? "—")}
-          className={`overflow-hidden text-ellipsis whitespace-nowrap px-1.5 py-2 text-xs text-slate-700 ${
+          className={`overflow-hidden text-ellipsis whitespace-nowrap px-3 py-3 text-xs text-slate-700 ${
             field === "principal_name" ? "w-[200px] min-w-[200px] font-medium text-slate-900" : ""
           } ${field === "actions" ? "text-right" : ""}`}
         >

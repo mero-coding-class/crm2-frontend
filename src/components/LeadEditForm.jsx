@@ -1,5 +1,6 @@
 import React from "react";
 import { SOURCE_CHOICES } from "./addLead/useAddLeadForm";
+import ClassTagSelector from "./common/ClassTagSelector.jsx";
 
 /**
  * LeadEditForm — aligned with crm2-backend LeadUpdateSerializer writable fields:
@@ -410,24 +411,19 @@ const LeadEditForm = ({
         <label htmlFor="course_interest" className={labelClass}>
           Class Interest
         </label>
-        <select
-          multiple
-          id="course_interest"
-          name="course_interest"
-          value={(formData.course_interest || "").split(",").map((value) => value.trim()).filter(Boolean)}
-          onChange={(event) => onChange({ target: {
-            name: "course_interest",
-            value: Array.from(event.target.selectedOptions, (option) => option.value).join(", "),
-          } })}
-          className={`${inputClass} min-h-24`}
-          disabled={!classes.length}
-          aria-describedby="edit-course-interest-help"
-        >
-          {classes.map((item) => {
+        <ClassTagSelector
+          ariaLabel="Class interest"
+          options={classes.map((item) => {
             const name = item.class_name || item.name || "";
-            return <option key={item.id} value={name}>{name}</option>;
+            return { value: name, label: name };
           })}
-        </select>
+          selectedValues={(formData.course_interest || "").split(",").map((value) => value.trim()).filter(Boolean)}
+          onChange={(values) => onChange({ target: {
+            name: "course_interest",
+            value: values.join(", "),
+          } })}
+          disabled={!classes.length}
+        />
         <p id="edit-course-interest-help" className="mt-1 text-xs text-slate-500">
           {classLoadError || (classes.length ? "Select one or more classes from the catalog." : "No active classes are available in the catalog.")}
         </p>

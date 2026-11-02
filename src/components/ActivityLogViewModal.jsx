@@ -190,6 +190,15 @@ const ActivityLogViewModal = ({ lead, authToken, onClose }) => {
                         </p>
                       )}
 
+                      {activity.metadata?.instructor && (
+                        <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Instructor</span>
+                          <span className="inline-flex rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">
+                            {activity.metadata.instructor}
+                          </span>
+                        </div>
+                      )}
+
                       {/* Followup Date */}
                       {followupDate && (
                         <div className="flex items-center gap-1.5 mt-1">

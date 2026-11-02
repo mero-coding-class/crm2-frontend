@@ -34,7 +34,6 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, ac
     pricing_basis: "per_month",
     classes_per_week: 2,
     assigned_to: "",
-    academic_counsellor: "",
     package_type: "",
     exams_count: 0,
     events_count: 0,
@@ -66,7 +65,6 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, ac
       pricing_basis: client.pricing_basis || "per_month",
       classes_per_week: client.classes_per_week || 2,
       assigned_to: client.assigned_to?.id ?? client.assigned_to ?? "",
-      academic_counsellor: client.academic_counsellor?.id ?? client.academic_counsellor ?? "",
       package_type: client.package_type || "",
       exams_count: client.exams_count || 0,
       events_count: client.events_count || 0,
@@ -174,7 +172,6 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, ac
         pricing_basis: formData.pricing_basis,
         classes_per_week: Number(formData.classes_per_week),
         assigned_to: formData.assigned_to === "" ? null : Number(formData.assigned_to),
-        academic_counsellor: formData.academic_counsellor === "" ? null : Number(formData.academic_counsellor),
         package_type: Number(formData.package_type),
         exams_count: Number(formData.exams_count || 0),
         events_count: Number(formData.events_count || 0),
@@ -198,11 +195,6 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, ac
   const hasCurrentAcademicUser = academicUsers.some(
     (academicUser) => String(academicUser.id) === String(currentAssignedId)
   );
-  const currentCounsellorId = client.academic_counsellor?.id ?? client.academic_counsellor;
-  const hasCurrentCounsellor = academicUsers.some(
-    (academicUser) => String(academicUser.id) === String(currentCounsellorId)
-  );
-
   return (
     <div data-modal-open="true" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm crm-animate-in crm-fade-in-0">
       <div className="relative w-full max-w-3xl max-h-[92vh] overflow-hidden bg-white rounded-2xl shadow-2xl flex flex-col border border-slate-100">
@@ -494,29 +486,6 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, ac
                   {currentAssignedId != null && !hasCurrentAcademicUser && (
                     <option value={currentAssignedId}>
                       {client.assigned_to_name || currentAssignedId}
-                    </option>
-                  )}
-                  {academicUsers.map((academicUser) => (
-                    <option key={academicUser.id} value={academicUser.id}>
-                      {academicUser.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">
-                  Client Academic Counsellor
-                </label>
-                <select
-                  name="academic_counsellor"
-                  value={formData.academic_counsellor}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none bg-white"
-                >
-                  <option value="">Unassigned</option>
-                  {currentCounsellorId != null && !hasCurrentCounsellor && (
-                    <option value={currentCounsellorId}>
-                      {client.academic_counsellor_name || currentCounsellorId}
                     </option>
                   )}
                   {academicUsers.map((academicUser) => (

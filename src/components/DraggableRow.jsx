@@ -25,6 +25,7 @@ const DraggableRow = ({
   isAdmin,
   onOpenActivityModal,
   onOpenViewModal,
+  onOpenDetailsModal,
   onOpenEnrollModal,
 }) => {
   const cell = (key) => {
@@ -38,19 +39,23 @@ const DraggableRow = ({
           : approved
             ? "border-emerald-200 bg-emerald-50 text-emerald-700"
             : "border-slate-200 bg-slate-50 text-slate-500";
-        return <td key={key} className="whitespace-nowrap px-3 py-4 text-sm"><span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${classes}`}>{label}</span></td>;
+        return <td key={key} className="whitespace-nowrap px-3 py-3 text-sm"><span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${classes}`}>{label}</span></td>;
       }
       case "school_name":
-        return <td key={key} className="px-3 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{formatValue(lead.school_name)}</td>;
+        return <td key={key} className="px-3 py-3 whitespace-nowrap text-sm font-medium text-slate-900">
+          <button type="button" onClick={() => onOpenDetailsModal?.(lead)} className="text-left hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40" aria-label={`View details for ${lead.school_name || "lead"}`}>
+            {formatValue(lead.school_name)}
+          </button>
+        </td>;
       case "municipality":
-        return <td key={key} className="px-3 py-4 whitespace-nowrap text-sm text-slate-700">{formatValue(lead.municipality)}</td>;
+        return <td key={key} className="px-3 py-3 whitespace-nowrap text-sm text-slate-700">{formatValue(lead.municipality)}</td>;
       case "contact_person":
-        return <td key={key} className="px-3 py-4 whitespace-nowrap text-sm text-slate-700">{formatValue(lead.contact_person)}</td>;
+        return <td key={key} className="px-3 py-3 whitespace-nowrap text-sm text-slate-700">{formatValue(lead.contact_person)}</td>;
       case "contact_number":
-        return <td key={key} className="px-3 py-4 whitespace-nowrap text-sm text-slate-700">{formatValue(lead.contact_number)}</td>;
+        return <td key={key} className="px-3 py-3 whitespace-nowrap text-sm text-slate-700">{formatValue(lead.contact_number)}</td>;
       case "sub_status":
         return (
-          <td key={key} className="px-3 py-4 whitespace-nowrap text-sm text-slate-700">
+          <td key={key} className="px-3 py-3 whitespace-nowrap text-sm text-slate-700">
             <div className="flex items-center gap-2">
               <span className={`inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-semibold ${getSubStatusClasses(lead.sub_status)}`}>
                 {formatValue(lead.sub_status || "New")}
@@ -70,7 +75,7 @@ const DraggableRow = ({
         const canLogActivity = isAdmin || lead.approval !== "pending";
         const canConvert = lead.approval === "approved";
         return (
-          <td key={key} className="whitespace-nowrap px-3 py-4 text-right text-sm font-medium">
+          <td key={key} className="whitespace-nowrap px-3 py-3 text-right text-sm font-medium">
             <div className="flex items-center justify-end gap-1">
               {canLogActivity && <button type="button" onClick={() => onOpenActivityModal?.(lead)} className="inline-flex items-center gap-1 rounded-md border border-primary-border bg-primary-light px-2 py-1 text-xs font-semibold text-primary hover:bg-primary-light" title="Log activity">
                 <ClipboardDocumentListIcon className="h-3.5 w-3.5" /> Log
@@ -93,7 +98,7 @@ const DraggableRow = ({
         );
       }
       default:
-        return <td key={key} className="whitespace-nowrap px-3 py-4 text-sm text-slate-700">{formatValue(lead[key])}</td>;
+        return <td key={key} className="whitespace-nowrap px-3 py-3 text-sm text-slate-700">{formatValue(lead[key])}</td>;
     }
   };
 

@@ -4,6 +4,7 @@ import { clientService, catalogService, leadService } from "../services/api";
 import { forgetReturnedLeadIds } from "../pages/clients/returnedToLeadsStore";
 import { isValidEmail, isValidPhoneNumber } from "../utils/validation";
 import useModalScrollLock from "../hooks/useModalScrollLock.js";
+import ClassTagSelector from "./common/ClassTagSelector.jsx";
 
 const toLocalDateInputValue = (date) => new Date(date.getTime() - date.getTimezoneOffset() * 60000)
   .toISOString()
@@ -184,17 +185,6 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
       ...prev,
       [name]: type === "number" ? Number(value) : value,
     }));
-  };
-
-  const handleClassToggle = (classId) => {
-    setFormData((prev) => {
-      const current = prev.included_classes;
-      if (current.includes(classId)) {
-        return { ...prev, included_classes: current.filter((id) => id !== classId) };
-      } else {
-        return { ...prev, included_classes: [...current, classId] };
-      }
-    });
   };
 
   const handleCopyContactToPrincipal = () => {
@@ -660,26 +650,16 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
               <label className="block text-xs font-medium text-slate-600 mb-1.5">
                 Included Classes / Subjects *
               </label>
-              <div className="flex flex-wrap gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                {classesList.map((cls) => {
-                  const isChecked = formData.included_classes.includes(cls.id);
-                  return (
-                    <button
-                      type="button"
-                      key={cls.id}
-                      onClick={() => handleClassToggle(cls.id)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                        isChecked
-                          ? "bg-primary text-white shadow-sm"
-                          : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
-                      }`}
-                    >
-                      {isChecked && <CheckCircle className="w-3.5 h-3.5" />}
-                      <span className="capitalize">{cls.class_name || cls.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
+              <ClassTagSelector
+                ariaLabel="Included classes and subjects"
+                options={classesList.map((cls) => ({
+                  value: cls.id,
+                  label: cls.class_name || cls.name,
+                }))}
+                selectedValues={formData.included_classes}
+                onChange={(includedClasses) => setFormData((prev) => ({ ...prev, included_classes: includedClasses }))}
+                disabled={!classesList.length}
+              />
             </div>
           </div>
 

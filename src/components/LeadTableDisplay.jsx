@@ -9,6 +9,7 @@ import { Button } from "./ui/button.jsx";
 import ImportCsvButton from "./ImportCsvButton";
 import ActivityModal from "./ActivityModal";
 import ActivityLogViewModal from "./ActivityLogViewModal";
+import LeadDetailsModal from "./LeadDetailsModal.jsx";
 import EnrollModal from "./EnrollModal";
 
 const initialColumns = {
@@ -45,6 +46,7 @@ const LeadTableDisplay = ({
   const [activityModalLead, setActivityModalLead] = useState(null);
   // Task 3.4: Eye icon view modal state
   const [viewModalLead, setViewModalLead] = useState(null);
+  const [detailsLead, setDetailsLead] = useState(null);
   const [enrollModalLead, setEnrollModalLead] = useState(null);
   const handleSaveActivity = async (activityData) => {
     if (!activityModalLead) return;
@@ -360,6 +362,7 @@ const LeadTableDisplay = ({
                       onOpenViewModal={(leadToView) =>
                         setViewModalLead(leadToView)
                       }
+                      onOpenDetailsModal={(leadToView) => setDetailsLead(leadToView)}
                       onOpenEnrollModal={(leadToEnroll) =>
                         setEnrollModalLead(leadToEnroll)
                       }
@@ -386,6 +389,14 @@ const LeadTableDisplay = ({
           lead={viewModalLead}
           authToken={authToken}
           onClose={() => setViewModalLead(null)}
+        />
+      )}
+
+      {detailsLead && (
+        <LeadDetailsModal
+          lead={detailsLead}
+          authToken={authToken}
+          onClose={() => setDetailsLead(null)}
         />
       )}
 

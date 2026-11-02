@@ -12,6 +12,7 @@ import {
 import { getSubStatusClasses } from "./helpers.js";
 import { catalogService, leadService } from "../services/api";
 import useModalScrollLock from "../hooks/useModalScrollLock.js";
+import { isValidPhoneNumber } from "../utils/validation.js";
 
 /**
  * ActivityModal — renamed from "Pipeline" to "Activity Log" (Task 3.1)
@@ -136,6 +137,15 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
   const [subStatus, setSubStatus] = useState(
     lead?.sub_status || "New"
   );
+  const [scheduleDemoOpen, setScheduleDemoOpen] = useState(false);
+  const [scheduleDemoError, setScheduleDemoError] = useState("");
+  const [scheduleDemoForm, setScheduleDemoForm] = useState({
+    demo_at: "",
+    assigned_teacher: "",
+    contact_person: lead?.contact_person || "",
+    phone: lead?.contact_number || "",
+    details: "",
+  });
 
   useEffect(() => {
     if (!subStatusOptions.some((option) => option.value === subStatus)) {
@@ -174,7 +184,8 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
           ? new Date(activityAt).toISOString()
           : new Date().toISOString(),
         type: activityType,
-        sub_status: subStatus,
+        // Demo scheduled is only written by the atomic demo scheduling path.
+        sub_status: subStatus.toLowerCase() === "demo scheduled" ? "" : subStatus,
         remarks: remarks.trim(),
         followup_at: new Date(followupAt).toISOString(),
       };
@@ -184,6 +195,40 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
       setError(err?.message || "Failed to save activity. Please try again.");
     } finally {
       submittingRef.current = false;
+      setSaving(false);
+    }
+  };
+
+  const handleScheduleDemo = async () => {
+    if (!scheduleDemoForm.demo_at) {
+      setScheduleDemoError("Demo date and time are required.");
+      return;
+    }
+    if (new Date(scheduleDemoForm.demo_at) < new Date()) {
+      setScheduleDemoError("Demo date and time cannot be in the past.");
+      return;
+    }
+    if (scheduleDemoForm.phone.trim() && !isValidPhoneNumber(scheduleDemoForm.phone)) {
+      setScheduleDemoError("Phone must contain exactly 10 local digits. +977 is accepted.");
+      return;
+    }
+
+    setSaving(true);
+    setScheduleDemoError("");
+    try {
+      await onSave({
+        demo: {
+          demo_at: new Date(scheduleDemoForm.demo_at).toISOString(),
+          assigned_teacher: scheduleDemoForm.assigned_teacher.trim(),
+          contact_person: scheduleDemoForm.contact_person.trim(),
+          phone: scheduleDemoForm.phone.trim(),
+          details: scheduleDemoForm.details.trim(),
+        },
+      });
+      onClose();
+    } catch (err) {
+      setScheduleDemoError(err?.message || "Failed to schedule the demo.");
+    } finally {
       setSaving(false);
     }
   };
@@ -334,7 +379,20 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
             </div>
             <select
               value={subStatus}
-              onChange={(e) => setSubStatus(e.target.value)}
+              onChange={(e) => {
+                const nextStatus = e.target.value;
+                if (nextStatus.toLowerCase() === "demo scheduled") {
+                  setScheduleDemoError("");
+                  setScheduleDemoForm((current) => ({
+                    ...current,
+                    contact_person: current.contact_person || lead?.contact_person || "",
+                    phone: current.phone || lead?.contact_number || "",
+                  }));
+                  setScheduleDemoOpen(true);
+                  return;
+                }
+                setSubStatus(nextStatus);
+              }}
               className="w-full h-10 px-3 text-sm rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-white focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/15 outline-none transition-all text-slate-800 font-medium"
             >
               {subStatusOptions.map((opt) => (
@@ -342,7 +400,7 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
               ))}
             </select>
             <p className="mt-1 text-xs text-slate-400">
-              Updates the lead's activity log position. (Task 3.5: only editable here)
+              Choosing “Demo scheduled” opens the demo form and creates its activity log with the demo.
             </p>
           </div>
 
@@ -436,6 +494,79 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
           </div>
         </form>
       </div>
+      {scheduleDemoOpen && (
+        <div
+          data-modal-open="true"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs"
+          onClick={(event) => {
+            if (event.target === event.currentTarget && !saving) setScheduleDemoOpen(false);
+          }}
+        >
+          <div role="dialog" aria-modal="true" aria-labelledby="schedule-demo-title" className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="border-b border-slate-100 px-5 py-4">
+              <h3 id="schedule-demo-title" className="text-base font-bold text-slate-900">Schedule Demo</h3>
+              <p className="mt-1 text-xs text-slate-500">A demo record and its activity log will be created together for {contactTitle}.</p>
+            </div>
+            <div className="space-y-3 p-5">
+              {scheduleDemoError && <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{scheduleDemoError}</div>}
+              <label className="block text-xs font-semibold text-slate-600">
+                Demo date and time *
+                <input
+                  type="datetime-local"
+                  min={todayISO}
+                  value={scheduleDemoForm.demo_at}
+                  onChange={(event) => setScheduleDemoForm((form) => ({ ...form, demo_at: event.target.value }))}
+                  className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-normal text-slate-800 outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                />
+              </label>
+              <label className="block text-xs font-semibold text-slate-600">
+                Instructor
+                <input
+                  value={scheduleDemoForm.assigned_teacher}
+                  onChange={(event) => setScheduleDemoForm((form) => ({ ...form, assigned_teacher: event.target.value }))}
+                  maxLength={255}
+                  className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-normal text-slate-800 outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                />
+              </label>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label className="block text-xs font-semibold text-slate-600">
+                  Contact person
+                  <input
+                    value={scheduleDemoForm.contact_person}
+                    onChange={(event) => setScheduleDemoForm((form) => ({ ...form, contact_person: event.target.value }))}
+                    maxLength={255}
+                    className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-normal text-slate-800 outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                  />
+                </label>
+                <label className="block text-xs font-semibold text-slate-600">
+                  Contact phone
+                  <input
+                    value={scheduleDemoForm.phone}
+                    onChange={(event) => setScheduleDemoForm((form) => ({ ...form, phone: event.target.value }))}
+                    maxLength={32}
+                    className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-normal text-slate-800 outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                  />
+                </label>
+              </div>
+              <label className="block text-xs font-semibold text-slate-600">
+                Details
+                <textarea
+                  rows={3}
+                  value={scheduleDemoForm.details}
+                  onChange={(event) => setScheduleDemoForm((form) => ({ ...form, details: event.target.value }))}
+                  className="mt-1.5 w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm font-normal text-slate-800 outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                />
+              </label>
+              <div className="flex justify-end gap-2 pt-1">
+                <button type="button" onClick={() => setScheduleDemoOpen(false)} disabled={saving} className="rounded-lg bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 disabled:opacity-50">Cancel</button>
+                <button type="button" onClick={handleScheduleDemo} disabled={saving} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white hover:bg-primary-hover disabled:opacity-60">
+                  {saving ? "Scheduling…" : "Create Demo & Save Activity"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

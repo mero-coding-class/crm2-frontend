@@ -509,9 +509,9 @@ const Demo = () => {
               <div className="crm-data-table__scroll">
                 <table>
                 <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/60">
+                    <tr className="border-b border-slate-200 bg-slate-50">
                     {["School", "Demo Date/Time", "Status", "Instructor", "Contact", "Actions"].map((h) => (
-                      <th key={h} className="text-left px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide whitespace-nowrap">
+                      <th key={h} className="text-left px-3 h-9 font-semibold text-slate-500 text-xs uppercase tracking-[0.04em] whitespace-nowrap">
                         {h}
                       </th>
                     ))}
@@ -522,32 +522,32 @@ const Demo = () => {
                     const cfg = statusCfg(demo.demo_status);
                     return (
                       <tr key={demo.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3">
                           <div className="font-semibold text-slate-800">{demo.school_name || demo.system_id}</div>
                           {demo.details && (
                             <div className="text-xs text-slate-400 truncate max-w-[200px]">{demo.details}</div>
                           )}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-slate-700">
+                        <td className="px-3 py-3 whitespace-nowrap text-slate-700">
                           <div className="flex items-center gap-1.5">
                             <Calendar className="w-3.5 h-3.5 text-slate-400" />
                             {fmt(demo.demo_at)}
                           </div>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${cfg.badge}`}>
                             {cfg.icon ? <cfg.icon className="w-3.5 h-3.5" /> : <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />}
                             {cfg.label}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-slate-600">
+                        <td className="px-3 py-3 text-slate-600">
                           {demo.assigned_teacher || "—"}
                         </td>
-                        <td className="px-4 py-3 text-slate-600">
+                        <td className="px-3 py-3 text-slate-600">
                           {demo.contact_person || "—"}
                           {demo.phone && <div className="text-xs text-slate-400">{demo.phone}</div>}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3">
                           <div className="flex items-center gap-1.5">
                             <button
                               onClick={() => setViewingDemo(demo)}
@@ -565,9 +565,9 @@ const Demo = () => {
                                 <Pencil className="w-4 h-4" />
                               </button>
                             )}
-                            {/* Any academic or admin can submit demo feedback. */}
-                            {demo.demo_status === "scheduled" &&
-                              (isAdmin || isAcademic) && (
+                            {/* Sales users can submit feedback within their own pipeline. */}
+                            {["scheduled", "rescheduled"].includes(demo.demo_status) &&
+                              (isAdmin || isAcademic || isB2b) && (
                                 <button
                                   onClick={() => openFeedback(demo)}
                                   className="p-1.5 rounded-[6px] text-slate-500 hover:text-primary hover:bg-primary-light transition-colors"

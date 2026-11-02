@@ -798,6 +798,14 @@ export const catalogService = {
 };
 
 export const clientService = {
+  getClient: async (id, authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/clients/${id}/`, {
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    return handleResponse(response);
+  },
+
   getClients: async (authToken, params = {}) => {
     if (!authToken) throw new Error("Authentication token not found.");
     const searchParams = new URLSearchParams();

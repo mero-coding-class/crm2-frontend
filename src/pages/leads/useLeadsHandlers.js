@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { resolveServerId, leadService, activityService } from "../../services/api";
+import { resolveServerId, leadService, activityService, demoService } from "../../services/api";
 import { deduplicateLeads, matchId } from "./utils";
 
 export default function useLeadsHandlers(ctx) {
@@ -29,21 +29,25 @@ export default function useLeadsHandlers(ctx) {
         const serverId = resolveServerId(leadObj || leadId);
         if (!serverId) throw new Error("Unable to resolve Lead ID");
 
-        await activityService.createActivity(
-          {
-            lead: serverId,
-            activity_at: activityData.activity_at,
-            type: activityData.type,
-            sub_status: activityData.sub_status,
-            remarks: activityData.remarks,
-            followup_at: activityData.followup_at,
-          },
-          authToken
-        );
+        if (activityData.demo) {
+          await demoService.createDemo({ lead: serverId, ...activityData.demo }, authToken);
+        } else {
+          await activityService.createActivity(
+            {
+              lead: serverId,
+              activity_at: activityData.activity_at,
+              type: activityData.type,
+              sub_status: activityData.sub_status,
+              remarks: activityData.remarks,
+              followup_at: activityData.followup_at,
+            },
+            authToken
+          );
+        }
 
         setToast({
           show: true,
-          message: "Activity updated successfully",
+          message: activityData.demo ? "Demo scheduled successfully" : "Activity updated successfully",
           type: "success",
         });
 
@@ -53,7 +57,9 @@ export default function useLeadsHandlers(ctx) {
               matchId(l, serverId)
                 ? {
                     ...l,
-                    sub_status: activityData.sub_status ?? l.sub_status,
+                    sub_status: activityData.demo
+                      ? "Demo scheduled"
+                      : activityData.sub_status || l.sub_status,
                   }
                 : l
             )

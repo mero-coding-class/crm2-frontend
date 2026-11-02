@@ -19,6 +19,7 @@ import { Button } from "../components/ui/button.jsx";
 import Pagination from "../components/common/Pagination.jsx";
 import { PageShell, PageHeader } from "../components/common/PageShell.jsx";
 import ClientEditModal from "../components/ClientEditModal";
+import ClientDetailsModal from "../components/ClientDetailsModal.jsx";
 import Toast from "../components/common/Toast";
 import { clientService } from "../services/api";
 
@@ -83,6 +84,7 @@ const Clients = () => {
   } = useAcademicUsers(authToken, canAssignAcademic);
   const [assigningClientId, setAssigningClientId] = useState(null);
   const [editingClient, setEditingClient] = useState(null);
+  const [viewingClient, setViewingClient] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [toast, setToast] = useState({
     show: false,
@@ -276,6 +278,7 @@ const Clients = () => {
         )}
         <ClientsTable
           clients={filteredClients}
+          onViewDetails={setViewingClient}
           academicUsers={academicUsers}
           canManage={canManageClients}
           canAssignAcademic={canAssignAcademic}
@@ -326,6 +329,14 @@ const Clients = () => {
                 duration: 3000,
               });
             }}
+          />
+        )}
+
+        {viewingClient && (
+          <ClientDetailsModal
+            client={viewingClient}
+            authToken={authToken}
+            onClose={() => setViewingClient(null)}
           />
         )}
 
