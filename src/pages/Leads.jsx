@@ -131,10 +131,10 @@ const Leads = () => {
       if (!Object.keys(filters).length) return undefined;
     }
     const timer = window.setTimeout(() => {
-      handleRefresh(1, filters).catch((refreshError) => {
+      handleRefresh(1, filters, { silent: true }).catch((refreshError) => {
         console.warn("Could not refresh filtered leads", refreshError);
       });
-    }, 300);
+    }, 100);
     return () => window.clearTimeout(timer);
   }, [
     searchTerm,
@@ -179,6 +179,10 @@ const Leads = () => {
   );
 
   const { exporting, handleExport } = useLeadExports({ setError });
+  const exportCurrentLeads = useCallback(
+    () => handleExport(currentLeads),
+    [handleExport, currentLeads]
+  );
 
   const {
     isEditModalOpen,
@@ -243,6 +247,18 @@ const Leads = () => {
     setBulkArchiveConfirmIds(null);
   }, [bulkArchiveConfirmIds, archiveReason, archiveNextYearProbability, handleBulkDeleteLeadFn]);
 
+  const handleClearFilters = useCallback(() => {
+    setFilterSubStatus("SubStatus");
+    setSearchTerm("");
+    setFilterFollowupDate("");
+    setFilterFollowupFrom("");
+    setFilterFollowupTo("");
+  }, []);
+  const subStatusOptions = useMemo(() => [
+    { value: "SubStatus", label: "All sub-statuses" },
+    ...subStatusChoices.map((choice) => ({ value: choice.value, label: choice.label })),
+  ], [subStatusChoices]);
+
   // The backend already scopes this list by the authenticated user's role.
   // removed noisy debug logging
 
@@ -295,10 +311,8 @@ const Leads = () => {
         canManageLeads={canManageLeads}
         authToken={authToken}
         handleRefresh={handleRefresh}
-        handleExport={() => handleExport(currentLeads)}
+        handleExport={exportCurrentLeads}
         exporting={exporting}
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
         showFilters={showFilters}
         setShowFilters={setShowFilters}
         totalCount={currentLeads ? currentLeads.length : 0}
@@ -327,17 +341,8 @@ const Leads = () => {
         setFilterFollowupFrom={setFilterFollowupFrom}
         filterFollowupTo={filterFollowupTo}
         setFilterFollowupTo={setFilterFollowupTo}
-        onClearFilters={() => {
-          setFilterSubStatus("SubStatus");
-          setSearchTerm("");
-          setFilterFollowupDate("");
-          setFilterFollowupFrom("");
-          setFilterFollowupTo("");
-        }}
-        subStatusOptions={[
-          { value: "SubStatus", label: "All sub-statuses" },
-          ...subStatusChoices.map((choice) => ({ value: choice.value, label: choice.label })),
-        ]}
+        onClearFilters={handleClearFilters}
+        subStatusOptions={subStatusOptions}
       />
 
       {/* Advanced filters handled by `LeadsFilters` component above. Duplicate block removed. */}

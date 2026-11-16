@@ -96,12 +96,12 @@ const GUIDELINES = [
     title: "CSV Import",
     color: "bg-slate-50 text-slate-600 border-slate-200",
     steps: [
-      "Use the 'Import CSV' button on the Leads or Clients page.",
-      "Required CSV columns: school_name, district, municipality, address, contact_person, email.",
-      "Optional columns: contact_number, alt_number (alternate number), landline, alt_contact_person, social_media, source, course_interest, sub_status.",
-      "Ensure the CSV uses UTF-8 encoding and the header row matches exactly.",
-      "Download the CSV template from the Downloads page for reference.",
-      "Rows with missing required fields will be skipped and reported in the import summary.",
+      "Use the 'Import CSV / Excel' button on the Leads page.",
+      "Required lead columns: school_name, district, municipality, address, contact_person, contact_number, email.",
+      "Optional lead columns: alt_number, alt_contact_person, source, course_interest, social_media.",
+      "Use a UTF-8 CSV or Excel (.xlsx) file with the header row first; the file limit is 50 MB and 100,000 data rows.",
+      "Put the column names in the first row; do not add a title row or blank row above them.",
+      "Rows with missing required fields are marked invalid in the import preview and cannot be selected for import.",
     ],
   },
 ];

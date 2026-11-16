@@ -92,4 +92,4 @@ const LeadsHeader = ({
   );
 };
 
-export default LeadsHeader;
+export default React.memo(LeadsHeader);

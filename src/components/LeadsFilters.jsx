@@ -1,6 +1,41 @@
 // src/components/LeadsFilters.jsx
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { X, ChevronDown, Search } from "lucide-react";
+
+const DebouncedSearchInput = React.memo(({ value, onChange }) => {
+  const [draft, setDraft] = useState(value || "");
+  const previousValue = useRef(value || "");
+  const skipDebounce = useRef(false);
+
+  useEffect(() => {
+    const nextValue = value || "";
+    if (nextValue !== previousValue.current) {
+      previousValue.current = nextValue;
+      skipDebounce.current = true;
+      setDraft(nextValue);
+    }
+  }, [value]);
+
+  useEffect(() => {
+    if (skipDebounce.current) {
+      skipDebounce.current = false;
+      return undefined;
+    }
+    if (draft === (value || "")) return undefined;
+    const timer = window.setTimeout(() => onChange(draft), 120);
+    return () => window.clearTimeout(timer);
+  }, [draft, value, onChange]);
+
+  return (
+    <input
+      type="text"
+      placeholder="Search school names…"
+      value={draft}
+      onChange={(event) => setDraft(event.target.value)}
+      className="w-full h-8 pl-9 pr-3 text-sm rounded-[9999px] border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-primary focus:ring-[3px] focus:ring-primary/15 hover:border-slate-300 transition-colors"
+    />
+  );
+});
 
 const FilterPill = ({ value, onChange, options }) => (
   <div className="relative">
@@ -43,13 +78,7 @@ const LeadsFilters = ({
         {setSearchTerm && (
           <div className="relative min-w-[200px] max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search school names…"
-              value={searchTerm || ""}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full h-8 pl-9 pr-3 text-sm rounded-[9999px] border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-primary focus:ring-[3px] focus:ring-primary/15 hover:border-slate-300 transition-colors"
-            />
+            <DebouncedSearchInput value={searchTerm} onChange={setSearchTerm} />
           </div>
         )}
 
@@ -115,4 +144,4 @@ const LeadsFilters = ({
   );
 };
 
-export default LeadsFilters;
+export default React.memo(LeadsFilters);

@@ -42,7 +42,7 @@ export default function useLeadsCore(authToken, pageSize) {
         }
         throw err;
       } finally {
-        if (requestId === pageRequestIdRef.current && !silent) setLoading(false);
+        if (requestId === pageRequestIdRef.current) setLoading(false);
       }
     },
     [authToken, pageSize]
@@ -83,14 +83,14 @@ export default function useLeadsCore(authToken, pageSize) {
     handleRefresh(1).catch(() => {});
   }, [authToken, handleRefresh]);
 
-  const goToPage = async (page) => {
+  const goToPage = useCallback(async (page) => {
     if (!authToken) return;
     try {
       await handleRefresh(page);
     } catch (e) {
       console.warn("goToPage failed", e);
     }
-  };
+  }, [authToken, handleRefresh]);
 
   return {
     allLeads,

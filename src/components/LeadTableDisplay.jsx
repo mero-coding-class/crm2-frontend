@@ -412,4 +412,4 @@ const LeadTableDisplay = ({
   );
 };
 
-export default LeadTableDisplay;
+export default React.memo(LeadTableDisplay);
