@@ -24,7 +24,8 @@ import {
  *   id, system_id, proposal_status, demo_scheduled,
  *   status, approval, approval_reason, approved_by, approved_at,
  *   archived, archive_reason, next_year_probability,
- *   owner, call_assignee, created_by, created_at, updated_at
+ *   owner, created_by, created_at, updated_at; call_assignee is editable
+ *   only by Admin/B2B with a required assignment reason.
  */
 
 const DEFAULT_FORM = {
@@ -55,6 +56,8 @@ const DEFAULT_FORM = {
     owner_username: "",
     call_assignee: null,
     call_assignee_username: "",
+    original_call_assignee: "",
+    assignment_reason: "",
     created_by: null,
     created_by_username: "",
     created_at: "",
@@ -76,6 +79,24 @@ const LeadEditModal = ({ lead, onClose, onSave, classes = [], classLoadError = "
   const [loadError, setLoadError] = useState("");
   const [validationError, setValidationError] = useState("");
   const [reloadToken, setReloadToken] = useState(0);
+  const [academicAssignees, setAcademicAssignees] = useState([]);
+  const [assigneesLoading, setAssigneesLoading] = useState(false);
+  const canAssignAcademic = isAdminRole(user?.role) || String(user?.role || "").toLowerCase() === "b2b";
+
+  useEffect(() => {
+    if (!authToken || !canAssignAcademic) return undefined;
+    let cancelled = false;
+    setAssigneesLoading(true);
+    leadService.getAcademicAssignees(authToken)
+      .then((users) => {
+        if (!cancelled) setAcademicAssignees(Array.isArray(users) ? users : []);
+      })
+      .catch((error) => {
+        if (!cancelled) setValidationError(error.message || "Could not load academic assignees.");
+      })
+      .finally(() => { if (!cancelled) setAssigneesLoading(false); });
+    return () => { cancelled = true; };
+  }, [authToken, canAssignAcademic]);
 
   useEffect(() => {
     if (!lead?.id || !authToken) {
@@ -131,6 +152,8 @@ const LeadEditModal = ({ lead, onClose, onSave, classes = [], classLoadError = "
       owner_username: source.owner_username || "",
       call_assignee: source.call_assignee ?? null,
       call_assignee_username: source.call_assignee_username || "",
+      original_call_assignee: source.call_assignee == null ? "" : String(source.call_assignee),
+      assignment_reason: "",
       created_by: source.created_by ?? null,
       created_by_username: source.created_by_username || "",
       created_at: source.created_at || "",
@@ -203,6 +226,12 @@ const LeadEditModal = ({ lead, onClose, onSave, classes = [], classLoadError = "
       setValidationError("Enter a landline number with 7 to 10 local digits.");
       return;
     }
+    const assigneeChanged = canAssignAcademic &&
+      String(formData.call_assignee ?? "") !== formData.original_call_assignee;
+    if (assigneeChanged && !formData.assignment_reason.trim()) {
+      setValidationError("Provide a reason when changing the academic assignee.");
+      return;
+    }
     const maxLengths = {
       school_name: 255, district: 100, municipality: 100, address: 255,
       contact_person: 255, contact_number: 32, alt_number: 32, landline: 32,
@@ -236,6 +265,10 @@ const LeadEditModal = ({ lead, onClose, onSave, classes = [], classLoadError = "
     if (admin) {
       updatedData.school_name = formData.school_name;
       updatedData.source = formData.source || "";
+    }
+    if (assigneeChanged) {
+      updatedData.call_assignee = formData.call_assignee ? Number(formData.call_assignee) : null;
+      updatedData.assignment_reason = formData.assignment_reason.trim();
     }
 
     onSave(updatedData);
@@ -276,6 +309,8 @@ const LeadEditModal = ({ lead, onClose, onSave, classes = [], classLoadError = "
             onClose={onClose}
             classes={classes}
             classLoadError={classLoadError}
+            academicAssignees={academicAssignees}
+            assigneesLoading={assigneesLoading}
           />
         )}
       </div>

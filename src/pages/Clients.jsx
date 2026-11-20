@@ -21,13 +21,12 @@ import { PageShell, PageHeader } from "../components/common/PageShell.jsx";
 import ClientEditModal from "../components/ClientEditModal";
 import ClientDetailsModal from "../components/ClientDetailsModal.jsx";
 import Toast from "../components/common/Toast";
-import { clientService } from "../services/api";
+import { catalogService, clientService, leadService } from "../services/api";
 
 // Modular hooks and components for Clients page
 import useEnrollmentsCore from "./clients/useEnrollmentsCore";
 import useEnrollmentFilters from "./clients/useEnrollmentFilters";
 import useEnrollmentExport from "./clients/useEnrollmentExport";
-import useAcademicUsers from "./clients/useAcademicUsers";
 import useEnrollmentEvents from "./clients/useEnrollmentEvents";
 import FiltersPanel from "./clients/FiltersPanel";
 import useEnrollmentUpdates from "./clients/useEnrollmentUpdates";
@@ -39,7 +38,7 @@ const Clients = () => {
   const routeSearch = searchParams.get("search") || "";
   const routeFilters = useMemo(() => {
     const filters = {};
-    ["renewals", "enrolled_from", "enrolled_to", "converted_from", "converted_to", "contract_from", "contract_to", "assigned_to", "academic_counsellor"].forEach((key) => {
+    ["renewals", "enrolled_from", "enrolled_to", "converted_from", "converted_to", "contract_from", "contract_to", "assigned_to", "owner", "package_type", "mou_start_from", "mou_start_to", "mou_end_from", "mou_end_to"].forEach((key) => {
       const value = searchParams.get(key);
       if (value) filters[key] = value;
     });
@@ -47,7 +46,11 @@ const Clients = () => {
   }, [searchParams]);
   const role = user?.role?.toLowerCase();
   const canManageClients = role === "admin";
-  const canAssignAcademic = canManageClients || role === "b2b";
+  const [showFilters, setShowFilters] = useState(false);
+  const [leadOwners, setLeadOwners] = useState([]);
+  const [academicAssignees, setAcademicAssignees] = useState([]);
+  const [packages, setPackages] = useState([]);
+  const [filterOptionsError, setFilterOptionsError] = useState("");
   const ITEMS_PER_PAGE = 20;
   // Core paginated state and server fetcher
   const {
@@ -76,13 +79,6 @@ const Clients = () => {
   // Export
   const { exporting, handleExportEnrollments } = useEnrollmentExport();
 
-  // Academic users can be assigned to client records.
-  const {
-    academicUsers,
-    fetchAcademicUsers,
-    error: academicUsersError,
-  } = useAcademicUsers(authToken, canAssignAcademic);
-  const [assigningClientId, setAssigningClientId] = useState(null);
   const [editingClient, setEditingClient] = useState(null);
   const [viewingClient, setViewingClient] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -110,18 +106,45 @@ const Clients = () => {
     if (authToken) fetchEnrolledClients(currentPage);
   }, [authToken, currentPage, fetchEnrolledClients]);
 
+  useEffect(() => {
+    if (!authToken) return undefined;
+    let cancelled = false;
+    Promise.all([
+      clientService.getLeadOwners(authToken),
+      leadService.getAcademicAssignees(authToken),
+      catalogService.getPackages(authToken),
+    ])
+      .then(([owners, academics, packageRows]) => {
+        if (cancelled) return;
+        setLeadOwners((Array.isArray(owners) ? owners : []).map((owner) => ({
+          id: owner.id,
+          name: [owner.first_name, owner.last_name].filter(Boolean).join(" ") || owner.username,
+        })));
+        setAcademicAssignees((Array.isArray(academics) ? academics : []).map((academic) => ({
+          id: academic.id,
+          name: [academic.first_name, academic.last_name].filter(Boolean).join(" ") || academic.username,
+        })));
+        setPackages((Array.isArray(packageRows) ? packageRows : []).filter((item) => item.active));
+        setFilterOptionsError("");
+      })
+      .catch((loadError) => {
+        if (!cancelled) setFilterOptionsError(loadError.message || "Could not load filter options.");
+      });
+    return () => { cancelled = true; };
+  }, [authToken]);
+
+  useEffect(() => {
+    if (Object.keys(routeFilters).length) setShowFilters(true);
+  }, [routeFilters]);
+
   useEnrollmentEvents({
     authToken,
     fetchEnrolledClients,
     currentPage,
   });
-  useEffect(() => {
-    fetchAcademicUsers();
-  }, [fetchAcademicUsers]);
 
   useRealtimeRefresh(authToken, () => {
     fetchEnrolledClients(currentPage, { silent: true });
-    if (canAssignAcademic) fetchAcademicUsers();
   });
 
   useEffect(() => {
@@ -150,12 +173,20 @@ const Clients = () => {
     });
   }, [filteredClients, handleExportEnrollments, searchQuery]);
 
-  const setAcademicFilter = useCallback((field, value) => {
+  const setRouteFilter = useCallback((field, value) => {
     const next = new URLSearchParams(searchParams);
     if (value) next.set(field, value);
     else next.delete(field);
     setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
+    setCurrentPage(1);
+  }, [searchParams, setSearchParams, setCurrentPage]);
+
+  const clearFilters = useCallback(() => {
+    const next = new URLSearchParams(searchParams);
+    ["owner", "package_type", "mou_start_from", "mou_start_to", "mou_end_from", "mou_end_to", "renewals", "enrolled_from", "enrolled_to", "converted_from", "converted_to", "contract_from", "contract_to", "assigned_to"].forEach((key) => next.delete(key));
+    setSearchParams(next, { replace: true });
+    setCurrentPage(1);
+  }, [searchParams, setSearchParams, setCurrentPage]);
 
   const {
     handleDelete,
@@ -180,31 +211,6 @@ const Clients = () => {
     setIsModalOpen(false);
     setEditingClient(null);
   }, []);
-
-  const handleAssignAcademic = useCallback(async (clientId, assignedTo) => {
-    setAssigningClientId(clientId);
-    try {
-      const updated = await clientService.assignAcademic(clientId, assignedTo, authToken);
-      setAllClients((clients) => clients.map((client) =>
-        client.id === clientId ? { ...client, ...updated } : client
-      ));
-      setToast({
-        show: true,
-        message: updated.assigned_to_name
-          ? `Assigned to ${updated.assigned_to_name}`
-          : "Academic assignment cleared",
-        type: "success",
-      });
-    } catch (assignError) {
-      setToast({
-        show: true,
-        message: assignError.message || "Could not update academic assignment",
-        type: "error",
-      });
-    } finally {
-      setAssigningClientId(null);
-    }
-  }, [authToken, setAllClients]);
 
   // Show the shared page loader only on the very first load.
   if (initialLoad)
@@ -260,30 +266,33 @@ const Clients = () => {
       />
 
       <FiltersPanel
+        showFilters={showFilters}
+        setShowFilters={setShowFilters}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         onClear={() => setSearchQuery("")}
         loading={loading}
-        academicUsers={academicUsers}
-        assignedTo={routeFilters.assigned_to || ""}
-        onAcademicFilterChange={(value) => setAcademicFilter("assigned_to", value)}
+        leadOwners={leadOwners}
+        leadOwner={routeFilters.owner || ""}
+        onLeadOwnerChange={(value) => setRouteFilter("owner", value)}
+        academicAssignees={academicAssignees}
+        academicAssignee={routeFilters.assigned_to || ""}
+        onAcademicAssigneeChange={(value) => setRouteFilter("assigned_to", value)}
+        packages={packages}
+        packageType={routeFilters.package_type || ""}
+        onPackageChange={(value) => setRouteFilter("package_type", value)}
+        filters={routeFilters}
+        onFilterChange={setRouteFilter}
+        onClearFilters={clearFilters}
+        filterOptionsError={filterOptionsError}
       />
 
       {/* ─── Clients Table & Content ─── */}
       <div className="p-6">
-        {academicUsersError && (
-          <div role="alert" className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {academicUsersError}
-          </div>
-        )}
         <ClientsTable
           clients={filteredClients}
           onViewDetails={setViewingClient}
-          academicUsers={academicUsers}
           canManage={canManageClients}
-          canAssignAcademic={canAssignAcademic}
-          assigningClientId={assigningClientId}
-          onAssignAcademic={handleAssignAcademic}
           handleEdit={handleEdit}
           handleDelete={handleDelete}
           handleBulkDelete={handleBulkDelete}
@@ -316,7 +325,6 @@ const Clients = () => {
             isOpen={isModalOpen}
             client={editingClient}
             authToken={authToken}
-            academicUsers={academicUsers}
             onClose={handleCloseModal}
             onSave={() => {
               setIsModalOpen(false);

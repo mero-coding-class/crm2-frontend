@@ -12,7 +12,7 @@ import {
 import { getSubStatusClasses } from "./helpers.js";
 import { catalogService, leadService } from "../services/api";
 import useModalScrollLock from "../hooks/useModalScrollLock.js";
-import { isValidPhoneNumber } from "../utils/validation.js";
+import { isValidAlphabeticName, isValidPhoneNumber } from "../utils/validation.js";
 
 /**
  * ActivityModal — renamed from "Pipeline" to "Activity Log" (Task 3.1)
@@ -206,6 +206,10 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
     }
     if (new Date(scheduleDemoForm.demo_at) < new Date()) {
       setScheduleDemoError("Demo date and time cannot be in the past.");
+      return;
+    }
+    if (scheduleDemoForm.contact_person.trim().length < 2 || !isValidAlphabeticName(scheduleDemoForm.contact_person)) {
+      setScheduleDemoError("Enter a valid contact person name using letters and standard name punctuation.");
       return;
     }
     if (scheduleDemoForm.phone.trim() && !isValidPhoneNumber(scheduleDemoForm.phone)) {
@@ -497,7 +501,7 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
       {scheduleDemoOpen && (
         <div
           data-modal-open="true"
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs"
+          className="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs"
           onClick={(event) => {
             if (event.target === event.currentTarget && !saving) setScheduleDemoOpen(false);
           }}
@@ -530,8 +534,9 @@ const ActivityModal = ({ lead, onClose, onSave, authToken, activityTypes }) => {
               </label>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label className="block text-xs font-semibold text-slate-600">
-                  Contact person
+                Contact person *
                   <input
+                  required
                     value={scheduleDemoForm.contact_person}
                     onChange={(event) => setScheduleDemoForm((form) => ({ ...form, contact_person: event.target.value }))}
                     maxLength={255}

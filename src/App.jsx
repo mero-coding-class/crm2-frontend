@@ -66,14 +66,17 @@ function AppContent() {
           <Route path="/profile" element={<Profile />} />
           <Route
             path="/leads"
+            element={<Leads />}
+          />
+          <Route
+            path="/clients"
             element={(
-              <RestrictedRole deniedRoles={["academic"]} redirectTo="/demo" preserveSearch>
-                <Leads />
+              <RestrictedRole deniedRoles={["academic", "b2c"]} redirectTo="/dashboard">
+                <Clients />
               </RestrictedRole>
             )}
           />
-          <Route path="/clients" element={<Clients />} />
-          <Route path="/enrolled-students" element={<Navigate to="/clients" replace />} />
+          <Route path="/enrolled-students" element={<RestrictedRole deniedRoles={["academic", "b2c"]} redirectTo="/dashboard"><Navigate to="/clients" replace /></RestrictedRole>} />
           <Route path="/demo" element={<Demo />} />
           <Route path="/trash" element={<Navigate to="/archive" replace />} />
           <Route

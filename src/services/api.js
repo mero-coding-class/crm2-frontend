@@ -127,6 +127,8 @@ export const leadService = {
       course_interest: lead.course_interest || "",
       sub_status: lead.sub_status || "New",
       approval: lead.approval || "",
+      call_assignee: lead.call_assignee ?? null,
+      call_assignee_username: lead.call_assignee_username || "",
     }));
 
     return { results: mapped, count: count ?? null, totalPages };
@@ -152,6 +154,7 @@ export const leadService = {
       "school_name", "district", "municipality", "address",
       "contact_person", "contact_number", "alt_number", "alt_contact_person", "landline",
       "email", "source", "course_interest", "social_media", "sub_status",
+      "call_assignee", "assignment_reason",
     ];
     const unsupportedFields = Object.keys(updates || {}).filter(
       (field) => !WRITABLE_FIELDS.includes(field)
@@ -241,6 +244,14 @@ export const leadService = {
   getSubStatusChoices: async (authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
     const response = await apiFetch(`${BASE_URL}/leads/sub-status-choices/`, {
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    return handleResponse(response);
+  },
+
+  getAcademicAssignees: async (authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/leads/academic-assignees/`, {
       headers: { Authorization: `Token ${authToken}` },
     });
     return handleResponse(response);
@@ -814,8 +825,14 @@ export const clientService = {
     if (params.search) searchParams.append("search", params.search);
     if (params.district) searchParams.append("district", params.district);
     if (params.municipality) searchParams.append("municipality", params.municipality);
+    if (params.owner) searchParams.append("owner", params.owner);
+    if (params.package_type) searchParams.append("package_type", params.package_type);
     if (params.assigned_to) searchParams.append("assigned_to", params.assigned_to);
     if (params.academic_counsellor) searchParams.append("academic_counsellor", params.academic_counsellor);
+    if (params.mou_start_from) searchParams.append("mou_start_from", params.mou_start_from);
+    if (params.mou_start_to) searchParams.append("mou_start_to", params.mou_start_to);
+    if (params.mou_end_from) searchParams.append("mou_end_from", params.mou_end_from);
+    if (params.mou_end_to) searchParams.append("mou_end_to", params.mou_end_to);
     if (params.active !== undefined && params.active !== null) searchParams.append("active", params.active);
     if (params.renewals) searchParams.append("renewals", params.renewals);
     if (params.enrolled_from) searchParams.append("enrolled_from", params.enrolled_from);
@@ -833,23 +850,10 @@ export const clientService = {
     return handleResponse(response);
   },
 
-  getAcademicAssignees: async (authToken) => {
+  getLeadOwners: async (authToken) => {
     if (!authToken) throw new Error("Authentication token not found.");
-    const response = await apiFetch(`${BASE_URL}/clients/academic-assignees/`, {
+    const response = await apiFetch(`${BASE_URL}/clients/lead-owners/`, {
       headers: { Authorization: `Token ${authToken}` },
-    });
-    return handleResponse(response);
-  },
-
-  assignAcademic: async (clientId, assignedTo, authToken) => {
-    if (!authToken) throw new Error("Authentication token not found.");
-    const response = await apiFetch(`${BASE_URL}/clients/${clientId}/assign-academic/`, {
-      method: "POST",
-      headers: {
-        Authorization: `Token ${authToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ assigned_to: assignedTo }),
     });
     return handleResponse(response);
   },

@@ -10,7 +10,9 @@ import ClassTagSelector from "./common/ClassTagSelector.jsx";
  *
  * Read-only display fields are shown but not editable:
  *   system_id, status, approval, proposal_status, demo_scheduled,
- *   owner_username, call_assignee_username, created_at, updated_at
+ *   owner_username, call_assignee_username (displayed read-only for call
+ *   staff; Admin/B2B can change it with a required reason), created_at,
+ *   updated_at
  */
 
 // Human-readable status labels for display
@@ -35,6 +37,8 @@ const LeadEditForm = ({
   onClose,
   classes = [],
   classLoadError = "",
+  academicAssignees = [],
+  assigneesLoading = false,
 }) => {
   const isAdmin = ["admin", "super admin", "superadmin", "super-admin"].includes(
     (user?.role || "").toLowerCase()
@@ -45,6 +49,8 @@ const LeadEditForm = ({
   const readOnlyClass =
     "mt-1 block w-full p-2 border border-slate-200 rounded-md bg-slate-50 text-slate-500 sm:text-sm cursor-not-allowed";
   const labelClass = "block text-sm font-medium text-slate-700 mb-1";
+  const canAssignAcademic = isAdmin || (user?.role || "").toLowerCase() === "b2b";
+  const assigneeChanged = String(formData.call_assignee ?? "") !== formData.original_call_assignee;
 
   return (
     <form
@@ -131,12 +137,43 @@ const LeadEditForm = ({
       {/* Call Assignee */}
       <div className="flex flex-col">
         <label className={labelClass}>Call Assignee</label>
-        <input
-          type="text"
-          value={formData.call_assignee_username || ""}
-          className={readOnlyClass}
-          readOnly
-        />
+        {canAssignAcademic ? (
+          <>
+            <select
+              id="call_assignee"
+              name="call_assignee"
+              value={formData.call_assignee ?? ""}
+              onChange={onChange}
+              disabled={assigneesLoading}
+              className={inputClass}
+            >
+              <option value="">Unassigned</option>
+              {formData.call_assignee && !academicAssignees.some((item) => String(item.id) === String(formData.call_assignee)) && (
+                <option value={formData.call_assignee}>Current assignee: {formData.call_assignee_username}</option>
+              )}
+              {academicAssignees.map((academic) => (
+                <option key={academic.id} value={academic.id}>
+                  {[academic.first_name, academic.last_name].filter(Boolean).join(" ") || academic.username}
+                </option>
+              ))}
+            </select>
+            {assigneeChanged && (
+              <input
+                type="text"
+                name="assignment_reason"
+                value={formData.assignment_reason || ""}
+                onChange={onChange}
+                maxLength={1000}
+                required
+                placeholder="Reason for reassignment"
+                className={inputClass}
+                aria-label="Reason for changing the academic assignee"
+              />
+            )}
+          </>
+        ) : (
+          <input type="text" value={formData.call_assignee_username || ""} className={readOnlyClass} readOnly />
+        )}
       </div>
 
       {/* Created At */}

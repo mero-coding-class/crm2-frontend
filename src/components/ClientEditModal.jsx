@@ -4,7 +4,7 @@ import { clientService, catalogService } from "../services/api";
 import { isValidEmail, isValidPhoneNumber } from "../utils/validation";
 import useModalScrollLock from "../hooks/useModalScrollLock.js";
 
-export default function ClientEditModal({ isOpen, onClose, client, authToken, academicUsers = [], onSave }) {
+export default function ClientEditModal({ isOpen, onClose, client, authToken, onSave }) {
   useModalScrollLock(isOpen && Boolean(client));
   const [loading, setLoading] = useState(false);
   const [loadingCatalogs, setLoadingCatalogs] = useState(true);
@@ -33,7 +33,6 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, ac
     agreed_price: "",
     pricing_basis: "per_month",
     classes_per_week: 2,
-    assigned_to: "",
     package_type: "",
     exams_count: 0,
     events_count: 0,
@@ -64,7 +63,6 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, ac
       agreed_price: client.agreed_price ?? "",
       pricing_basis: client.pricing_basis || "per_month",
       classes_per_week: client.classes_per_week || 2,
-      assigned_to: client.assigned_to?.id ?? client.assigned_to ?? "",
       package_type: client.package_type || "",
       exams_count: client.exams_count || 0,
       events_count: client.events_count || 0,
@@ -171,7 +169,6 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, ac
         agreed_price: Number(formData.agreed_price),
         pricing_basis: formData.pricing_basis,
         classes_per_week: Number(formData.classes_per_week),
-        assigned_to: formData.assigned_to === "" ? null : Number(formData.assigned_to),
         package_type: Number(formData.package_type),
         exams_count: Number(formData.exams_count || 0),
         events_count: Number(formData.events_count || 0),
@@ -191,10 +188,6 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, ac
 
   const schoolName = client.school_name || "School Client";
   const systemId = client.system_id || "SCH-000";
-  const currentAssignedId = client.assigned_to?.id ?? client.assigned_to;
-  const hasCurrentAcademicUser = academicUsers.some(
-    (academicUser) => String(academicUser.id) === String(currentAssignedId)
-  );
   return (
     <div data-modal-open="true" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm crm-animate-in crm-fade-in-0">
       <div className="relative w-full max-w-3xl max-h-[92vh] overflow-hidden bg-white rounded-2xl shadow-2xl flex flex-col border border-slate-100">
@@ -437,7 +430,7 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, ac
             <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
               <BookOpen className="w-4 h-4 text-primary" /> Package & Syllabus
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">
                   Package Type
@@ -471,29 +464,6 @@ export default function ClientEditModal({ isOpen, onClose, client, authToken, ac
                   step="1"
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none"
                 />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">
-                  Client Academic Assignee
-                </label>
-                <select
-                  name="assigned_to"
-                  value={formData.assigned_to}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/15 focus:border-primary outline-none bg-white"
-                >
-                  <option value="">Unassigned</option>
-                  {currentAssignedId != null && !hasCurrentAcademicUser && (
-                    <option value={currentAssignedId}>
-                      {client.assigned_to_name || currentAssignedId}
-                    </option>
-                  )}
-                  {academicUsers.map((academicUser) => (
-                    <option key={academicUser.id} value={academicUser.id}>
-                      {academicUser.name}
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
 

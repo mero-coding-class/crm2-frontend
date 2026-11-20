@@ -153,14 +153,14 @@ const StatCard = ({ icon, label, value, detail, change, href, tone = "blue", att
         <p className="text-3xl font-semibold leading-none tracking-[-0.04em] text-slate-950 tabular-nums">{value}</p>
         {href && <ArrowUpRight className="mb-0.5 h-4 w-4 text-slate-300 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-primary" />}
       </div>
-      <div className="mt-3 min-h-[34px]">
+      <div className="mt-3 min-h-8.5">
         {change && (
           <span className={`inline-flex items-center gap-1 text-xs font-semibold ${change.positive === null ? "text-slate-400" : change.positive ? "text-emerald-700" : "text-rose-600"}`}>
             {change.positive === false ? <ArrowDownRight className="h-3.5 w-3.5" /> : <ArrowUpRight className="h-3.5 w-3.5" />}
             {change.text}
           </span>
         )}
-        <p className={`text-xs leading-[17px] ${attention ? "font-medium text-rose-600" : "text-slate-400"}`}>{detail}</p>
+        <p className={`text-xs leading-4.25 ${attention ? "font-medium text-rose-600" : "text-slate-400"}`}>{detail}</p>
       </div>
     </>
   );
@@ -180,7 +180,7 @@ const FollowupQueue = ({ groups }) => {
 
   return (
     <Surface
-      className="flex min-h-[260px] flex-col"
+      className="flex min-h-65 flex-col"
       surfaceBackground={style.surface}
       title="Follow-ups"
       description="The latest follow-up for each school, grouped by due date."
@@ -193,7 +193,7 @@ const FollowupQueue = ({ groups }) => {
           </button>
         ))}
       </div>
-      <div role="tabpanel" className="max-h-[360px] flex-1 divide-y divide-slate-100 overflow-y-auto px-5 py-1">
+      <div role="tabpanel" className="max-h-90 flex-1 divide-y divide-slate-100 overflow-y-auto px-5 py-1">
         {activeGroup?.tasks.length ? activeGroup.tasks.map((task) => (
           <Link key={task.id} to={`/leads?search=${encodeURIComponent(task.school_name || "")}`} className="flex items-center gap-3 py-3">
             <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${style.icon}`}><activeGroup.icon className="h-4 w-4" /></span>
@@ -306,11 +306,10 @@ const Dashboard = () => {
   const cards = useMemo(() => {
     if (!summary || !data) return [];
     if (isAcademic) return [
-      { icon: ClipboardCheck, label: "Pending Approval Leads", value: summary.pending_approval_leads || 0, detail: "Leads awaiting admin review", tone: "amber" },
+      { icon: Users, label: "Assigned leads", value: summary.active_pipeline || 0, detail: "Active schools assigned to you", href: "/leads", tone: "blue" },
       { icon: CalendarDays, label: "Upcoming sessions", value: summary.upcoming_demos || 0, detail: "Future scheduled demos", href: "/demo?demo_status=active&upcoming=true", tone: "teal" },
-      { icon: FileCheck2, label: "Feedback to submit", value: summary.feedback_needed || 0, detail: "Completed sessions waiting for your notes", href: "/demo?feedback=pending", tone: "amber", attention: !!summary.feedback_needed },
+      { icon: FileCheck2, label: "Feedback to submit", value: summary.feedback_needed || 0, detail: "Past demos awaiting your notes", href: "/demo?feedback=pending", tone: "amber", attention: !!summary.feedback_needed },
       { icon: CheckCircle2, label: "Demos completed", value: current.demos_completed || 0, detail: `${periodLabel(range).toLowerCase()} · compared with previous period`, change: comparison(current.demos_completed, previous.demos_completed), href: "/demo?demo_status=completed", tone: "emerald" },
-      { icon: School, label: "Assigned schools", value: summary.active_client_schools || 0, detail: "Active client schools assigned to you", href: "/clients", tone: "blue" },
     ];
     const common = [
       { icon: Users, label: "New leads", value: current.new_leads || 0, detail: `${periodLabel(range)} · compared with last period`, change: comparison(current.new_leads, previous.new_leads), href: `/leads?approval=approved&created_from=${encodeURIComponent(periodFrom)}&created_to=${encodeURIComponent(periodTo)}`, tone: "blue" },
@@ -365,9 +364,9 @@ const Dashboard = () => {
 
   return (
     <main className="min-h-full bg-canvas">
-      <div className="mx-auto max-w-[1500px] space-y-5 px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
+      <div className="mx-auto max-w-375 space-y-5 px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
         <header
-          className="relative isolate overflow-hidden rounded-[24px] bg-primary-dark px-5 py-6 text-white shadow-[0_16px_45px_rgba(20,43,89,0.17)] sm:px-8 sm:py-7"
+          className="relative isolate overflow-hidden rounded-3xl bg-primary-dark px-5 py-6 text-white shadow-[0_16px_45px_rgba(20,43,89,0.17)] sm:px-8 sm:py-7"
           style={{ background: "radial-gradient(ellipse at 14% 0%, rgba(var(--primary-rgb), 0.48), transparent 43%), radial-gradient(ellipse at 86% 18%, rgba(var(--accent-rgb), 0.2), transparent 30%), linear-gradient(115deg, var(--primary-dark) 0%, var(--primary-base) 56%, var(--primary-hover) 100%)" }}
         >
           <div className="pointer-events-none absolute -bottom-28 -right-20 h-72 w-72 rounded-full bg-sky-300/10 blur-[70px]" />
@@ -395,7 +394,7 @@ const Dashboard = () => {
             <div className="flex flex-wrap items-center gap-2.5">
               <label className="relative">
                 <span className="sr-only">Dashboard reporting period</span>
-                <select value={range} onChange={(event) => setRange(event.target.value)} className="h-10 appearance-none rounded-xl border border-white/15 bg-white/[0.09] py-2 pl-3.5 pr-9 text-xs font-semibold text-white outline-none transition hover:bg-white/[0.14] focus:ring-2 focus:ring-white/30">
+                <select value={range} onChange={(event) => setRange(event.target.value)} className="h-10 appearance-none rounded-xl border border-white/15 bg-white/9 py-2 pl-3.5 pr-9 text-xs font-semibold text-white outline-none transition hover:bg-white/[0.14] focus:ring-2 focus:ring-white/30">
                   <option value="this_month" className="text-slate-900">This month</option>
                   <option value="last_30" className="text-slate-900">Last 30 days</option>
                   <option value="last_90" className="text-slate-900">Last 90 days</option>
@@ -403,7 +402,7 @@ const Dashboard = () => {
                 </select>
                 <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-blue-100" />
               </label>
-              <button aria-label="Refresh dashboard" onClick={() => loadDashboard(true)} className="grid h-10 w-10 place-items-center rounded-xl border border-white/15 bg-white/[0.09] text-white transition hover:bg-white/[0.16] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40">
+              <button aria-label="Refresh dashboard" onClick={() => loadDashboard(true)} className="grid h-10 w-10 place-items-center rounded-xl border border-white/15 bg-white/9 text-white transition hover:bg-white/16 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40">
                 <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
               </button>
               <span className="w-full text-xs text-blue-100/60 sm:w-auto sm:text-right">
@@ -431,8 +430,8 @@ const Dashboard = () => {
               { key: "today", title: "Today", tasks: todayFollowups, icon: Clock3, tone: "blue", emptyMessage: "No follow-ups due today." },
               { key: "upcoming", title: "Upcoming", tasks: upcomingDashboardFollowups, icon: CalendarDays, tone: "teal", emptyMessage: "No future follow-ups are scheduled." },
             ]} />}
-            <Surface className="flex min-h-[260px] flex-col" title="Demo schedule" description="Overdue, today and future scheduled demos in date order." action={<Link to="/demo" className="inline-flex items-center gap-1 text-xs font-semibold text-primary">View all demos <ArrowRight className="h-3.5 w-3.5" /></Link>}>
-                <div className="max-h-[360px] flex-1 divide-y divide-slate-100 overflow-y-auto px-5 py-1">
+            <Surface className="flex min-h-65 flex-col" title="Demo schedule" description="Overdue, today and future scheduled demos in date order." action={<Link to="/demo" className="inline-flex items-center gap-1 text-xs font-semibold text-primary">View all demos <ArrowRight className="h-3.5 w-3.5" /></Link>}>
+                <div className="max-h-90 flex-1 divide-y divide-slate-100 overflow-y-auto px-5 py-1">
                   {dashboardDemos.length ? dashboardDemos.map((demo) => <Link key={demo.id} to={`/demo?search=${encodeURIComponent(demo.school_name || "")}`} className="flex items-center gap-3 py-3">
                     <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${demo.dashboardBucket === "Overdue" ? "bg-rose-50 text-rose-700" : demo.dashboardBucket === "Today" ? "bg-blue-50 text-primary" : "bg-teal-50 text-teal-700"}`}><CalendarClock className="h-4 w-4" /></span>
                     <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-slate-700">{demo.school_name || "Demo"}</span><span className="mt-1 block text-xs text-slate-400">{demo.system_id} · {demo.program || "Demo session"} · {formatDate(demo.demo_at, { dateStyle: "medium", timeStyle: "short" })}</span>{demo.assigned_teacher && <span className="mt-1 block truncate text-xs text-slate-500">Instructor: {demo.assigned_teacher}</span>}</span>
@@ -448,7 +447,7 @@ const Dashboard = () => {
             <Surface title="Lead pipeline" description="See how many schools are at each stage, how long they’ve been there and where they’re moving next." action={<span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-primary">{summary.active_pipeline || 0} active</span>}>
               <div className="p-5 sm:p-6">
                 {stageData.length ? <>
-                  <ChartContainer config={pipelineChartConfig} className="h-[260px]" aria-label="Active leads by pipeline stage">
+                  <ChartContainer config={pipelineChartConfig} className="h-65" aria-label="Active leads by pipeline stage">
                     <BarChart data={stageData} layout="vertical" margin={{ top: 4, right: 28, left: 4, bottom: 4 }} barCategoryGap={10} accessibilityLayer>
                       <defs>
                         <linearGradient id="pipelineBar" x1="0" y1="0" x2="1" y2="0">
@@ -481,7 +480,7 @@ const Dashboard = () => {
                       </div>;
                     })}
                   </div>
-                </> : <div className="grid min-h-[280px] place-items-center text-center text-sm text-slate-400">There are no active leads right now.</div>}
+                </> : <div className="grid min-h-70 place-items-center text-center text-sm text-slate-400">There are no active leads right now.</div>}
                 <p className="mt-3 text-xs leading-4 text-slate-400">We count time from the last stage change. If a lead hasn’t changed stages, we count from when it was created. Movement totals come from recorded history.</p>
               </div>
             </Surface>

@@ -36,7 +36,7 @@ const dateBound = (value, endOfDay = false) => {
 
 const Leads = () => {
   const { authToken, user } = useAuth();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const routeFilters = useMemo(() => {
     const filters = {};
     ["created_from", "created_to", "demo", "approval"].forEach((key) => {
@@ -248,12 +248,15 @@ const Leads = () => {
   }, [bulkArchiveConfirmIds, archiveReason, archiveNextYearProbability, handleBulkDeleteLeadFn]);
 
   const handleClearFilters = useCallback(() => {
+    const next = new URLSearchParams(searchParams);
+    ["created_from", "created_to", "demo", "approval", "followup", "followup_from", "followup_to", "search"].forEach((key) => next.delete(key));
+    setSearchParams(next, { replace: true });
     setFilterSubStatus("SubStatus");
     setSearchTerm("");
     setFilterFollowupDate("");
     setFilterFollowupFrom("");
     setFilterFollowupTo("");
-  }, []);
+  }, [searchParams, setSearchParams, setFilterSubStatus]);
   const subStatusOptions = useMemo(() => [
     { value: "SubStatus", label: "All sub-statuses" },
     ...subStatusChoices.map((choice) => ({ value: choice.value, label: choice.label })),
@@ -360,6 +363,7 @@ const Leads = () => {
             handleDelete={handleDelete}
             handleBulkDelete={handleBulkDelete}
             canManageLeads={canManageLeads}
+            canViewHistory={role !== "academic"}
             isAdmin={role === "admin"}
             onActivitySave={handleActivitySave}
             authToken={authToken}

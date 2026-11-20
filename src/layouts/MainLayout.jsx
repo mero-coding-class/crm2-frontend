@@ -106,9 +106,9 @@ const MainLayout = () => {
   const isAdmin = role === "admin";
   const restrictedPaths = new Set(
     role === "academic"
-      ? ["/leads", "/archive", "/report"]
+      ? ["/clients", "/archive", "/report"]
       : role === "b2c"
-        ? ["/report"]
+        ? ["/clients", "/report"]
         : []
   );
   const visibleNavItems = navItems.filter((item) => !restrictedPaths.has(item.to));
@@ -274,7 +274,7 @@ const MainLayout = () => {
         <aside
           className={cn(
             "fixed inset-y-0 left-0 z-40 flex flex-col bg-white border-r border-slate-200 transition-all duration-300",
-            "w-[220px]",
+            "w-55",
             sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
           )}
         >
@@ -291,7 +291,7 @@ const MainLayout = () => {
               <p className="text-sm font-bold leading-5 tracking-[-0.01em] truncate">
                 <span className="text-primary">MeroCoding</span>
               </p>
-              <p className="text-xs font-medium text-slate-400 leading-[14px] truncate mt-0.5">
+              <p className="text-xs font-medium text-slate-400 leading-3.5 truncate mt-0.5">
                 School CRM
               </p>
             </div>
@@ -317,7 +317,7 @@ const MainLayout = () => {
                   cn(
                     "relative isolate flex items-center gap-2.5 px-2.5 py-2 rounded-[10px] text-sm font-medium transition-all duration-300 ease-out group overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1 motion-reduce:transition-none",
                     isActive
-                      ? "bg-gradient-to-r from-primary-light via-primary-light/70 to-white text-primary-dark font-semibold border border-primary-border/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_6px_rgba(var(--primary-rgb),0.07)]"
+                      ? "bg-linear-to-r from-primary-light via-primary-light/70 to-white text-primary-dark font-semibold border border-primary-border/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_6px_rgba(var(--primary-rgb),0.07)]"
                       : "text-slate-600 border border-transparent hover:-translate-y-0.5 hover:border-primary-border hover:bg-white hover:text-primary-hover hover:shadow-[0_5px_14px_rgba(var(--primary-rgb),0.10)] focus-visible:border-primary-border"
                   )
                 }
@@ -327,7 +327,7 @@ const MainLayout = () => {
                     <span
                       aria-hidden="true"
                       className={cn(
-                        "pointer-events-none absolute inset-0 bg-gradient-to-r from-primary/[0.08] via-primary/[0.035] to-transparent transition-opacity duration-300 group-focus-visible:opacity-100 motion-reduce:transition-none",
+                        "pointer-events-none absolute inset-0 bg-linear-to-r from-primary/8 via-primary/[0.035] to-transparent transition-opacity duration-300 group-focus-visible:opacity-100 motion-reduce:transition-none",
                         isActive ? "opacity-0" : "opacity-0 group-hover:opacity-100"
                       )}
                     />
@@ -336,7 +336,7 @@ const MainLayout = () => {
                     <span
                       aria-hidden="true"
                       className={cn(
-                        "absolute left-0 top-2 bottom-2 w-[3px] origin-center rounded-r-full bg-accent shadow-[0_0_9px_rgba(var(--accent-rgb),0.45)] transition-transform duration-300 ease-out motion-reduce:transition-none",
+                        "absolute left-0 top-2 bottom-2 w-0.75 origin-center rounded-r-full bg-accent shadow-[0_0_9px_rgba(var(--accent-rgb),0.45)] transition-transform duration-300 ease-out motion-reduce:transition-none",
                         isActive ? "scale-y-100" : "scale-y-0 group-hover:scale-y-100 group-focus-visible:scale-y-100"
                       )}
                     />
@@ -344,10 +344,10 @@ const MainLayout = () => {
                     {/* Icon Tile */}
                     <div
                       className={cn(
-                        "relative z-10 h-7 w-7 rounded-[8px] flex items-center justify-center shrink-0 transition-all duration-300 ease-out motion-reduce:transition-none",
+                        "relative z-10 h-7 w-7 rounded-lg flex items-center justify-center shrink-0 transition-all duration-300 ease-out motion-reduce:transition-none",
                         isActive
                           ? "bg-primary text-white shadow-[0_3px_8px_rgba(var(--primary-rgb),0.28)]"
-                          : "bg-slate-100/80 text-slate-500 group-hover:-translate-y-0.5 group-hover:rotate-[-4deg] group-hover:scale-110 group-hover:bg-gradient-to-br group-hover:from-primary group-hover:to-primary-hover group-hover:text-white group-hover:shadow-[0_5px_10px_rgba(var(--primary-rgb),0.28)] group-focus-visible:bg-primary group-focus-visible:text-white group-focus-visible:shadow-[0_5px_10px_rgba(var(--primary-rgb),0.22)]"
+                          : "bg-slate-100/80 text-slate-500 group-hover:-translate-y-0.5 group-hover:rotate-[-4deg] group-hover:scale-110 group-hover:bg-linear-to-br group-hover:from-primary group-hover:to-primary-hover group-hover:text-white group-hover:shadow-[0_5px_10px_rgba(var(--primary-rgb),0.28)] group-focus-visible:bg-primary group-focus-visible:text-white group-focus-visible:shadow-[0_5px_10px_rgba(var(--primary-rgb),0.22)]"
                       )}
                     >
                       <Icon className="h-3.5 w-3.5 transition-transform duration-300 group-hover:rotate-[4deg] group-hover:scale-110 motion-reduce:transition-none" />
@@ -387,7 +387,7 @@ const MainLayout = () => {
                   cn(
                     "relative isolate flex items-center gap-2.5 px-2.5 py-2 rounded-[10px] text-sm font-medium transition-all duration-300 ease-out group overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1 motion-reduce:transition-none",
                     isActive
-                      ? "bg-gradient-to-r from-primary-light via-primary-light/70 to-white text-primary-dark font-semibold border border-primary-border/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_6px_rgba(var(--primary-rgb),0.07)]"
+                      ? "bg-linear-to-r from-primary-light via-primary-light/70 to-white text-primary-dark font-semibold border border-primary-border/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_6px_rgba(var(--primary-rgb),0.07)]"
                       : "text-slate-600 border border-transparent hover:-translate-y-0.5 hover:border-primary-border hover:bg-white hover:text-primary-hover hover:shadow-[0_5px_14px_rgba(var(--primary-rgb),0.10)] focus-visible:border-primary-border"
                   )
                 }
@@ -397,7 +397,7 @@ const MainLayout = () => {
                     <span
                       aria-hidden="true"
                       className={cn(
-                        "pointer-events-none absolute inset-0 bg-gradient-to-r from-primary/[0.08] via-primary/[0.035] to-transparent transition-opacity duration-300 group-focus-visible:opacity-100 motion-reduce:transition-none",
+                        "pointer-events-none absolute inset-0 bg-linear-to-r from-primary/8 via-primary/[0.035] to-transparent transition-opacity duration-300 group-focus-visible:opacity-100 motion-reduce:transition-none",
                         isActive ? "opacity-0" : "opacity-0 group-hover:opacity-100"
                       )}
                     />
@@ -406,7 +406,7 @@ const MainLayout = () => {
                     <span
                       aria-hidden="true"
                       className={cn(
-                        "absolute left-0 top-2 bottom-2 w-[3px] origin-center rounded-r-full bg-accent shadow-[0_0_9px_rgba(var(--accent-rgb),0.45)] transition-transform duration-300 ease-out motion-reduce:transition-none",
+                        "absolute left-0 top-2 bottom-2 w-0.75 origin-center rounded-r-full bg-accent shadow-[0_0_9px_rgba(var(--accent-rgb),0.45)] transition-transform duration-300 ease-out motion-reduce:transition-none",
                         isActive ? "scale-y-100" : "scale-y-0 group-hover:scale-y-100 group-focus-visible:scale-y-100"
                       )}
                     />
@@ -414,10 +414,10 @@ const MainLayout = () => {
                     {/* Icon Tile */}
                     <div
                       className={cn(
-                        "relative z-10 h-7 w-7 rounded-[8px] flex items-center justify-center shrink-0 transition-all duration-300 ease-out motion-reduce:transition-none",
+                        "relative z-10 h-7 w-7 rounded-lg flex items-center justify-center shrink-0 transition-all duration-300 ease-out motion-reduce:transition-none",
                         isActive
                           ? "bg-primary text-white shadow-[0_3px_8px_rgba(var(--primary-rgb),0.28)]"
-                          : "bg-slate-100/80 text-slate-500 group-hover:-translate-y-0.5 group-hover:rotate-[-4deg] group-hover:scale-110 group-hover:bg-gradient-to-br group-hover:from-primary group-hover:to-primary-hover group-hover:text-white group-hover:shadow-[0_5px_10px_rgba(var(--primary-rgb),0.28)] group-focus-visible:bg-primary group-focus-visible:text-white group-focus-visible:shadow-[0_5px_10px_rgba(var(--primary-rgb),0.22)]"
+                          : "bg-slate-100/80 text-slate-500 group-hover:-translate-y-0.5 group-hover:rotate-[-4deg] group-hover:scale-110 group-hover:bg-linear-to-br group-hover:from-primary group-hover:to-primary-hover group-hover:text-white group-hover:shadow-[0_5px_10px_rgba(var(--primary-rgb),0.28)] group-focus-visible:bg-primary group-focus-visible:text-white group-focus-visible:shadow-[0_5px_10px_rgba(var(--primary-rgb),0.22)]"
                       )}
                     >
                       <Icon className="h-3.5 w-3.5 transition-transform duration-300 group-hover:rotate-[4deg] group-hover:scale-110 motion-reduce:transition-none" />
@@ -454,11 +454,11 @@ const MainLayout = () => {
         </aside>
 
         {/* ─── Main content ─── */}
-        <div className="flex-1 flex flex-col min-w-0 md:ml-[220px]">
+        <div className="flex-1 flex flex-col min-w-0 md:ml-55">
           {/* Top bar */}
           <header className="h-14 border-b border-slate-200 bg-white flex items-center gap-3 px-4 md:px-5 shrink-0 z-20">
             <button
-              className="h-8 w-8 rounded-[6px] border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 md:hidden"
+              className="h-8 w-8 rounded-md border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 md:hidden"
               onClick={() => setSidebarOpen(true)}
             >
               <Menu className="h-4 w-4" />
@@ -498,7 +498,7 @@ const MainLayout = () => {
               {/* Command palette trigger */}
               <button
                 onClick={() => { setCommandOpen(true); setCommandQuery(""); }}
-                className="hidden md:flex items-center gap-2 h-8 px-3 rounded-[8px] border border-slate-200 bg-slate-50 text-slate-400 text-sm cursor-pointer hover:border-slate-300 transition-colors min-w-[180px]"
+                className="hidden md:flex items-center gap-2 h-8 px-3 rounded-lg border border-slate-200 bg-slate-50 text-slate-400 text-sm cursor-pointer hover:border-slate-300 transition-colors min-w-45"
               >
                 <Search className="h-3.5 w-3.5 shrink-0" />
                 <span className="flex-1 text-left">Search…</span>
@@ -609,11 +609,11 @@ const MainLayout = () => {
           <>
             <div
               data-modal-open="true"
-              className="fixed inset-0 bg-slate-900/40 backdrop-blur-[4px] z-50"
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50"
               onClick={() => setCommandOpen(false)}
             />
             <div className="fixed left-1/2 top-[20%] -translate-x-1/2 z-50 w-full max-w-lg px-4">
-              <div className="bg-white rounded-[12px] border border-slate-200 shadow-[0_20px_40px_rgba(15,23,42,0.15)] overflow-hidden">
+              <div className="bg-white rounded-xl border border-slate-200 shadow-[0_20px_40px_rgba(15,23,42,0.15)] overflow-hidden">
                 {/* Search input */}
                 <div className="flex items-center gap-3 px-4 border-b border-slate-100 h-12">
                   <Search className="h-4 w-4 text-slate-400 shrink-0" />

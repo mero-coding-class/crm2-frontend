@@ -46,6 +46,7 @@ const Settings = () => {
 
   // Delete confirmation state
   const [deleteUserConfirmId, setDeleteUserConfirmId] = useState(null);
+  const [deleteUserReassignTo, setDeleteUserReassignTo] = useState("");
   const [deletePackageConfirmId, setDeletePackageConfirmId] = useState(null);
   const [deactivateClassConfirmId, setDeactivateClassConfirmId] = useState(null);
   const [deleteProcessing, setDeleteProcessing] = useState(false);
@@ -242,15 +243,23 @@ const Settings = () => {
     try {
       const res = await fetch(`${BASE_URL}/users/${id}/`, {
         method: "DELETE",
-        headers: { Authorization: `Token ${authToken}` },
+        headers: {
+          Authorization: `Token ${authToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(deleteUserReassignTo ? { reassign_to: Number(deleteUserReassignTo) } : {}),
       });
-      if (!res.ok) throw new Error("Failed to delete user.");
+      const responseData = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(responseData.detail || Object.values(responseData).flat().join(" ") || "Could not deactivate user.");
+      }
       setUsers((prev) => prev.filter((u) => u.id !== id));
+      setDeleteUserConfirmId(null);
+      setDeleteUserReassignTo("");
     } catch (err) {
-      setDeleteError(err.message || "Could not delete user.");
+      setDeleteError(err.message || "Could not deactivate user.");
     } finally {
       setDeleteProcessing(false);
-      setDeleteUserConfirmId(null);
     }
   };
 
@@ -502,7 +511,7 @@ const Settings = () => {
 
   if (!isAdminLike) {
     return (
-      <PageShell className="mx-auto my-8 max-w-4xl rounded-[12px] border border-slate-200 bg-white p-8 shadow-sm">
+      <PageShell className="mx-auto my-8 max-w-4xl rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
         <h1 className="crm-page-title mb-2">Settings</h1>
         <p className="text-rose-600 font-medium text-sm">
           Only Admins and Superadmins have permission to access Settings.
@@ -524,7 +533,7 @@ const Settings = () => {
           <>
             <button
               onClick={() => setTab("users")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-[8px] text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 tab === "users"
                   ? "bg-primary text-white shadow-sm"
                   : "bg-surface-muted hover:bg-slate-200 text-slate-700"
@@ -535,7 +544,7 @@ const Settings = () => {
             </button>
             <button
               onClick={() => setTab("classes")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-[8px] text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 tab === "classes"
                   ? "bg-primary text-white shadow-sm"
                   : "bg-surface-muted hover:bg-slate-200 text-slate-700"
@@ -556,9 +565,9 @@ const Settings = () => {
             {/* Top Row: Create New User & All Users */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               {/* ─── Card 1: Create New User ─── */}
-              <div className="lg:col-span-5 bg-white rounded-[12px] p-6 border border-slate-200 shadow-sm">
+              <div className="lg:col-span-5 bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
                 <div className="flex items-center gap-3 mb-5">
-                  <div className="w-8 h-8 rounded-[8px] bg-primary-light text-primary flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-primary-light text-primary flex items-center justify-center shrink-0">
                     <UserPlus className="w-4 h-4" />
                   </div>
                   <div>
@@ -573,7 +582,7 @@ const Settings = () => {
 
                 {userMsg.text && (
                   <div
-                    className={`mb-4 p-3 rounded-[8px] text-xs font-medium flex items-center gap-2 ${
+                    className={`mb-4 p-3 rounded-lg text-xs font-medium flex items-center gap-2 ${
                       userMsg.type === "error"
                         ? "bg-rose-50 text-rose-700 border border-rose-200"
                         : "bg-emerald-50 text-emerald-700 border border-emerald-200"
@@ -677,7 +686,7 @@ const Settings = () => {
                   <button
                     type="submit"
                     disabled={userLoading}
-                    className="w-full mt-5 h-10 bg-primary hover:bg-primary-hover text-white font-medium rounded-[8px] transition-colors flex items-center justify-center gap-1.5 shadow-sm text-sm disabled:opacity-50"
+                    className="w-full mt-5 h-10 bg-primary hover:bg-primary-hover text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-sm text-sm disabled:opacity-50"
                   >
                     {userLoading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -690,10 +699,10 @@ const Settings = () => {
               </div>
 
               {/* ─── Card 2: All Users ─── */}
-              <div className="lg:col-span-7 bg-white rounded-[12px] p-6 border border-slate-200 shadow-sm overflow-hidden">
+              <div className="lg:col-span-7 bg-white rounded-xl p-6 border border-slate-200 shadow-sm overflow-hidden">
                 <div className="flex items-center justify-between mb-5">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-[8px] bg-primary-light text-primary flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-primary-light text-primary flex items-center justify-center shrink-0">
                       <Users className="w-4 h-4" />
                     </div>
                     <div>
@@ -794,9 +803,9 @@ const Settings = () => {
                                     <Pencil className="w-3.5 h-3.5" />
                                   </button>
                                   <button
-                                    onClick={() => setDeleteUserConfirmId(u.id)}
+                                    onClick={() => { setDeleteError(""); setDeleteUserReassignTo(""); setDeleteUserConfirmId(u.id); }}
                                     className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
-                                    title="Delete user"
+                                    title="Deactivate user"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
@@ -814,10 +823,10 @@ const Settings = () => {
             </div>
 
             {/* ─── Bottom Row: Manage Packages ─── */}
-            <div className="bg-white rounded-[12px] p-6 border border-slate-200 shadow-sm">
+            <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-[8px] bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
                     <Package className="w-4 h-4" />
                   </div>
                   <div>
@@ -836,7 +845,7 @@ const Settings = () => {
 
               {packageMsg.text && (
                 <div
-                  className={`mb-4 p-3 rounded-[8px] text-xs font-medium flex items-center gap-2 ${
+                  className={`mb-4 p-3 rounded-lg text-xs font-medium flex items-center gap-2 ${
                     packageMsg.type === "error"
                       ? "bg-rose-50 text-rose-700 border border-rose-200"
                       : "bg-emerald-50 text-emerald-700 border border-emerald-200"
@@ -879,7 +888,7 @@ const Settings = () => {
                   <div className="md:col-span-2">
                     <button
                       type="submit"
-                      className="w-full h-10 bg-primary hover:bg-primary-hover text-white font-medium rounded-[8px] transition-colors flex items-center justify-center gap-1.5 shadow-sm text-sm whitespace-nowrap"
+                      className="w-full h-10 bg-primary hover:bg-primary-hover text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-sm text-sm whitespace-nowrap"
                     >
                       <Plus className="w-4 h-4" /> Add Package
                     </button>
@@ -925,7 +934,7 @@ const Settings = () => {
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <div className="flex items-center gap-2.5">
-                              <div className="w-7 h-7 rounded-[6px] bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
+                              <div className="w-7 h-7 rounded-md bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
                                 <Package className="w-3.5 h-3.5" />
                               </div>
                               <div>
@@ -968,10 +977,10 @@ const Settings = () => {
         {/* ─── TAB: CLASSES ─── */}
         {tab === "classes" && (
           <div className="space-y-6">
-            <div className="bg-white rounded-[12px] p-6 border border-slate-200 shadow-sm">
+            <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-[8px] bg-primary-light text-primary flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-primary-light text-primary flex items-center justify-center shrink-0">
                     <BookOpen className="w-4 h-4" />
                   </div>
                   <div>
@@ -990,7 +999,7 @@ const Settings = () => {
 
               {classMsg.text && (
                 <div
-                  className={`mb-4 p-3 rounded-[8px] text-xs font-medium flex items-center gap-2 ${
+                  className={`mb-4 p-3 rounded-lg text-xs font-medium flex items-center gap-2 ${
                     classMsg.type === "error"
                       ? "bg-rose-50 text-rose-700 border border-rose-200"
                       : "bg-emerald-50 text-emerald-700 border border-emerald-200"
@@ -1020,7 +1029,7 @@ const Settings = () => {
                   <button
                     type="submit"
                     disabled={classSubmitting}
-                    className="h-10 bg-primary hover:bg-primary-hover text-white font-medium px-5 rounded-[8px] transition-colors flex items-center justify-center gap-1.5 shadow-sm text-sm whitespace-nowrap disabled:opacity-50"
+                    className="h-10 bg-primary hover:bg-primary-hover text-white font-medium px-5 rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-sm text-sm whitespace-nowrap disabled:opacity-50"
                   >
                     {classSubmitting ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -1109,7 +1118,7 @@ const Settings = () => {
                 </div>
               </DataTableShell>
             </div>
-            <div className="bg-white rounded-[12px] p-6 border border-slate-200 shadow-sm">
+            <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
               <div className="flex items-center justify-between mb-5">
                 <div>
                   <h3 className="text-base font-bold text-slate-900">Manage Syllabus Types</h3>
@@ -1120,7 +1129,7 @@ const Settings = () => {
               {syllabusMsg.text && <p role="status" className={`mb-4 rounded-lg border p-3 text-xs ${syllabusMsg.type === "error" ? "border-rose-200 bg-rose-50 text-rose-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>{syllabusMsg.text}</p>}
               <form onSubmit={handleCreateSyllabus} className="mb-5 flex flex-col gap-3 sm:flex-row">
                 <input type="text" required maxLength={255} value={newSyllabusName} onChange={(event) => setNewSyllabusName(event.target.value)} placeholder="Add a syllabus type" className="h-10 flex-1 rounded-[10px] border border-slate-200 px-3.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15" />
-                <button type="submit" disabled={syllabusSubmitting} className="flex h-10 items-center justify-center gap-1.5 rounded-[8px] bg-primary px-5 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-50">{syllabusSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}Add Syllabus Type</button>
+                <button type="submit" disabled={syllabusSubmitting} className="flex h-10 items-center justify-center gap-1.5 rounded-lg bg-primary px-5 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-50">{syllabusSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}Add Syllabus Type</button>
               </form>
               <DataTableShell className="crm-data-table--embedded">
                 <div className="crm-data-table__scroll"><table className="text-left">
@@ -1138,7 +1147,7 @@ const Settings = () => {
       {/* ─── MODAL: EDIT USER ─── */}
       {editingUser && (
         <div data-modal-open="true" className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[16px] p-6 max-w-md w-full shadow-2xl border border-slate-200/80 crm-animate-in crm-fade-in-0 crm-zoom-in-95 duration-150">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200/80 crm-animate-in crm-fade-in-0 crm-zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
               <h3 className="text-lg font-bold text-slate-900 tracking-[-0.01em]">
                 Edit User #{editingUser.id}
@@ -1232,14 +1241,14 @@ const Settings = () => {
                 <button
                   type="button"
                   onClick={() => setEditingUser(null)}
-                  className="px-4 py-2 rounded-[8px] text-sm font-medium bg-surface-muted hover:bg-slate-200 text-slate-700 transition-colors"
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-surface-muted hover:bg-slate-200 text-slate-700 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={editUserLoading}
-                  className="px-4 py-2 bg-primary hover:bg-primary-hover text-white font-medium rounded-[8px] text-sm transition-colors shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+                  className="px-4 py-2 bg-primary hover:bg-primary-hover text-white font-medium rounded-lg text-sm transition-colors shadow-sm flex items-center gap-1.5 disabled:opacity-50"
                 >
                   {editUserLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                   Save Changes
@@ -1253,7 +1262,7 @@ const Settings = () => {
       {/* ─── MODAL: EDIT PACKAGE ─── */}
       {editingPackage && (
         <div data-modal-open="true" className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[16px] p-6 max-w-md w-full shadow-2xl border border-slate-200/80 crm-animate-in crm-fade-in-0 crm-zoom-in-95 duration-150">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200/80 crm-animate-in crm-fade-in-0 crm-zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
               <h3 className="text-lg font-bold text-slate-900 tracking-[-0.01em]">
                 Edit Package
@@ -1289,13 +1298,13 @@ const Settings = () => {
                 <button
                   type="button"
                   onClick={() => setEditingPackage(null)}
-                  className="px-4 py-2 rounded-[8px] text-sm font-medium bg-surface-muted hover:bg-slate-200 text-slate-700 transition-colors"
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-surface-muted hover:bg-slate-200 text-slate-700 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-primary hover:bg-primary-hover text-white font-medium rounded-[8px] text-sm transition-colors shadow-sm"
+                  className="px-4 py-2 bg-primary hover:bg-primary-hover text-white font-medium rounded-lg text-sm transition-colors shadow-sm"
                 >
                   Save Changes
                 </button>
@@ -1307,7 +1316,7 @@ const Settings = () => {
 
       {editingSyllabus && (
         <div data-modal-open="true" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]">
-          <div className="w-full max-w-md rounded-[16px] border border-slate-200/80 bg-white p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200/80 bg-white p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-lg font-bold text-slate-900">Edit Syllabus Type</h3>
               <button onClick={() => setEditingSyllabus(null)} className="p-1 text-slate-400 hover:text-slate-600" aria-label="Close"><X className="h-5 w-5" /></button>
@@ -1328,7 +1337,7 @@ const Settings = () => {
       {/* ─── MODAL: EDIT CLASS ─── */}
       {editingClass && (
         <div data-modal-open="true" className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[16px] p-6 max-w-md w-full shadow-2xl border border-slate-200/80 crm-animate-in crm-fade-in-0 crm-zoom-in-95 duration-150">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200/80 crm-animate-in crm-fade-in-0 crm-zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
               <h3 className="text-lg font-bold text-slate-900 tracking-[-0.01em]">
                 Edit Class #{editingClass.id}
@@ -1358,13 +1367,13 @@ const Settings = () => {
                 <button
                   type="button"
                   onClick={() => setEditingClass(null)}
-                  className="px-4 py-2 rounded-[8px] text-sm font-medium bg-surface-muted hover:bg-slate-200 text-slate-700 transition-colors"
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-surface-muted hover:bg-slate-200 text-slate-700 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-primary hover:bg-primary-hover text-white font-medium rounded-[8px] text-sm transition-colors shadow-sm"
+                  className="px-4 py-2 bg-primary hover:bg-primary-hover text-white font-medium rounded-lg text-sm transition-colors shadow-sm"
                 >
                   Save Changes
                 </button>
@@ -1380,23 +1389,37 @@ const Settings = () => {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-rose-500" />
-              Delete User?
+              Deactivate User?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove the user account. This action cannot be undone.
+              The user will lose access to CRM. If the account owns active work, choose an active replacement before confirming.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {deleteError && (
-            <p className="text-sm text-rose-600 bg-rose-50 rounded-[8px] px-3 py-2 border border-rose-200">{deleteError}</p>
+            <p className="text-sm text-rose-600 bg-rose-50 rounded-lg px-3 py-2 border border-rose-200">{deleteError}</p>
           )}
+          <label className="block text-xs font-medium text-slate-600">
+            Reassign active work to
+            <select
+              value={deleteUserReassignTo}
+              onChange={(event) => setDeleteUserReassignTo(event.target.value)}
+              disabled={deleteProcessing}
+              className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-slate-700"
+            >
+              <option value="">Do not reassign</option>
+              {users.filter((candidate) => candidate.is_active && candidate.id !== deleteUserConfirmId).map((candidate) => (
+                <option key={candidate.id} value={candidate.id}>{candidate.username} ({candidate.role})</option>
+              ))}
+            </select>
+          </label>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteProcessing}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => handleDeleteUser(deleteUserConfirmId)}
+              onClick={(event) => { event.preventDefault(); handleDeleteUser(deleteUserConfirmId); }}
               disabled={deleteProcessing}
               className="bg-rose-600 hover:bg-rose-700 text-white border-0"
             >
-              {deleteProcessing ? "Deleting…" : "Delete User"}
+              {deleteProcessing ? "Deactivating…" : "Deactivate User"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

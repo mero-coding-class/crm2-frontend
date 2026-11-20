@@ -27,6 +27,8 @@ const DraggableRow = ({
   onOpenViewModal,
   onOpenDetailsModal,
   onOpenEnrollModal,
+  canViewHistory = true,
+  showSelection = true,
 }) => {
   const cell = (key) => {
     switch (key) {
@@ -60,14 +62,14 @@ const DraggableRow = ({
               <span className={`inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-semibold ${getSubStatusClasses(lead.sub_status)}`}>
                 {formatValue(lead.sub_status || "New")}
               </span>
-              <button
+              {canViewHistory && <button
                 type="button"
                 title="View Activity Log"
                 onClick={() => onOpenViewModal?.(lead)}
                 className="rounded p-1 text-slate-400 transition-colors hover:bg-primary-light hover:text-primary"
               >
                 <EyeIcon className="h-3.5 w-3.5" />
-              </button>
+              </button>}
             </div>
           </td>
         );
@@ -106,15 +108,15 @@ const DraggableRow = ({
 
   return (
     <tr className={`transition-colors hover:bg-slate-50/80 ${selected ? "bg-primary-light/60" : ""}`}>
-      <td className="w-10 whitespace-nowrap px-3 py-3 text-center">
+      {showSelection && <td className="w-10 whitespace-nowrap px-3 py-3 text-center">
         <input
           type="checkbox"
           checked={selected}
           onChange={() => onSelect(lead._id || lead.id)}
           aria-label={`Select ${lead.school_name || "lead"}`}
-          className="h-3.5 w-3.5 cursor-pointer rounded-[4px] border-slate-300 text-primary focus:ring-primary"
+          className="h-3.5 w-3.5 cursor-pointer rounded-sm border-slate-300 text-primary focus:ring-primary"
         />
-      </td>
+      </td>}
       {visibleColumns.map(cell)}
     </tr>
   );

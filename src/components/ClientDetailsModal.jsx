@@ -40,8 +40,7 @@ export default function ClientDetailsModal({ client, authToken, onClose }) {
       ["Enrolled at", date(record.enrolled_at)], ["Enrolled by", record.enrolled_by_name],
     ] },
     { title: "Assignments", fields: [
-      ["Client Academic Assignee", record.assigned_to_name],
-      ["Academic Counsellor", record.academic_counsellor_name],
+      ["Academic Assignee at enrollment", record.assigned_to_name],
       ["MCC representative", record.mcc_rep_name],
     ] },
     ...(record.contracts?.length ? [{ title: "Contract history", fields: record.contracts.map((contract) => [

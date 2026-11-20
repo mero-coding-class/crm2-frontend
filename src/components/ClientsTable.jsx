@@ -24,7 +24,6 @@ const DEFAULT_COLUMNS = {
   contact_email: { label: "Contact Email", visible: true },
   package_name: { label: "Package", visible: true },
   classes_per_week: { label: "Classes / Week", visible: true },
-  assigned_to: { label: "Client Academic Assignee", visible: true },
   mou_start: { label: "MOU Start", visible: true },
   mou_end: { label: "MOU End", visible: true },
   pricing_basis: { label: "Pricing Basis", visible: true },
@@ -37,11 +36,7 @@ const ClientsTable = ({
   onViewDetails,
   handleDelete,
   handleBulkDelete,
-  academicUsers = [],
   canManage = false,
-  canAssignAcademic = false,
-  assigningClientId = null,
-  onAssignAcademic,
   pagination = null,
 }) => {
   const [orderedClients, setOrderedClients] = useState([]);
@@ -125,11 +120,11 @@ const ClientsTable = ({
                     title={columns[key].label}
                     className={`overflow-hidden text-ellipsis px-3 h-9 text-left whitespace-nowrap text-xs font-semibold uppercase tracking-[0.04em] text-slate-500 ${
                       key === "principal_name"
-                        ? "w-[200px] min-w-[200px]"
+                        ? "w-50 min-w-50"
                         : key === "contact_number"
-                          ? "w-[150px] min-w-[150px]"
+                          ? "w-37.5 min-w-37.5"
                           : key === "contact_email"
-                            ? "w-[190px] min-w-[190px]"
+                            ? "w-47.5 min-w-47.5"
                             : ""
                     }`}
                   >
@@ -157,11 +152,7 @@ const ClientsTable = ({
                     handleEdit={handleEdit}
                     onViewDetails={onViewDetails}
                     handleDelete={handleDelete}
-                    academicUsers={academicUsers}
                     canManage={canManage}
-                    canAssignAcademic={canAssignAcademic}
-                    assigningClientId={assigningClientId}
-                    onAssignAcademic={onAssignAcademic}
                   />
                 ))}
               </tbody>
@@ -182,11 +173,7 @@ const SortableClientRow = ({
   handleEdit,
   onViewDetails,
   handleDelete,
-  academicUsers,
   canManage,
-  canAssignAcademic,
-  assigningClientId,
-  onAssignAcademic,
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: client.id });
   const style = {
@@ -201,37 +188,6 @@ const SortableClientRow = ({
         return <span title={client.system_id || "—"}>{client.system_id || "—"}</span>;
       case "school_name":
         return <button type="button" onClick={() => onViewDetails?.(client)} title={`View details for ${client.school_name || "client"}`} className="text-left font-semibold text-slate-900 hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">{client.school_name || "—"}</button>;
-      case "assigned_to": {
-        const assignedId = client.assigned_to?.id ?? client.assigned_to;
-        const assignedName = client.assigned_to_name ||
-          academicUsers.find((academicUser) => String(academicUser.id) === String(assignedId))?.name;
-        if (canAssignAcademic) {
-          const hasCurrentAcademicUser = academicUsers.some(
-            (academicUser) => String(academicUser.id) === String(assignedId)
-          );
-          return (
-            <select
-              aria-label={`Academic user for ${client.school_name || "client"}`}
-              value={assignedId ?? ""}
-              disabled={assigningClientId !== null}
-              onChange={(event) => onAssignAcademic?.(
-                client.id,
-                event.target.value === "" ? null : Number(event.target.value)
-              )}
-              className="max-w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:opacity-60"
-            >
-              <option value="">Unassigned</option>
-              {assignedId != null && !hasCurrentAcademicUser && (
-                <option value={assignedId}>{assignedName || assignedId}</option>
-              )}
-              {academicUsers.map((academicUser) => (
-                <option key={academicUser.id} value={academicUser.id}>{academicUser.name}</option>
-              ))}
-            </select>
-          );
-        }
-        return <span title={assignedName || "Unassigned"}>{assignedName || "Unassigned"}</span>;
-      }
       case "classes_per_week":
         return client.classes_per_week ?? "—";
       case "agreed_price":
@@ -261,14 +217,14 @@ const SortableClientRow = ({
       case "actions":
         return (
           <div className="flex items-center justify-end gap-1">
-            <button type="button" onClick={() => onViewDetails?.(client)} title="View client details" className="rounded-[6px] p-1.5 text-slate-400 transition-colors hover:bg-primary-light hover:text-primary">
+            <button type="button" onClick={() => onViewDetails?.(client)} title="View client details" className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-primary-light hover:text-primary">
               <Eye className="h-3.5 w-3.5" />
             </button>
             {canManage && <button
               type="button"
               onClick={() => handleEdit(client)}
               title="Edit client details"
-              className="rounded-[6px] p-1.5 text-slate-400 transition-colors hover:bg-primary-light hover:text-primary"
+              className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-primary-light hover:text-primary"
             >
               <Pencil className="h-3.5 w-3.5" />
             </button>}
@@ -276,7 +232,7 @@ const SortableClientRow = ({
               type="button"
               onClick={() => handleDelete(client.id)}
               title="Return client to Leads"
-              className="rounded-[6px] p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
+              className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
             >
               <Undo2 className="h-3.5 w-3.5" />
             </button>}
@@ -306,7 +262,7 @@ const SortableClientRow = ({
           key={field}
           title={field === "actions" ? undefined : String(client[field] ?? "—")}
           className={`overflow-hidden text-ellipsis whitespace-nowrap px-3 py-3 text-xs text-slate-700 ${
-            field === "principal_name" ? "w-[200px] min-w-[200px] font-medium text-slate-900" : ""
+            field === "principal_name" ? "w-50 min-w-50 font-medium text-slate-900" : ""
           } ${field === "actions" ? "text-right" : ""}`}
         >
           {renderCell(field)}

@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { clientService } from "../../services/api";
+import { leadService } from "../../services/api";
 
 export default function useAcademicUsers(authToken, enabled = true) {
   const [academicUsers, setAcademicUsers] = useState([]);
@@ -8,7 +8,7 @@ export default function useAcademicUsers(authToken, enabled = true) {
   const fetchAcademicUsers = useCallback(async () => {
     if (!authToken || !enabled) return;
     try {
-      const data = await clientService.getAcademicAssignees(authToken);
+      const data = await leadService.getAcademicAssignees(authToken);
       const list = Array.isArray(data) ? data : [];
       const normalized = (list || [])
         .map((user) => ({

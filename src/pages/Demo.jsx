@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/useAuth.js";
 import { classService, demoService, leadService } from "../services/api";
-import { containsLetter, isValidPhoneNumber } from "../utils/validation";
+import { containsLetter, isValidAlphabeticName, isValidPhoneNumber } from "../utils/validation";
 import PageLoadingState from "../components/common/PageLoadingState.jsx";
 import DataTableShell from "../components/common/DataTableShell.jsx";
 import Pagination from "../components/common/Pagination.jsx";
@@ -90,7 +90,7 @@ const Demo = () => {
   const isAdmin = ["admin", "superadmin"].includes(role.toLowerCase());
   const isAcademic = role.toLowerCase() === "academic";
   const isB2b = role.toLowerCase() === "b2b";
-  const canScheduleDemo = isAdmin || isB2b;
+  const canScheduleDemo = isAdmin || isB2b || isAcademic;
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [demos, setDemos] = useState([]);
@@ -107,7 +107,7 @@ const Demo = () => {
 
   // ── Filters ────────────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
-  const [statusFilter, setStatusFilter] = useState(searchParams.get("demo_status") || (searchParams.get("feedback") === "pending" ? "scheduled" : "all"));
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("demo_status") || "all");
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
@@ -141,21 +141,16 @@ const Demo = () => {
     setLoading(true);
     setError(null);
     try {
-      const params = {};
-      if (statusFilter && statusFilter !== "all" && searchParams.get("feedback") !== "pending") params.demo_status = statusFilter;
-      if (searchParams.get("upcoming") === "true") params.upcoming = "true";
-      if (searchParams.get("unassigned") === "true") params.unassigned = "true";
-      if (searchParams.get("feedback") === "pending") params.feedback = "pending";
-      if (searchParams.get("from")) params.from = searchParams.get("from");
-      if (searchParams.get("to")) params.to = searchParams.get("to");
-      const { results } = await demoService.getDemos(authToken, params);
+      // Keep the summary counters based on the full scoped list. URL filters
+      // are applied locally below so a dashboard drill-down cannot zero them.
+      const { results } = await demoService.getDemos(authToken);
       setDemos(results);
     } catch (e) {
       setError(e.message || "Failed to load demos.");
     } finally {
       setLoading(false);
     }
-  }, [authToken, statusFilter, searchParams]);
+  }, [authToken]);
 
   useEffect(() => { fetchDemos(); }, [fetchDemos]);
 
@@ -200,7 +195,24 @@ const Demo = () => {
   // ── Filtered ───────────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
+    const feedbackPending = searchParams.get("feedback") === "pending";
+    const upcomingOnly = searchParams.get("upcoming") === "true";
+    const unassignedOnly = searchParams.get("unassigned") === "true";
+    const fromValue = searchParams.get("from");
+    const toValue = searchParams.get("to");
+    const from = fromValue ? new Date(fromValue) : null;
+    const to = toValue ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(toValue) ? `${toValue}T23:59:59.999` : toValue) : null;
+    const now = Date.now();
     return demos.filter((d) => {
+      const demoTime = new Date(d.demo_at).getTime();
+      const active = ["scheduled", "rescheduled"].includes(d.demo_status);
+      if (statusFilter === "active" && !active) return false;
+      if (statusFilter !== "all" && statusFilter !== "active" && d.demo_status !== statusFilter) return false;
+      if (feedbackPending && (!active || demoTime >= now || d.feedback_at)) return false;
+      if (upcomingOnly && (!active || demoTime < now)) return false;
+      if (unassignedOnly && d.academic) return false;
+      if (from && demoTime < from.getTime()) return false;
+      if (to && demoTime > to.getTime()) return false;
       if (!q) return true;
       return (
         (d.school_name || "").toLowerCase().includes(q) ||
@@ -211,7 +223,7 @@ const Demo = () => {
         (d.details || "").toLowerCase().includes(q)
       );
     });
-  }, [demos, searchQuery]);
+  }, [demos, searchQuery, statusFilter, searchParams]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paginated = useMemo(() => {
@@ -232,8 +244,12 @@ const Demo = () => {
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    if (!createForm.lead || !createForm.demo_at) {
-      setSaveError("Lead and Demo Date/Time are required.");
+    if (!createForm.lead || !createForm.demo_at || !createForm.contact_person.trim()) {
+      setSaveError("Lead, Demo Date/Time, and Contact Person are required.");
+      return;
+    }
+    if (createForm.contact_person.trim().length < 2 || !isValidAlphabeticName(createForm.contact_person)) {
+      setSaveError("Enter a valid contact person name using letters and standard name punctuation.");
       return;
     }
     const selectedLead = leads.find((lead) => String(lead.id) === String(createForm.lead));
@@ -256,7 +272,7 @@ const Demo = () => {
         lead: createForm.lead,
         demo_at: createForm.demo_at,
         details: createForm.details || "",
-        contact_person: createForm.contact_person || "",
+        contact_person: createForm.contact_person.trim(),
         phone: createForm.phone || "",
         assigned_teacher: createForm.assigned_teacher || "",
       };
@@ -310,6 +326,11 @@ const Demo = () => {
       // resend B2B contact snapshots on an unrelated reschedule/details edit.
       if ((isAdmin || isAcademic || isB2b) &&
           editForm.contact_person !== (editingDemo.contact_person || "")) {
+        if (editForm.contact_person.trim().length < 2 || !isValidAlphabeticName(editForm.contact_person)) {
+          setSaveError("Enter a valid contact person name using letters and standard name punctuation.");
+          setSaving(false);
+          return;
+        }
         allowed.contact_person = editForm.contact_person;
       }
       if ((isAdmin || isAcademic || isB2b) &&
@@ -454,7 +475,14 @@ const Demo = () => {
         </div>
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => {
+            setStatusFilter(e.target.value);
+            if (searchParams.get("feedback") === "pending") {
+              const next = new URLSearchParams(searchParams);
+              next.delete("feedback");
+              setSearchParams(next, { replace: true });
+            }
+          }}
           className="px-3 py-2 border border-slate-200 rounded-[8px] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
         >
           <option value="all">All Statuses</option>
@@ -654,9 +682,10 @@ const Demo = () => {
                 className={inputCls}
               />
             </FormGroup>
-            <FormGroup label="Contact Person">
+            <FormGroup label="Contact Person *">
               <input
                 type="text"
+                required
                 maxLength={255}
                 value={createForm.contact_person}
                 onChange={(e) => setCreateForm((f) => ({ ...f, contact_person: e.target.value }))}

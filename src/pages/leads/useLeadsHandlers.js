@@ -181,8 +181,9 @@ export default function useLeadsHandlers(ctx) {
 
         const writableFields = [
           "school_name", "district", "municipality", "address",
-          "contact_person", "contact_number", "alt_number", "alt_contact_person",
+          "contact_person", "contact_number", "alt_number", "alt_contact_person", "landline",
           "email", "source", "course_interest", "social_media", "sub_status",
+          "call_assignee", "assignment_reason",
         ];
         const payload = Object.fromEntries(
           writableFields

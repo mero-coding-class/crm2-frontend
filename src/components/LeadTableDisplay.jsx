@@ -40,6 +40,7 @@ const LeadTableDisplay = ({
   totalPages: parentTotalPages,
   onPageChange: parentOnPageChange,
   handleOpenAddModal,
+  canViewHistory = true,
 }) => {
   const [selectedLeads, setSelectedLeads] = useState(new Set());
   const [columns, setColumns] = useState(initialColumns);
@@ -199,7 +200,7 @@ const LeadTableDisplay = ({
 
   if (!leads || leads.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 px-4 text-center bg-white min-h-[420px]">
+      <div className="flex flex-col items-center justify-center py-24 px-4 text-center bg-white min-h-105">
         <div className="w-16 h-16 rounded-[18px] bg-primary-light flex items-center justify-center mb-5 text-primary">
           <Folder className="w-8 h-8 stroke-[1.75]" />
         </div>
@@ -213,7 +214,7 @@ const LeadTableDisplay = ({
             {canManageLeads && handleOpenAddModal && (
             <button
               onClick={handleOpenAddModal}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-[8px] text-sm font-medium bg-primary hover:bg-primary-hover text-white shadow-sm transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium bg-primary hover:bg-primary-hover text-white shadow-sm transition-colors"
             >
               <Plus className="h-4 w-4" />
               Add New Lead
@@ -224,7 +225,7 @@ const LeadTableDisplay = ({
               authToken={authToken}
               id="emptyStateCsvUpload"
               customButton={
-                <div className="flex items-center gap-2 px-4 py-2.5 rounded-[8px] text-sm font-medium bg-surface-muted hover:bg-slate-200 text-slate-700 transition-colors">
+                <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-surface-muted hover:bg-slate-200 text-slate-700 transition-colors">
                   <FileUp className="h-4 w-4" />
                   Import CSV
                 </div>
@@ -280,7 +281,7 @@ const LeadTableDisplay = ({
             <table>
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="px-3 h-9 w-10 text-center whitespace-nowrap">
+                  {canManageLeads && <th className="px-3 h-9 w-10 text-center whitespace-nowrap">
                     <input
                       type="checkbox"
                       checked={
@@ -290,9 +291,9 @@ const LeadTableDisplay = ({
                         )
                       }
                       onChange={handleSelectAll}
-                      className="h-3.5 w-3.5 rounded-[4px] border-slate-300 text-primary focus:ring-primary cursor-pointer"
+                      className="h-3.5 w-3.5 rounded-sm border-slate-300 text-primary focus:ring-primary cursor-pointer"
                     />
-                  </th>
+                  </th>}
                   {(() => {
                     const visibleEntries = Object.entries(columns).filter(
                       ([, { visible }]) => visible
@@ -314,7 +315,7 @@ const LeadTableDisplay = ({
                     return (
                       <tr>
                         <td
-                          colSpan={visibleKeys.length + 1}
+                          colSpan={visibleKeys.length + (canManageLeads ? 1 : 0)}
                           className="py-16 text-center"
                         >
                           <div className="flex flex-col items-center justify-center max-w-sm mx-auto text-center px-4">
@@ -354,6 +355,8 @@ const LeadTableDisplay = ({
                       handleEdit={handleEdit}
                       handleDelete={handleDelete}
                       canManageLeads={canManageLeads}
+                      canViewHistory={canViewHistory}
+                      showSelection={canManageLeads}
                       isAdmin={isAdmin}
                       onOpenActivityModal={(leadToView) =>
                         setActivityModalLead(leadToView)
