@@ -31,7 +31,8 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.JELASTIC_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -p 3022 "${{ vars.JELASTIC_GATE }}" >> ~/.ssh/known_hosts
+          # pinned host key: ssh-keyscan against the gate fails intermittently
+          echo "${{ vars.JELASTIC_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
 
       - name: Upload dist/
         run: |
