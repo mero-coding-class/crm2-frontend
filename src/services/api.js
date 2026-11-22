@@ -2,6 +2,16 @@
 
 import { BASE_URL } from "../config";
 
+const createIdempotencyKey = () => {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  if (globalThis.crypto?.getRandomValues) {
+    const bytes = new Uint8Array(16);
+    globalThis.crypto.getRandomValues(bytes);
+    return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+};
+
 const handleResponse = async (response) => {
   if (!response.ok) {
     let errorData = null;
@@ -141,6 +151,7 @@ export const leadService = {
       headers: {
         Authorization: `Token ${authToken}`,
         "Content-Type": "application/json",
+        "Idempotency-Key": createIdempotencyKey(),
       },
       body: JSON.stringify(payload),
     });
@@ -637,6 +648,14 @@ export const notificationService = {
     });
     return handleResponse(response);
   },
+  markAllRead: async (authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/notifications/mark-all-read/`, {
+      method: "POST",
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    return handleResponse(response);
+  },
 };
 
 // ─── Report Service ──────────────────────────────────────────────────────────
@@ -865,6 +884,7 @@ export const clientService = {
       headers: {
         Authorization: `Token ${authToken}`,
         "Content-Type": "application/json",
+        "Idempotency-Key": createIdempotencyKey(),
       },
       body: JSON.stringify(enrollData),
     });

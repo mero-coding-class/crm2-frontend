@@ -35,6 +35,11 @@ const STATUS_CONFIG = {
     badge: "bg-blue-50 text-blue-700 border border-blue-200",
     icon: Calendar,
   },
+  overdue: {
+    label: "Overdue",
+    badge: "bg-rose-50 text-rose-700 border border-rose-200",
+    dot: "bg-rose-500",
+  },
   completed: {
     label: "Completed",
     badge: "bg-emerald-50 text-emerald-700 border border-emerald-200",
@@ -185,11 +190,13 @@ const Demo = () => {
   // ── Stats ──────────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
     const total = demos.length;
-    const scheduled = demos.filter((d) => ["scheduled", "rescheduled"].includes(d.demo_status)).length;
-    const completed = demos.filter((d) => ["completed", "follow_up"].includes(d.demo_status)).length;
+    const statusOf = (demo) => demo.effective_status || demo.demo_status;
+    const scheduled = demos.filter((d) => ["scheduled", "rescheduled"].includes(statusOf(d))).length;
+    const overdue = demos.filter((d) => statusOf(d) === "overdue").length;
+    const completed = demos.filter((d) => ["completed", "follow_up"].includes(statusOf(d))).length;
     const cancelled = demos.filter((d) => d.demo_status === "cancelled").length;
-    const followUp = demos.filter((d) => d.demo_status === "follow_up").length;
-    return { total, scheduled, completed, cancelled, followUp };
+    const followUp = demos.filter((d) => statusOf(d) === "follow_up").length;
+    return { total, scheduled, overdue, completed, cancelled, followUp };
   }, [demos]);
 
   // ── Filtered ───────────────────────────────────────────────────────────────
@@ -205,10 +212,15 @@ const Demo = () => {
     const now = Date.now();
     return demos.filter((d) => {
       const demoTime = new Date(d.demo_at).getTime();
-      const active = ["scheduled", "rescheduled"].includes(d.demo_status);
+      const status = d.effective_status || d.demo_status;
+      const active = ["scheduled", "rescheduled", "overdue"].includes(status);
       if (statusFilter === "active" && !active) return false;
-      if (statusFilter !== "all" && statusFilter !== "active" && d.demo_status !== statusFilter) return false;
-      if (feedbackPending && (!active || demoTime >= now || d.feedback_at)) return false;
+      if (statusFilter !== "all" && statusFilter !== "active" && status !== statusFilter) return false;
+      if (feedbackPending && (
+        !["scheduled", "rescheduled", "completed", "follow_up"].includes(d.demo_status)
+        || demoTime >= now
+        || d.feedback_at
+      )) return false;
       if (upcomingOnly && (!active || demoTime < now)) return false;
       if (unassignedOnly && d.academic) return false;
       if (from && demoTime < from.getTime()) return false;
@@ -442,10 +454,11 @@ const Demo = () => {
 
       {/* Stats */}
       <div className="flex-1 p-6 space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6 gap-4">
           {[
             { label: "Total demos", value: stats.total, icon: MonitorPlay, color: "text-primary bg-primary-light" },
             { label: "Scheduled / rescheduled", value: stats.scheduled, icon: Calendar, color: "text-blue-700 bg-blue-50" },
+            { label: "Overdue", value: stats.overdue, icon: AlertTriangle, color: "text-rose-700 bg-rose-50" },
             { label: "Completed sessions", value: stats.completed, icon: CheckCircle2, color: "text-emerald-700 bg-emerald-50" },
             { label: "Cancelled", value: stats.cancelled, icon: XCircle, color: "text-rose-700 bg-rose-50" },
             { label: "Follow-up required", value: stats.followUp, icon: MessageSquare, color: "text-orange-700 bg-orange-50" },
@@ -470,8 +483,9 @@ const Demo = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search school or contact…"
-            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-[8px] text-sm bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            className="w-full pl-9 pr-10 py-2 border border-slate-200 rounded-[8px] text-sm bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
           />
+          {searchQuery && <button type="button" onClick={() => setSearchQuery("")} aria-label="Clear demo search" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"><X className="h-3.5 w-3.5" /></button>}
         </div>
         <select
           value={statusFilter}
@@ -486,7 +500,8 @@ const Demo = () => {
           className="px-3 py-2 border border-slate-200 rounded-[8px] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
         >
           <option value="all">All Statuses</option>
-          <option value="active">Scheduled or Rescheduled</option>
+          <option value="active">Open sessions</option>
+          <option value="overdue">Overdue</option>
           <option value="scheduled">Scheduled</option>
           <option value="completed">Completed</option>
           <option value="cancelled">Cancelled</option>
@@ -547,7 +562,7 @@ const Demo = () => {
                 </thead>
                 <tbody>
                   {paginated.map((demo) => {
-                    const cfg = statusCfg(demo.demo_status);
+                    const cfg = statusCfg(demo.effective_status || demo.demo_status);
                     return (
                       <tr key={demo.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
                         <td className="px-3 py-3">
@@ -594,7 +609,7 @@ const Demo = () => {
                               </button>
                             )}
                             {/* Sales users can submit feedback within their own pipeline. */}
-                            {["scheduled", "rescheduled"].includes(demo.demo_status) &&
+                            {["scheduled", "rescheduled", "completed", "follow_up"].includes(demo.demo_status) && !demo.feedback_at && new Date(demo.demo_at).getTime() <= Date.now() &&
                               (isAdmin || isAcademic || isB2b) && (
                                 <button
                                   onClick={() => openFeedback(demo)}
@@ -634,8 +649,8 @@ const Demo = () => {
           <DetailRow label="School" value={viewingDemo.school_name} />
           <DetailRow label="System ID" value={viewingDemo.system_id} />
           <DetailRow label="Status">
-            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${statusCfg(viewingDemo.demo_status).badge}`}>
-              {statusCfg(viewingDemo.demo_status).label}
+            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${statusCfg(viewingDemo.effective_status || viewingDemo.demo_status).badge}`}>
+              {statusCfg(viewingDemo.effective_status || viewingDemo.demo_status).label}
             </span>
           </DetailRow>
           <DetailRow label="Demo Date" value={fmt(viewingDemo.demo_at)} />

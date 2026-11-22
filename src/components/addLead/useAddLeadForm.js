@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { leadService } from "../../services/api";
 import {
   isValidEmail,
@@ -43,6 +43,8 @@ export default function useAddLeadForm({ authToken, onClose, onSave, isAdmin }) 
   });
 
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const submissionInProgress = useRef(false);
 
   const setField = (name, value) => {
     // sub_status is always "New" on lead creation — only changeable via Activity Log
@@ -57,6 +59,7 @@ export default function useAddLeadForm({ authToken, onClose, onSave, isAdmin }) 
   };
 
   const handleSubmit = async () => {
+    if (submissionInProgress.current) return { ok: false, reason: "submitting" };
     // Validate the same required fields, lengths, email and phone rules as
     // LeadCreateSerializer before making the request.
     const requiredFields = [
@@ -154,6 +157,8 @@ export default function useAddLeadForm({ authToken, onClose, onSave, isAdmin }) 
       if (formData.owner) backendPayload.owner = parseInt(formData.owner, 10) || undefined;
     }
 
+    submissionInProgress.current = true;
+    setSubmitting(true);
     try {
       const serverLead = await leadService.createLead(backendPayload, authToken);
       await onSave(serverLead);
@@ -163,6 +168,9 @@ export default function useAddLeadForm({ authToken, onClose, onSave, isAdmin }) 
       const message = error?.message || "Failed to add lead.";
       setErrors((prev) => ({ ...prev, general: message }));
       return { ok: false, reason: message };
+    } finally {
+      submissionInProgress.current = false;
+      setSubmitting(false);
     }
   };
 
@@ -171,6 +179,7 @@ export default function useAddLeadForm({ authToken, onClose, onSave, isAdmin }) 
     setField,
     errors,
     setErrors,
+    submitting,
     handleSubmit,
   };
 }

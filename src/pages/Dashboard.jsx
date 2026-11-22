@@ -31,6 +31,7 @@ import { useAuth } from "../context/useAuth.js";
 import { dashboardService } from "../services/api.js";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "../components/ui/chart.jsx";
 import PageLoadingState from "../components/common/PageLoadingState.jsx";
+import { PageHeader, PageShell } from "../components/common/PageShell.jsx";
 import useRealtimeRefresh from "../hooks/useRealtimeRefresh.js";
 
 const toIsoDate = (date) => {
@@ -363,63 +364,49 @@ const Dashboard = () => {
   );
 
   return (
-    <main className="min-h-full bg-canvas">
+    <PageShell className="min-h-full bg-canvas">
       <div className="mx-auto max-w-375 space-y-5 px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
-        <header
-          className="relative isolate overflow-hidden rounded-3xl bg-primary-dark px-5 py-6 text-white shadow-[0_16px_45px_rgba(20,43,89,0.17)] sm:px-8 sm:py-7"
-          style={{ background: "radial-gradient(ellipse at 14% 0%, rgba(var(--primary-rgb), 0.48), transparent 43%), radial-gradient(ellipse at 86% 18%, rgba(var(--accent-rgb), 0.2), transparent 30%), linear-gradient(115deg, var(--primary-dark) 0%, var(--primary-base) 56%, var(--primary-hover) 100%)" }}
-        >
-          <div className="pointer-events-none absolute -bottom-28 -right-20 h-72 w-72 rounded-full bg-sky-300/10 blur-[70px]" />
-          <svg aria-hidden="true" className="pointer-events-none absolute -right-12 -top-16 h-[150%] w-[62%] text-white/20" viewBox="0 0 640 360" fill="none" preserveAspectRatio="xMidYMid slice">
-            <path d="M168 376C215 297 263 246 304 170 352 82 435 39 671 65" stroke="currentColor" />
-            <path d="M201 383C247 309 292 262 333 185 381 98 465 55 689 80" stroke="currentColor" />
-            <path d="M236 391C280 321 322 278 363 201 411 113 494 71 706 96" stroke="currentColor" />
-            <path d="M277 400C316 335 354 294 393 217 442 130 521 88 724 112" stroke="currentColor" />
-            <path d="M318 409C352 350 388 311 425 233 472 148 547 104 741 128" stroke="currentColor" />
-            <path d="M407-19C439 42 482 86 538 112 581 132 622 138 665 138" stroke="var(--accent-base)" strokeOpacity=".8" />
-            <circle cx="538" cy="112" r="3" fill="var(--accent-light)" />
-            <circle cx="363" cy="201" r="2" fill="white" fillOpacity=".8" />
-          </svg>
-          <div className="relative z-10 flex flex-col justify-between gap-6 md:flex-row md:items-end">
-            <div className="max-w-2xl">
-              <h1 className="text-2xl font-semibold leading-tight tracking-[-0.035em] sm:text-3xl">Good to see you, {firstName}.</h1>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-blue-100/80">Here’s a quick look at what’s happening across your team.</p>
-              {isAdmin && <div className="mt-4 flex flex-wrap gap-2" aria-label="Action counts">
-                <Link to="/leads?followup=overdue" className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs text-white/90 hover:bg-white/20"><AlertTriangle className="h-3.5 w-3.5 text-rose-200" />{summary.overdue_followups || 0} overdue follow-ups</Link>
-                <Link to="/demo?demo_status=active&upcoming=true" className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs text-white/90 hover:bg-white/20"><CalendarDays className="h-3.5 w-3.5 text-teal-200" />{summary.upcoming_demos || 0} future demos</Link>
-                <Link to="/approvals" className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs text-white/90 hover:bg-white/20"><ClipboardCheck className="h-3.5 w-3.5 text-amber-200" />{data.pending_approvals || 0} approvals</Link>
-                <Link to="/demo?feedback=pending" className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs text-white/90 hover:bg-white/20"><FileCheck2 className="h-3.5 w-3.5 text-orange-200" />{summary.feedback_needed || 0} feedback items</Link>
-              </div>}
-            </div>
-            <div className="flex flex-wrap items-center gap-2.5">
+        <PageHeader
+          title={`Welcome back, ${firstName}.`}
+          description="Here’s a quick look at what’s happening across your team."
+          className="rounded-xl border border-slate-200 px-5 py-4 shadow-sm sm:px-6"
+          actions={(
+            <>
               <label className="relative">
                 <span className="sr-only">Dashboard reporting period</span>
-                <select value={range} onChange={(event) => setRange(event.target.value)} className="h-10 appearance-none rounded-xl border border-white/15 bg-white/9 py-2 pl-3.5 pr-9 text-xs font-semibold text-white outline-none transition hover:bg-white/[0.14] focus:ring-2 focus:ring-white/30">
-                  <option value="this_month" className="text-slate-900">This month</option>
-                  <option value="last_30" className="text-slate-900">Last 30 days</option>
-                  <option value="last_90" className="text-slate-900">Last 90 days</option>
-                  <option value="year_to_date" className="text-slate-900">Year to date</option>
+                <select value={range} onChange={(event) => setRange(event.target.value)} className="h-10 appearance-none rounded-lg border border-slate-200 bg-white py-2 pl-3.5 pr-9 text-xs font-semibold text-slate-700 outline-none transition hover:bg-slate-50 focus:ring-2 focus:ring-primary/20">
+                  <option value="this_month">This month</option>
+                  <option value="last_30">Last 30 days</option>
+                  <option value="last_90">Last 90 days</option>
+                  <option value="year_to_date">Year to date</option>
                 </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-blue-100" />
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               </label>
-              <button aria-label="Refresh dashboard" onClick={() => loadDashboard(true)} className="grid h-10 w-10 place-items-center rounded-xl border border-white/15 bg-white/9 text-white transition hover:bg-white/16 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40">
+              <button aria-label="Refresh dashboard" onClick={() => loadDashboard(true)} className="grid h-10 w-10 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30">
                 <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
               </button>
-              <span className="w-full text-xs text-blue-100/60 sm:w-auto sm:text-right">
+              <span className="w-full text-xs text-slate-400 sm:w-auto sm:text-right">
                 {formatDate(summary.period?.from)} – {formatDate(summary.period?.to)}
-                <span className="mt-1 block text-blue-100/75" aria-live="polite">
+                <span className="mt-1 block" aria-live="polite">
                   {lastUpdatedAt
-                    ? `Refreshes automatically · Last updated ${new Date(lastUpdatedAt).toLocaleTimeString("en-NP", { hour: "2-digit", minute: "2-digit" })}`
-                    : "Refreshes automatically every 30 seconds"}
+                    ? `Updated ${new Date(lastUpdatedAt).toLocaleTimeString("en-NP", { hour: "2-digit", minute: "2-digit" })}`
+                    : "Refreshes every 30 seconds"}
                 </span>
               </span>
-            </div>
-          </div>
-        </header>
+            </>
+          )}
+        />
+
+        {isAdmin && <div className="flex flex-wrap gap-2" aria-label="Action counts">
+          <Link to="/leads?followup=overdue" className="inline-flex items-center gap-1.5 rounded-full border border-rose-100 bg-white px-3 py-1.5 text-xs text-rose-700 hover:bg-rose-50"><AlertTriangle className="h-3.5 w-3.5" />{summary.overdue_followups || 0} overdue follow-ups</Link>
+          <Link to="/demo?demo_status=active&upcoming=true" className="inline-flex items-center gap-1.5 rounded-full border border-teal-100 bg-white px-3 py-1.5 text-xs text-teal-700 hover:bg-teal-50"><CalendarDays className="h-3.5 w-3.5" />{summary.upcoming_demos || 0} future demos</Link>
+          <Link to="/approvals" className="inline-flex items-center gap-1.5 rounded-full border border-amber-100 bg-white px-3 py-1.5 text-xs text-amber-700 hover:bg-amber-50"><ClipboardCheck className="h-3.5 w-3.5" />{data.pending_approvals || 0} approvals</Link>
+          <Link to="/demo?feedback=pending" className="inline-flex items-center gap-1.5 rounded-full border border-orange-100 bg-white px-3 py-1.5 text-xs text-orange-700 hover:bg-orange-50"><FileCheck2 className="h-3.5 w-3.5" />{summary.feedback_needed || 0} feedback items</Link>
+        </div>}
 
         {error && <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">We couldn’t refresh everything, so you’re seeing the latest data we have.</div>}
 
-        <section aria-label="Dashboard key performance indicators" className={`grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 ${isAcademic ? "2xl:grid-cols-4" : "2xl:grid-cols-4"}`}>
+        <section aria-label="Dashboard key performance indicators" className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${cards.length === 5 ? "xl:grid-cols-3 2xl:grid-cols-5" : "xl:grid-cols-4"}`}>
           {cards.map((card) => <StatCard key={card.label} {...card} />)}
         </section>
 
@@ -536,7 +523,7 @@ const Dashboard = () => {
           <span>Contract values show signed agreements. Payments are tracked separately.</span>
         </footer>
       </div>
-    </main>
+    </PageShell>
   );
 };
 

@@ -54,7 +54,18 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const logout = () => {
-    fetch(`${BASE_URL}/auth/logout/`, { method: "POST" }).catch(() => {
+    const csrfCookie = document.cookie
+      .split(";")
+      .map((cookie) => cookie.trim())
+      .find((cookie) => cookie.startsWith("csrftoken="));
+    const csrfToken = csrfCookie
+      ? decodeURIComponent(csrfCookie.slice("csrftoken=".length))
+      : "";
+    fetch(`${BASE_URL}/auth/logout/`, {
+      method: "POST",
+      credentials: "include",
+      headers: csrfToken ? { "X-CSRFToken": csrfToken } : {},
+    }).catch(() => {
       // Clear local state even if the server cannot be reached during logout.
     });
     localStorage.removeItem("authToken");

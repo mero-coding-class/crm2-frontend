@@ -15,11 +15,12 @@ services first. The backend serves authenticated live change events over
 `/ws/updates/`; open pages refresh their own data after a saved change.
 
 For a production frontend hosted separately from the backend, set
-`VITE_API_ORIGIN` and `VITE_WEBSOCKET_ORIGIN` to the backend origin at build
-time. Use frontend and backend subdomains of the same site, configure the
-backend CORS/CSRF/WebSocket origin allowlists, and set the session and CSRF
-cookie domains to the shared parent domain. A same-origin reverse proxy can
-keep both variables unset.
+`VITE_API_ORIGIN` to the backend origin at build time. Set
+`VITE_WEBSOCKET_ORIGIN` when the WebSocket host differs from the API host; it
+otherwise uses the API origin. A same-origin reverse proxy may leave both
+origins unset, but must explicitly set `VITE_SAME_ORIGIN_API=true` at build
+time. Configure the backend CORS/CSRF/WebSocket origin allowlists, and set the
+session and CSRF cookie domains to the shared parent domain.
 
 ## Available commands
 
