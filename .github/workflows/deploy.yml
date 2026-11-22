@@ -33,7 +33,8 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           # pinned host key: ssh-keyscan against the gate fails intermittently
           echo "${{ vars.JELASTIC_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
-
+      - name: Debug SSH
+        run: ssh -v -p 3022 "${{ vars.JELASTIC_USER }}@${{ vars.JELASTIC_GATE }}" "echo ok" 2>&1 | tail -25
       - name: Upload dist/
         run: |
           rsync -az --delete -e "ssh -p 3022" dist/ \
