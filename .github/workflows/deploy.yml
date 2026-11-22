@@ -24,7 +24,7 @@ jobs:
 
       - run: npm run build
         env:
-          VITE_API_URL: ${{ vars.VITE_API_ORIGIN }}
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
 
       - name: Set up SSH key
         run: |
@@ -36,4 +36,4 @@ jobs:
       - name: Upload dist/
         run: |
           rsync -az --delete -e "ssh -p 3022" dist/ \
-            "${{ vars.JELASTIC_USER }}@${{ vars.JELASTIC_GATE }}:/var/www/webroot/ROOT/"
+            "${{ vars.JELASTIC_USER }}@${{ vars.JELASTIC_GATE }}:/usr/share/nginx/html/"
