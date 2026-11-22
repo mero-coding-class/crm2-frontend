@@ -36,4 +36,4 @@ jobs:
       - name: Upload dist/
         run: |
           rsync -az --delete -e "ssh -p 3022" dist/ \
-            "${{ vars.JELASTIC_USER }}@${{ vars.JELASTIC_GATE }}:/usr/share/nginx/html/"
+            "${{ vars.JELASTIC_USER }}@${{ vars.JELASTIC_GATE }}:www/"  # ponytail: relative to the nginx user's home, which it owns
