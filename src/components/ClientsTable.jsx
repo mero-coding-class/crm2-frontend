@@ -14,20 +14,20 @@ import { CSS } from "@dnd-kit/utilities";
 
 const DEFAULT_COLUMNS = {
   actions: { label: "Actions", visible: true },
-  system_id: { label: "System ID", visible: true },
+  system_id: { label: "ID", visible: true },
   school_name: { label: "School", visible: true },
   principal_name: { label: "Principal Name", visible: true },
   principal_email: { label: "Principal Email", visible: false },
   principal_number: { label: "Principal Phone", visible: false },
   contact_name: { label: "Contact", visible: false },
   contact_number: { label: "Contact Phone", visible: true },
-  contact_email: { label: "Contact Email", visible: true },
-  package_name: { label: "Package", visible: true },
-  classes_per_week: { label: "Classes / Week", visible: true },
-  mou_start: { label: "MOU Start", visible: true },
+  contact_email: { label: "Contact Email", visible: false },
+  package_name: { label: "Package", visible: false },
+  classes_per_week: { label: "Classes / Week", visible: false },
+  mou_start: { label: "MOU Start", visible: false },
   mou_end: { label: "MOU End", visible: true },
-  pricing_basis: { label: "Pricing Basis", visible: true },
-  agreed_price: { label: "Agreed Price", visible: true },
+  pricing_basis: { label: "Pricing Basis", visible: false },
+  agreed_price: { label: "Agreed Price", visible: false },
 };
 
 const ClientsTable = ({
@@ -61,7 +61,7 @@ const ClientsTable = ({
   const visibleColumns = Object.keys(columns).filter((key) => columns[key].visible);
 
   return (
-    <DataTableShell minWidth="1500px" pagination={pagination}>
+    <DataTableShell minWidth="1180px" pagination={pagination}>
       <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/70 px-4 py-2.5">
         <div className="flex items-center gap-3">
           {canManage && selectedClients.size > 0 && (
@@ -119,13 +119,13 @@ const ClientsTable = ({
                     key={key}
                     title={columns[key].label}
                     className={`overflow-hidden text-ellipsis px-3 h-9 text-left whitespace-nowrap text-xs font-semibold uppercase tracking-[0.04em] text-slate-500 ${
-                      key === "principal_name"
-                        ? "w-50 min-w-50"
-                        : key === "contact_number"
-                          ? "w-37.5 min-w-37.5"
-                          : key === "contact_email"
-                            ? "w-47.5 min-w-47.5"
-                            : ""
+                    key === "actions" ? "w-24 min-w-24"
+                      : key === "system_id" ? "w-28 min-w-28"
+                        : key === "school_name" ? "w-64 min-w-64"
+                          : key === "principal_name" ? "w-44 min-w-44"
+                            : key === "contact_number" ? "w-36 min-w-36"
+                              : key === "mou_end" ? "w-32 min-w-32"
+                                : ""
                     }`}
                   >
                     {columns[key].label}
@@ -187,7 +187,7 @@ const SortableClientRow = ({
       case "system_id":
         return <span title={client.system_id || "—"}>{client.system_id || "—"}</span>;
       case "school_name":
-        return <button type="button" onClick={() => onViewDetails?.(client)} title={`View details for ${client.school_name || "client"}`} className="text-left font-semibold text-slate-900 hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">{client.school_name || "—"}</button>;
+        return <button type="button" onClick={() => onViewDetails?.(client)} title={`View details for ${client.school_name || "client"}`} className="block max-w-full whitespace-normal break-words text-left font-semibold text-slate-900 hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">{client.school_name || "—"}</button>;
       case "classes_per_week":
         return client.classes_per_week ?? "—";
       case "agreed_price":

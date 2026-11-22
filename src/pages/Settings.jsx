@@ -726,7 +726,7 @@ const Settings = () => {
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-50">
                         <th className="px-4 h-9 text-left text-xs font-semibold text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap w-12">
-                          ID
+                          S.N.
                         </th>
                         <th className="px-4 h-9 text-left text-xs font-semibold text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap">
                           USERNAME
@@ -768,7 +768,7 @@ const Settings = () => {
                           </td>
                         </tr>
                       ) : (
-                        users.map((u) => {
+                        users.map((u, rowIndex) => {
                           const initial = (u.username || "U")[0].toUpperCase();
                           return (
                             <tr
@@ -776,7 +776,7 @@ const Settings = () => {
                               className="hover:bg-slate-50/80 transition-colors"
                             >
                               <td className="px-4 py-3 text-sm text-slate-500 font-medium whitespace-nowrap">
-                                {u.id}
+                                {rowIndex + 1}
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap">
                                 <div className="flex items-center gap-2.5">
@@ -903,7 +903,7 @@ const Settings = () => {
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50">
                       <th className="px-4 h-9 text-left text-xs font-semibold text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap w-12">
-                        ID
+                        S.N.
                       </th>
                       <th className="px-4 h-9 text-left text-xs font-semibold text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap">
                         PACKAGE NAME
@@ -1048,7 +1048,7 @@ const Settings = () => {
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50">
                       <th className="px-4 h-9 text-left text-xs font-semibold text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap w-16">
-                        ID
+                        S.N.
                       </th>
                       <th className="px-4 h-9 text-left text-xs font-semibold text-slate-500 uppercase tracking-[0.04em] whitespace-nowrap">
                         CLASS NAME
@@ -1081,13 +1081,13 @@ const Settings = () => {
                         </td>
                       </tr>
                     ) : (
-                      classes.map((classItem) => (
+                      classes.map((classItem, rowIndex) => (
                         <tr
                           key={classItem.id}
                           className="hover:bg-slate-50/80 transition-colors"
                         >
                           <td className="px-4 py-3 text-sm text-slate-500 font-medium whitespace-nowrap">
-                            {classItem.id}
+                            {rowIndex + 1}
                           </td>
                           <td className="px-4 py-3 text-sm font-semibold text-slate-900 whitespace-nowrap">
                             {classItem.class_name}
@@ -1133,9 +1133,9 @@ const Settings = () => {
               </form>
               <DataTableShell className="crm-data-table--embedded">
                 <div className="crm-data-table__scroll"><table className="text-left">
-                  <thead><tr className="border-b border-slate-200 bg-slate-50"><th className="px-4 h-9 text-left text-xs font-semibold text-slate-500">ID</th><th className="px-4 h-9 text-left text-xs font-semibold text-slate-500">SYLLABUS TYPE</th><th className="px-4 h-9 text-right text-xs font-semibold text-slate-500 pr-4">ACTIONS</th></tr></thead>
+                  <thead><tr className="border-b border-slate-200 bg-slate-50"><th className="px-4 h-9 text-left text-xs font-semibold text-slate-500">S.N.</th><th className="px-4 h-9 text-left text-xs font-semibold text-slate-500">SYLLABUS TYPE</th><th className="px-4 h-9 text-right text-xs font-semibold text-slate-500 pr-4">ACTIONS</th></tr></thead>
                   <tbody className="divide-y divide-slate-100 bg-white">
-                    {syllabi.length ? syllabi.map((syllabus) => <tr key={syllabus.id}><td className="px-4 py-3 text-sm text-slate-500">{syllabus.id}</td><td className="px-4 py-3 text-sm font-semibold text-slate-900">{syllabus.name}</td><td className="px-4 py-3 text-right pr-4"><button onClick={() => handleEditSyllabus(syllabus)} className="mr-2 p-1 text-slate-400 hover:text-primary" title="Edit syllabus type"><Pencil className="h-3.5 w-3.5" /></button><button onClick={() => setDeactivateSyllabusConfirmId(syllabus.id)} className="p-1 text-slate-400 hover:text-rose-600" title="Deactivate syllabus type"><Trash2 className="h-3.5 w-3.5" /></button></td></tr>) : <tr><td colSpan={3} className="py-8 text-center text-sm text-slate-400">No syllabus types configured yet.</td></tr>}
+                    {syllabi.length ? syllabi.map((syllabus, rowIndex) => <tr key={syllabus.id}><td className="px-4 py-3 text-sm text-slate-500">{rowIndex + 1}</td><td className="px-4 py-3 text-sm font-semibold text-slate-900">{syllabus.name}</td><td className="px-4 py-3 text-right pr-4"><button onClick={() => handleEditSyllabus(syllabus)} className="mr-2 p-1 text-slate-400 hover:text-primary" title="Edit syllabus type"><Pencil className="h-3.5 w-3.5" /></button><button onClick={() => setDeactivateSyllabusConfirmId(syllabus.id)} className="p-1 text-slate-400 hover:text-rose-600" title="Deactivate syllabus type"><Trash2 className="h-3.5 w-3.5" /></button></td></tr>) : <tr><td colSpan={3} className="py-8 text-center text-sm text-slate-400">No syllabus types configured yet.</td></tr>}
                   </tbody>
                 </table></div>
               </DataTableShell>

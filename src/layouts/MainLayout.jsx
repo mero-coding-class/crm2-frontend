@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect, useCallback } from "react";
+import React, { useContext, useState, useEffect, useCallback, useRef } from "react";
 import {
   NavLink,
   useNavigate,
@@ -83,10 +83,15 @@ const MainLayout = () => {
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const readNotificationIds = useRef(new Set());
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const location = useLocation();
+
+  useEffect(() => {
+    readNotificationIds.current.clear();
+  }, [authToken, user?.id]);
 
   const pathSegments = location.pathname.split("/").filter(Boolean);
   const breadcrumbs = [
@@ -141,6 +146,31 @@ const MainLayout = () => {
     if (recent.status === "fulfilled") setNotifications(recent.value.results);
     if (unread.status === "fulfilled") setUnreadCount(unread.value.count);
   }, [authToken]);
+
+  const markNotificationRead = async (notification) => {
+    if (notification.is_read || readNotificationIds.current.has(notification.id)) return;
+    readNotificationIds.current.add(notification.id);
+    try {
+      await notificationService.markRead(notification.id, authToken);
+      setNotifications((current) => current.map((item) =>
+        item.id === notification.id ? { ...item, is_read: true } : item
+      ));
+      setUnreadCount((count) => Math.max(0, count - 1));
+    } catch (error) {
+      readNotificationIds.current.delete(notification.id);
+      throw error;
+    }
+  };
+
+  const markAllNotificationsRead = async () => {
+    try {
+      await notificationService.markAllRead(authToken);
+      setNotifications((current) => current.map((item) => ({ ...item, is_read: true })));
+      setUnreadCount(0);
+    } catch {
+      // Keep the existing state so the user can retry.
+    }
+  };
 
   useEffect(() => {
     refreshApprovalCount();
@@ -241,11 +271,7 @@ const MainLayout = () => {
     setNotificationOpen(false);
     if (!notification.is_read) {
       try {
-        await notificationService.markRead(notification.id, authToken);
-        setNotifications((current) => current.map((item) =>
-          item.id === notification.id ? { ...item, is_read: true } : item
-        ));
-        setUnreadCount((count) => Math.max(0, count - 1));
+        await markNotificationRead(notification);
       } catch {
         // Opening the related page remains available if marking read fails.
       }
@@ -525,19 +551,21 @@ const MainLayout = () => {
                   <section aria-label="Notifications" className="absolute right-0 top-full z-50 mt-2 w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
                     <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
                       <div><h2 className="text-sm font-semibold text-slate-900">Notifications</h2><p className="mt-0.5 text-xs text-slate-400">{unreadCount} unread</p></div>
-                      <button type="button" aria-label="Refresh notifications" onClick={refreshNotifications} className="rounded p-1.5 text-slate-400 hover:bg-slate-100"><RefreshCw className="h-3.5 w-3.5" /></button>
+                      <div className="flex items-center gap-1.5">
+                        {unreadCount > 0 && <button type="button" onClick={markAllNotificationsRead} className="rounded-md px-2 py-1 text-xs font-semibold text-primary hover:bg-primary-light">Mark all read</button>}
+                        <button type="button" aria-label="Refresh notifications" onClick={refreshNotifications} className="rounded p-1.5 text-slate-400 hover:bg-slate-100"><RefreshCw className="h-3.5 w-3.5" /></button>
+                      </div>
                     </div>
                     <div className="max-h-[min(65vh,26rem)] overflow-y-auto divide-y divide-slate-100">
                       {notifications.length ? notifications.map((notification) => (
-                        <button key={notification.id} type="button" onClick={() => openNotification(notification)} className={`block w-full px-4 py-3 text-left transition hover:bg-slate-50 ${notification.is_read ? "" : "bg-blue-50/40"}`}>
-                          <span className="flex items-start gap-2.5">
-                            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${notification.is_read ? "bg-slate-200" : "bg-primary"}`} />
-                            <span className="min-w-0 flex-1">
-                              <span className="block text-xs font-semibold leading-5 text-slate-800">{notification.message || notification.kind?.replaceAll("_", " ")}</span>
-                              <span className="mt-0.5 block truncate text-xs text-slate-400">{notification.lead_system_id} · {new Date(notification.sent_at).toLocaleString("en-NP", { dateStyle: "medium", timeStyle: "short" })}</span>
-                            </span>
-                          </span>
-                        </button>
+                        <div key={notification.id} className={`flex items-start gap-2.5 px-4 py-3 transition hover:bg-slate-50 ${notification.is_read ? "" : "bg-blue-50/40"}`}>
+                          <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${notification.is_read ? "bg-slate-200" : "bg-primary"}`} />
+                          <button type="button" onClick={() => openNotification(notification)} className="min-w-0 flex-1 text-left">
+                            <span className="block text-xs font-semibold leading-5 text-slate-800">{notification.message || notification.kind?.replaceAll("_", " ")}</span>
+                            <span className="mt-0.5 block truncate text-xs text-slate-400">{notification.lead_system_id} · {new Date(notification.sent_at).toLocaleString("en-NP", { dateStyle: "medium", timeStyle: "short" })}</span>
+                          </button>
+                          {!notification.is_read && <button type="button" onClick={() => markNotificationRead(notification).catch(() => {})} className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-slate-500 hover:bg-white hover:text-primary">Mark read</button>}
+                        </div>
                       )) : <p className="px-4 py-8 text-center text-xs text-slate-400">You’re all caught up.</p>}
                     </div>
                   </section>

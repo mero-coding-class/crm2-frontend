@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { X, CheckCircle, School, Calendar, DollarSign, BookOpen, User, Phone, Mail } from "lucide-react";
 import { clientService, catalogService, leadService } from "../services/api";
 import { forgetReturnedLeadIds } from "../pages/clients/returnedToLeadsStore";
@@ -19,6 +19,7 @@ const addDaysToDateInputValue = (value, days) => {
 export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
   useModalScrollLock(isOpen && Boolean(lead));
   const [loading, setLoading] = useState(false);
+  const submitLock = useRef(false);
   const [loadingCatalogs, setLoadingCatalogs] = useState(true);
   const [loadingLeadDetails, setLoadingLeadDetails] = useState(false);
   const [leadApproval, setLeadApproval] = useState(null);
@@ -198,6 +199,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitLock.current) return;
     setError(null);
 
     if (leadApproval !== "approved") {
@@ -295,6 +297,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
       return;
     }
 
+    submitLock.current = true;
     setLoading(true);
     try {
       const payload = {
@@ -332,6 +335,7 @@ export default function EnrollModal({ isOpen, onClose, lead, authToken }) {
     } catch (err) {
       setError(err?.message || "Failed to enroll school.");
     } finally {
+      submitLock.current = false;
       setLoading(false);
     }
   };

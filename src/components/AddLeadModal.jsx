@@ -31,7 +31,7 @@ const AddLeadModal = ({ onClose, onSave, authToken, classes = [], classLoadError
       user.role === "superadmin" ||
       user.role === "super-admin");
 
-  const { formData, setField, errors, handleSubmit } = useAddLeadForm({
+  const { formData, setField, errors, submitting, handleSubmit } = useAddLeadForm({
     authToken,
     onClose,
     onSave,
@@ -521,10 +521,11 @@ const AddLeadModal = ({ onClose, onSave, authToken, classes = [], classLoadError
               </button>
               <button
                 type="submit"
-                className="px-6 py-2.5 rounded-[8px] bg-primary hover:bg-primary-hover text-white text-sm font-medium flex items-center gap-2 shadow-sm transition-colors"
+                disabled={submitting}
+                className="px-6 py-2.5 rounded-[8px] bg-primary hover:bg-primary-hover text-white text-sm font-medium flex items-center gap-2 shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Check className="w-4 h-4 stroke-[2.5]" />
-                <span>Save Lead</span>
+                <span>{submitting ? "Saving..." : "Save Lead"}</span>
               </button>
             </div>
           </div>

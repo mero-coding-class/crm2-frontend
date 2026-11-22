@@ -6,9 +6,17 @@ import { fileURLToPath } from 'node:url'
 
 const projectRoot = dirname(fileURLToPath(import.meta.url))
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, projectRoot, '');
   const backendUrl = env.VITE_BACKEND_URL;
+  const apiOrigin = (env.VITE_API_ORIGIN || process.env.VITE_API_ORIGIN || '').trim();
+  const sameOriginApi = (env.VITE_SAME_ORIGIN_API || process.env.VITE_SAME_ORIGIN_API) === 'true';
+
+  if (command === 'build' && !apiOrigin && !sameOriginApi) {
+    throw new Error(
+      'Set VITE_API_ORIGIN for a separate API host, or set VITE_SAME_ORIGIN_API=true when a reverse proxy serves /api on this origin.'
+    );
+  }
 
   return {
     plugins: [react(), tailwindcss()],
