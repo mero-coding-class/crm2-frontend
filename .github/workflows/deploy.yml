@@ -25,6 +25,7 @@ jobs:
       - run: npm run build
         env:
           VITE_API_ORIGIN: ${{ vars.VITE_API_ORIGIN }}
+          VITE_SAME_ORIGIN_API: ${{ vars.VITE_SAME_ORIGIN_API }}
 
       - name: Set up SSH key
         run: |
