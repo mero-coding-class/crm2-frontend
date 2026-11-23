@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/useAuth.js";
 import TrashTableDisplay from "../components/TrashDisplayTable.jsx";
-import { RefreshCw as ArrowPathIcon, Search as MagnifyingGlassIcon } from "lucide-react";
+import { RefreshCw, Search as MagnifyingGlassIcon } from "lucide-react";
 import { leadService } from "../services/api.js";
 import PageLoadingState from "../components/common/PageLoadingState.jsx";
 import useRealtimeRefresh from "../hooks/useRealtimeRefresh.js";
@@ -176,10 +176,11 @@ const TrashPage = () => {
       <PageHeader
         title="Archived Leads"
         description="Archived records are read-only. Admins and lead owners can restore them."
+        backTo="/dashboard"
         actions={(
           <>
           <Button type="button" variant="refresh" disabled={loading || busy} onClick={() => fetchLeads(currentPage, searchTerm)}>
-            <ArrowPathIcon className="h-4 w-4" /> Refresh
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           <Button type="button" variant="secondary" disabled={!leads.length} onClick={exportCurrentPage}>Export page</Button>
           </>

@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus, RotateCw, ListFilter, FileUp, FileDown } from "lucide-react";
+import { Plus, RefreshCw, ListFilter, FileUp, FileDown } from "lucide-react";
 import ImportCsvButton from "./ImportCsvButton";
 import { Button } from "./ui/button.jsx";
 import { buttonVariants } from "./ui/buttonVariants.js";
@@ -21,6 +21,7 @@ const LeadsHeader = ({
       <PageHeader
         title="Leads Management"
         description="Manage, filter, import and track school leads across intake channels."
+        backTo="/dashboard"
         badge={(
           <span className="rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-slate-600">
             {totalCount} Total
@@ -42,7 +43,7 @@ const LeadsHeader = ({
             variant="refresh"
             onClick={handleRefresh}
           >
-            <RotateCw className="h-4 w-4" />
+            <RefreshCw className="h-4 w-4" />
             Refresh
           </Button>
 

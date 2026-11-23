@@ -36,8 +36,11 @@ export default function LeadDetailsModal({ lead, authToken, onClose }) {
     { title: "Assignment and history", fields: [
       ["Lead owner", record.owner_username], ["Call assignee", record.call_assignee_username],
       ["Created by", record.created_by_username], ["Created", record.created_at],
-      ["Last updated", record.updated_at], ["Archived", record.archived],
-      ["Archive reason", record.archive_reason], ["Approved by", record.approved_by_username],
+      ["Last updated", record.updated_at],
+      ...(record.archived
+        ? [["Archived", record.archived], ["Archive reason", record.archive_reason]]
+        : []),
+      ["Approved by", record.approved_by_username],
       ["Approved at", record.approved_at],
     ] },
   ];

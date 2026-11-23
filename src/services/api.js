@@ -281,6 +281,14 @@ export const leadService = {
     return handleResponse(response);
   },
 
+  getOwnerOptions: async (authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const response = await apiFetch(`${BASE_URL}/leads/owner-options/`, {
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    return handleResponse(response);
+  },
+
   /** Fetch paginated archived leads. */
   getArchivedLeads: async (authToken, page = 1, pageSize = 20, params = {}) => {
     if (!authToken) throw new Error("Authentication token not found.");

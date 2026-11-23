@@ -350,7 +350,7 @@ const Leads = () => {
 
       {/* Advanced filters handled by `LeadsFilters` component above. Duplicate block removed. */}
 
-      <div className="flex-1 overflow-x-auto bg-white">
+      <div className="flex-1 overflow-x-auto bg-white p-6">
         {error ? (
           <div className="text-rose-500 text-center">{error}</div>
         ) : (

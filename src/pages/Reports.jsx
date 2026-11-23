@@ -234,6 +234,7 @@ const Reports = () => {
         title="Reports"
         description={`${summary?.scope === "all" ? "All team data" : "Your assigned data"} · Report overview and exports`}
         className="px-4 sm:px-6"
+        backTo="/dashboard"
         actions={(
           <Button
             type="button"
@@ -242,7 +243,7 @@ const Reports = () => {
             onClick={fetchSummary}
             disabled={loading}
           >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" aria-hidden="true" />}
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} aria-hidden="true" />
             Refresh
           </Button>
         )}

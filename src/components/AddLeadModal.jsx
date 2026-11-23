@@ -1,9 +1,9 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/useAuth.js";
 import useAddLeadForm, {
   SOURCE_CHOICES,
 } from "./addLead/useAddLeadForm";
-import useUsers from "../pages/leads/useUsers";
+import { leadService } from "../services/api.js";
 import ClassTagSelector from "./common/ClassTagSelector.jsx";
 import {
   UserPlus,
@@ -39,7 +39,22 @@ const AddLeadModal = ({ onClose, onSave, authToken, classes = [], classLoadError
   });
 
   const modalContentRef = useRef(null);
-  const { users, usersLoading } = useUsers(authToken, isAdmin);
+  const [users, setUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+
+  useEffect(() => {
+    if (!authToken || !isAdmin) {
+      setUsers([]);
+      return undefined;
+    }
+    let cancelled = false;
+    setUsersLoading(true);
+    leadService.getOwnerOptions(authToken)
+      .then((rows) => { if (!cancelled) setUsers(Array.isArray(rows) ? rows : []); })
+      .catch(() => { if (!cancelled) setUsers([]); })
+      .finally(() => { if (!cancelled) setUsersLoading(false); });
+    return () => { cancelled = true; };
+  }, [authToken, isAdmin]);
 
   const handleOverlayClick = (event) => {
     if (modalContentRef.current && !modalContentRef.current.contains(event.target)) {

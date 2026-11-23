@@ -11,7 +11,7 @@ import {
   Pencil,
   X,
   Eye,
-  RotateCw,
+  RefreshCw,
   AlertTriangle,
   Loader2,
   MessageSquare,
@@ -414,6 +414,7 @@ const Demo = () => {
           </span>
         )}
         description="Schedule and track school demonstrations."
+        backTo="/dashboard"
         actions={(
           <>
             <Button
@@ -422,7 +423,7 @@ const Demo = () => {
               onClick={fetchDemos}
               disabled={loading}
             >
-              <RotateCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               Refresh
             </Button>
             {canScheduleDemo && (

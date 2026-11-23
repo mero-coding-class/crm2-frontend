@@ -124,13 +124,21 @@ const MainLayout = () => {
     !restrictedPaths.has(item.to) && (isAdmin || item.to !== "/settings")
   );
 
+  // Several independent triggers (poll interval, realtime events, manual
+  // refresh) can call these concurrently; an older request resolving after
+  // a newer one must not clobber it with a stale count.
+  const approvalRequestSeq = useRef(0);
+  const notificationRequestSeq = useRef(0);
+
   const refreshApprovalCount = useCallback(async () => {
     if (!authToken || !isAdmin) {
       setPendingApprovalCount(0);
       return;
     }
+    const requestId = ++approvalRequestSeq.current;
     try {
       const result = await approvalService.getPendingCount(authToken);
+      if (requestId !== approvalRequestSeq.current) return;
       setPendingApprovalCount(Number(result?.count) || 0);
     } catch {
       // Keep the last backend count visible through a temporary request failure.
@@ -139,10 +147,12 @@ const MainLayout = () => {
 
   const refreshNotifications = useCallback(async () => {
     if (!authToken) return;
+    const requestId = ++notificationRequestSeq.current;
     const [recent, unread] = await Promise.allSettled([
       notificationService.getNotifications(authToken),
       notificationService.getNotifications(authToken, { unread: true, pageSize: 1 }),
     ]);
+    if (requestId !== notificationRequestSeq.current) return;
     if (recent.status === "fulfilled") setNotifications(recent.value.results);
     if (unread.status === "fulfilled") setUnreadCount(unread.value.count);
   }, [authToken]);

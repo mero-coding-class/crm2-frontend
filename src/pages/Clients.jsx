@@ -12,7 +12,7 @@ import PageLoadingState from "../components/common/PageLoadingState.jsx";
 import { useAuth } from "../context/useAuth.js";
 import ClientsTable from "../components/ClientsTable";
 import {
-  RotateCw,
+  RefreshCw,
   FileDown,
 } from "lucide-react";
 import { Button } from "../components/ui/button.jsx";
@@ -21,7 +21,7 @@ import { PageShell, PageHeader } from "../components/common/PageShell.jsx";
 import ClientEditModal from "../components/ClientEditModal";
 import ClientDetailsModal from "../components/ClientDetailsModal.jsx";
 import Toast from "../components/common/Toast";
-import { catalogService, clientService, leadService } from "../services/api";
+import { clientService } from "../services/api";
 
 // Modular hooks and components for Clients page
 import useEnrollmentsCore from "./clients/useEnrollmentsCore";
@@ -38,7 +38,7 @@ const Clients = () => {
   const routeSearch = searchParams.get("search") || "";
   const routeFilters = useMemo(() => {
     const filters = {};
-    ["renewals", "enrolled_from", "enrolled_to", "converted_from", "converted_to", "contract_from", "contract_to", "assigned_to", "owner", "package_type", "mou_start_from", "mou_start_to", "mou_end_from", "mou_end_to"].forEach((key) => {
+    ["owner", "mou_start_from", "mou_start_to", "mou_end_from", "mou_end_to"].forEach((key) => {
       const value = searchParams.get(key);
       if (value) filters[key] = value;
     });
@@ -48,8 +48,6 @@ const Clients = () => {
   const canManageClients = role === "admin";
   const [showFilters, setShowFilters] = useState(false);
   const [leadOwners, setLeadOwners] = useState([]);
-  const [academicAssignees, setAcademicAssignees] = useState([]);
-  const [packages, setPackages] = useState([]);
   const [filterOptionsError, setFilterOptionsError] = useState("");
   const ITEMS_PER_PAGE = 20;
   // Core paginated state and server fetcher
@@ -109,22 +107,13 @@ const Clients = () => {
   useEffect(() => {
     if (!authToken) return undefined;
     let cancelled = false;
-    Promise.all([
-      clientService.getLeadOwners(authToken),
-      leadService.getAcademicAssignees(authToken),
-      catalogService.getPackages(authToken),
-    ])
-      .then(([owners, academics, packageRows]) => {
+    clientService.getLeadOwners(authToken)
+      .then((owners) => {
         if (cancelled) return;
         setLeadOwners((Array.isArray(owners) ? owners : []).map((owner) => ({
           id: owner.id,
           name: [owner.first_name, owner.last_name].filter(Boolean).join(" ") || owner.username,
         })));
-        setAcademicAssignees((Array.isArray(academics) ? academics : []).map((academic) => ({
-          id: academic.id,
-          name: [academic.first_name, academic.last_name].filter(Boolean).join(" ") || academic.username,
-        })));
-        setPackages((Array.isArray(packageRows) ? packageRows : []).filter((item) => item.active));
         setFilterOptionsError("");
       })
       .catch((loadError) => {
@@ -183,7 +172,7 @@ const Clients = () => {
 
   const clearFilters = useCallback(() => {
     const next = new URLSearchParams(searchParams);
-    ["owner", "package_type", "mou_start_from", "mou_start_to", "mou_end_from", "mou_end_to", "renewals", "enrolled_from", "enrolled_to", "converted_from", "converted_to", "contract_from", "contract_to", "assigned_to"].forEach((key) => next.delete(key));
+    ["owner", "mou_start_from", "mou_start_to", "mou_end_from", "mou_end_to"].forEach((key) => next.delete(key));
     setSearchParams(next, { replace: true });
     setCurrentPage(1);
   }, [searchParams, setSearchParams, setCurrentPage]);
@@ -236,6 +225,7 @@ const Clients = () => {
       <PageHeader
         title="Clients Management"
         description="Manage and track school clients, institutional contracts, and fee structures."
+        backTo="/dashboard"
         badge={(
           <span className="rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-slate-600">
             {allClients.length} on this page
@@ -248,7 +238,7 @@ const Clients = () => {
               variant="refresh"
               onClick={() => fetchEnrolledClients(currentPage)}
             >
-              <RotateCw className="h-4 w-4" />
+              <RefreshCw className="h-4 w-4" />
               Refresh
             </Button>
 
@@ -275,12 +265,6 @@ const Clients = () => {
         leadOwners={leadOwners}
         leadOwner={routeFilters.owner || ""}
         onLeadOwnerChange={(value) => setRouteFilter("owner", value)}
-        academicAssignees={academicAssignees}
-        academicAssignee={routeFilters.assigned_to || ""}
-        onAcademicAssigneeChange={(value) => setRouteFilter("assigned_to", value)}
-        packages={packages}
-        packageType={routeFilters.package_type || ""}
-        onPackageChange={(value) => setRouteFilter("package_type", value)}
         filters={routeFilters}
         onFilterChange={setRouteFilter}
         onClearFilters={clearFilters}

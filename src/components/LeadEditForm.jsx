@@ -151,11 +151,14 @@ const LeadEditForm = ({
               {formData.call_assignee && !academicAssignees.some((item) => String(item.id) === String(formData.call_assignee)) && (
                 <option value={formData.call_assignee}>Current assignee: {formData.call_assignee_username}</option>
               )}
-              {academicAssignees.map((academic) => (
-                <option key={academic.id} value={academic.id}>
-                  {[academic.first_name, academic.last_name].filter(Boolean).join(" ") || academic.username}
-                </option>
-              ))}
+              {academicAssignees.map((academic) => {
+                const displayName = [academic.first_name, academic.last_name].filter(Boolean).join(" ");
+                return (
+                  <option key={academic.id} value={academic.id}>
+                    {displayName ? `${displayName} (@${academic.username})` : academic.username}
+                  </option>
+                );
+              })}
             </select>
             {assigneeChanged && (
               <input

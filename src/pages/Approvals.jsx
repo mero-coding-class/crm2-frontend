@@ -126,6 +126,7 @@ const Approvals = () => {
         <PageHeader
           title="Lead approvals"
           description="Review new school submissions before they enter the team pipeline."
+          backTo="/dashboard"
           badge={<span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">{count} pending</span>}
           actions={(
             <Button variant="refresh" size="sm" onClick={loadQueue} disabled={loading}>

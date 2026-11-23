@@ -5,7 +5,7 @@ import useRealtimeRefresh from "../hooks/useRealtimeRefresh.js";
 import DataTableShell from "../components/common/DataTableShell.jsx";
 import { PageShell, PageHeader } from "../components/common/PageShell.jsx";
 import { BASE_URL } from "../config";
-import { catalogService, classService, settingsService } from "../services/api";
+import { apiFetch, catalogService, classService, settingsService } from "../services/api";
 import { isValidEmail } from "../utils/validation";
 import {
   Users,
@@ -202,7 +202,7 @@ const Settings = () => {
 
     setUserLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/users/`, {
+      const res = await apiFetch(`${BASE_URL}/users/`, {
         method: "POST",
         headers: {
           Authorization: `Token ${authToken}`,
@@ -241,7 +241,7 @@ const Settings = () => {
     setDeleteProcessing(true);
     setDeleteError("");
     try {
-      const res = await fetch(`${BASE_URL}/users/${id}/`, {
+      const res = await apiFetch(`${BASE_URL}/users/${id}/`, {
         method: "DELETE",
         headers: {
           Authorization: `Token ${authToken}`,
@@ -299,7 +299,7 @@ const Settings = () => {
         payload.password = editUserForm.password;
       }
 
-      const res = await fetch(`${BASE_URL}/users/${editingUser.id}/`, {
+      const res = await apiFetch(`${BASE_URL}/users/${editingUser.id}/`, {
         method: "PATCH",
         headers: {
           Authorization: `Token ${authToken}`,
