@@ -67,16 +67,29 @@ const handleResponse = async (response) => {
   }
 };
 
+const getCsrfToken = () => {
+  const cookie = document.cookie
+    .split(";")
+    .map((c) => c.trim())
+    .find((c) => c.startsWith("csrftoken="));
+  return cookie ? decodeURIComponent(cookie.slice("csrftoken=".length)) : "";
+};
+
 /**
  * apiFetch — thin wrapper around fetch() that always sends session cookies
- * (credentials: "include"). Required because the backend uses Django session
- * auth (not DRF Token auth). Pass the same args as fetch().
+ * (credentials: "include") and the CSRF token Django requires on unsafe
+ * methods. Required because the backend uses Django session auth (not DRF
+ * Token auth). Pass the same args as fetch().
  */
 export const apiFetch = (url, options = {}) => {
+  const csrfToken = getCsrfToken();
   return fetch(url, {
     credentials: "include",
     ...options,
-    headers: options.headers || {},
+    headers: {
+      ...(csrfToken ? { "X-CSRFToken": csrfToken } : {}),
+      ...options.headers,
+    },
   });
 };
 
