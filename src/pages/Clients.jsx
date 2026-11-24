@@ -22,6 +22,16 @@ import ClientEditModal from "../components/ClientEditModal";
 import ClientDetailsModal from "../components/ClientDetailsModal.jsx";
 import Toast from "../components/common/Toast";
 import { clientService } from "../services/api";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
 
 // Modular hooks and components for Clients page
 import useEnrollmentsCore from "./clients/useEnrollmentsCore";
@@ -190,6 +200,29 @@ const Clients = () => {
     setToast,
   });
 
+  const [returnConfirm, setReturnConfirm] = useState(null); // { type: "single", clientId } | { type: "bulk", clientIds }
+  const [returning, setReturning] = useState(false);
+
+  const requestReturnOne = useCallback((clientId) => {
+    setReturnConfirm({ type: "single", clientId });
+  }, []);
+
+  const requestReturnMany = useCallback((clientIds) => {
+    setReturnConfirm({ type: "bulk", clientIds });
+  }, []);
+
+  const confirmReturn = useCallback(async () => {
+    if (!returnConfirm) return;
+    setReturning(true);
+    try {
+      if (returnConfirm.type === "single") await handleDelete(returnConfirm.clientId);
+      else await handleBulkDelete(returnConfirm.clientIds);
+    } finally {
+      setReturning(false);
+      setReturnConfirm(null);
+    }
+  }, [returnConfirm, handleDelete, handleBulkDelete]);
+
   // Open edit modal for a client
   const handleEdit = useCallback((client) => {
     setEditingClient(client);
@@ -277,8 +310,8 @@ const Clients = () => {
           onViewDetails={setViewingClient}
           canManage={canManageClients}
           handleEdit={handleEdit}
-          handleDelete={handleDelete}
-          handleBulkDelete={handleBulkDelete}
+          handleDelete={requestReturnOne}
+          handleBulkDelete={requestReturnMany}
           pagination={totalPages > 0 ? (
             <Pagination
               currentPage={currentPage}
@@ -341,6 +374,28 @@ const Clients = () => {
             }
           />
         )}
+
+        <AlertDialog open={!!returnConfirm} onOpenChange={(open) => { if (!open) setReturnConfirm(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {returnConfirm?.type === "bulk"
+                  ? `Return ${returnConfirm.clientIds.length} client(s) to Leads?`
+                  : "Return this client to Leads?"}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                This will remove {returnConfirm?.type === "bulk" ? "them" : "it"} from the Clients list and send
+                {returnConfirm?.type === "bulk" ? " them " : " it "}back to the Leads pipeline.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={returning}>Cancel</AlertDialogCancel>
+              <AlertDialogAction disabled={returning} onClick={confirmReturn}>
+                {returning ? "Returning…" : "Return to Leads"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>{/* end p-6 */}
     </PageShell>
   );
