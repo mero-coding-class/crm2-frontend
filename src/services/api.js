@@ -178,7 +178,7 @@ export const leadService = {
       "school_name", "district", "municipality", "address",
       "contact_person", "contact_number", "alt_number", "alt_contact_person", "landline",
       "email", "source", "course_interest", "social_media", "sub_status",
-      "call_assignee", "assignment_reason",
+      "call_assignee",
     ];
     const unsupportedFields = Object.keys(updates || {}).filter(
       (field) => !WRITABLE_FIELDS.includes(field)
@@ -287,6 +287,21 @@ export const leadService = {
       headers: { Authorization: `Token ${authToken}` },
     });
     return handleResponse(response);
+  },
+
+  /** CSV export of the currently filtered lead list (full column set,
+   * shared with the Reports export — not the table's narrower summary
+   * shape). `filters` mirrors whatever is passed to getLeadsPage. */
+  exportLeads: async (filters = {}, authToken) => {
+    if (!authToken) throw new Error("Authentication token not found.");
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== undefined && v !== null && v !== ""))
+    ).toString();
+    const response = await apiFetch(`${BASE_URL}/leads/export/${qs ? `?${qs}` : ""}`, {
+      headers: { Authorization: `Token ${authToken}` },
+    });
+    if (!response.ok) await handleResponse(response);
+    return response.blob();
   },
 
   /** Fetch paginated archived leads. */

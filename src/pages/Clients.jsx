@@ -225,7 +225,6 @@ const Clients = () => {
       <PageHeader
         title="Clients Management"
         description="Manage and track school clients, institutional contracts, and fee structures."
-        backTo="/dashboard"
         badge={(
           <span className="rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-slate-600">
             {allClients.length} on this page

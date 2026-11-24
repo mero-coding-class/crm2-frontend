@@ -111,20 +111,20 @@ const Leads = () => {
   useEffect(() => {
     setSearchTerm(searchParams.get("search") || "");
   }, [searchParams]);
+  const buildFilters = useCallback(() => {
+    const filters = { ...routeFilters };
+    const search = searchTerm.trim();
+    if (search) filters.search = search;
+    if (filterSubStatus !== "SubStatus") filters.sub_status = filterSubStatus;
+    if (filterFollowupDate && !filterFollowupFrom && !filterFollowupTo) {
+      filters.followup = filterFollowupDate;
+    } else {
+      if (filterFollowupFrom) filters.followup_from = dateBound(filterFollowupFrom);
+      if (filterFollowupTo) filters.followup_to = dateBound(filterFollowupTo, true);
+    }
+    return filters;
+  }, [routeFilters, searchTerm, filterSubStatus, filterFollowupDate, filterFollowupFrom, filterFollowupTo]);
   useEffect(() => {
-    const buildFilters = () => {
-      const filters = { ...routeFilters };
-      const search = searchTerm.trim();
-      if (search) filters.search = search;
-      if (filterSubStatus !== "SubStatus") filters.sub_status = filterSubStatus;
-      if (filterFollowupDate && !filterFollowupFrom && !filterFollowupTo) {
-        filters.followup = filterFollowupDate;
-      } else {
-        if (filterFollowupFrom) filters.followup_from = dateBound(filterFollowupFrom);
-        if (filterFollowupTo) filters.followup_to = dateBound(filterFollowupTo, true);
-      }
-      return filters;
-    };
     const filters = buildFilters();
     if (!filterRequestMounted.current) {
       filterRequestMounted.current = true;
@@ -136,16 +136,7 @@ const Leads = () => {
       });
     }, 100);
     return () => window.clearTimeout(timer);
-  }, [
-    searchTerm,
-    filterSubStatus,
-    filterFollowupDate,
-    filterFollowupFrom,
-    filterFollowupTo,
-    routeFilters,
-    searchParams,
-    handleRefresh,
-  ]);
+  }, [buildFilters, searchParams, handleRefresh]);
 
   const lastRealtimeRefreshRef = useRef(0);
   useEffect(() => {
@@ -180,8 +171,8 @@ const Leads = () => {
 
   const { exporting, handleExport } = useLeadExports({ setError });
   const exportCurrentLeads = useCallback(
-    () => handleExport(currentLeads),
-    [handleExport, currentLeads]
+    () => handleExport(buildFilters(), authToken),
+    [handleExport, buildFilters, authToken]
   );
 
   const {

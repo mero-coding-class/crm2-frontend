@@ -12,6 +12,23 @@ const STATUS_LABELS = {
 const PREVIEW_PAGE_SIZE = 100;
 const formatCount = (value) => new Intl.NumberFormat("en-IN").format(value || 0);
 
+const REQUIRED_COLUMNS = [
+  { name: "school_name", aliases: "school, school name", sample: "Shree Machindra School" },
+  { name: "district", aliases: "—", sample: "Kathmandu" },
+  { name: "municipality", aliases: "municipality name, mun", sample: "Kirtipur" },
+  { name: "address", aliases: "—", sample: "Kirtipur-5" },
+  { name: "contact_person", aliases: "contact person, contact name, contact", sample: "Ram Thapa" },
+  { name: "contact_number", aliases: "contact number, phone, mobile, phone number, mobile number", sample: "9851000001" },
+  { name: "email", aliases: "e-mail, email address", sample: "contact@school.edu.np" },
+];
+const OPTIONAL_COLUMNS = [
+  { name: "alt_number", aliases: "alt number, alt phone" },
+  { name: "alt_contact_person", aliases: "alt contact person" },
+  { name: "source", aliases: "—" },
+  { name: "course_interest", aliases: "course interest, course" },
+  { name: "social_media", aliases: "social media, social, facebook" },
+];
+
 const ImportCsvButton = ({
   authToken,
   id = "csvUpload",
@@ -19,6 +36,7 @@ const ImportCsvButton = ({
   className = "",
 }) => {
   const inputRef = useRef(null);
+  const [showInstructions, setShowInstructions] = useState(false);
   const [preview, setPreview] = useState(null);
   const [previewPage, setPreviewPage] = useState(1);
   const [selectedRows, setSelectedRows] = useState(new Set());
@@ -121,16 +139,18 @@ const ImportCsvButton = ({
         id={id}
         disabled={busy}
       />
-      <label
-        htmlFor={id}
-        className={`cursor-pointer ${busy ? "pointer-events-none opacity-60" : ""} ${className}`}
+      <button
+        type="button"
+        onClick={() => setShowInstructions(true)}
+        disabled={busy}
+        className={`${busy ? "pointer-events-none opacity-60" : ""} ${className}`}
       >
         {customButton || (
           <span className="inline-flex items-center gap-2 rounded-[8px] bg-surface-muted px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200">
             <FileUp className="h-4 w-4" /> Import CSV / Excel
           </span>
         )}
-      </label>
+      </button>
 
       {fileName && !preview && !busy && !notice && <p className="mt-2 text-xs text-slate-500">{fileName}</p>}
       {error && <p role="alert" className="mt-2 max-w-xl text-xs text-rose-700">{error}</p>}
@@ -139,6 +159,100 @@ const ImportCsvButton = ({
           {notice}
           <button type="button" onClick={() => setNotice("")} className="underline">Dismiss</button>
         </p>
+      )}
+
+      {showInstructions && createPortal(
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/45 p-4 backdrop-blur-sm">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="lead-import-instructions-title"
+            className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+          >
+            <header className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 sm:px-6">
+              <div>
+                <h2 id="lead-import-instructions-title" className="text-base font-semibold text-slate-900">
+                  Import leads from a spreadsheet
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Accepted formats: .csv or .xlsx. Column headers are matched case-insensitively,
+                  so any of the alias names below works.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowInstructions(false)}
+                aria-label="Close import instructions"
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </header>
+            <div className="min-h-0 flex-1 overflow-auto px-5 py-4 sm:px-6">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Required columns</h3>
+              <div className="mt-2 overflow-x-auto rounded-xl border border-slate-200">
+                <table className="min-w-full text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-600">
+                    <tr>
+                      <th className="px-3 py-2">Column</th>
+                      <th className="px-3 py-2">Also accepted as</th>
+                      <th className="px-3 py-2">Example</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {REQUIRED_COLUMNS.map((col) => (
+                      <tr key={col.name}>
+                        <td className="px-3 py-2 font-medium text-slate-900">{col.name}</td>
+                        <td className="px-3 py-2 text-slate-500">{col.aliases}</td>
+                        <td className="px-3 py-2 text-slate-500">{col.sample}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <h3 className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">Optional columns</h3>
+              <div className="mt-2 overflow-x-auto rounded-xl border border-slate-200">
+                <table className="min-w-full text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-600">
+                    <tr>
+                      <th className="px-3 py-2">Column</th>
+                      <th className="px-3 py-2">Also accepted as</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {OPTIONAL_COLUMNS.map((col) => (
+                      <tr key={col.name}>
+                        <td className="px-3 py-2 font-medium text-slate-900">{col.name}</td>
+                        <td className="px-3 py-2 text-slate-500">{col.aliases}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-4 text-xs text-slate-500">
+                Rows missing a required column, or matching an existing lead, are flagged in the
+                preview step and can be excluded before importing.
+              </p>
+            </div>
+            <footer className="flex shrink-0 justify-end gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-4 sm:px-6">
+              <button
+                type="button"
+                onClick={() => setShowInstructions(false)}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowInstructions(false); inputRef.current?.click(); }}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-hover"
+              >
+                <FileUp className="h-4 w-4" /> Browse files
+              </button>
+            </footer>
+          </section>
+        </div>,
+        document.body
       )}
 
       {busy && !preview && createPortal(

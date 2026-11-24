@@ -57,7 +57,6 @@ const DEFAULT_FORM = {
     call_assignee: null,
     call_assignee_username: "",
     original_call_assignee: "",
-    assignment_reason: "",
     created_by: null,
     created_by_username: "",
     created_at: "",
@@ -153,7 +152,6 @@ const LeadEditModal = ({ lead, onClose, onSave, classes = [], classLoadError = "
       call_assignee: source.call_assignee ?? null,
       call_assignee_username: source.call_assignee_username || "",
       original_call_assignee: source.call_assignee == null ? "" : String(source.call_assignee),
-      assignment_reason: "",
       created_by: source.created_by ?? null,
       created_by_username: source.created_by_username || "",
       created_at: source.created_at || "",
@@ -228,10 +226,6 @@ const LeadEditModal = ({ lead, onClose, onSave, classes = [], classLoadError = "
     }
     const assigneeChanged = canAssignAcademic &&
       String(formData.call_assignee ?? "") !== formData.original_call_assignee;
-    if (assigneeChanged && !formData.assignment_reason.trim()) {
-      setValidationError("Provide a reason when changing the academic assignee.");
-      return;
-    }
     const maxLengths = {
       school_name: 255, district: 100, municipality: 100, address: 255,
       contact_person: 255, contact_number: 32, alt_number: 32, landline: 32,
@@ -268,7 +262,6 @@ const LeadEditModal = ({ lead, onClose, onSave, classes = [], classLoadError = "
     }
     if (assigneeChanged) {
       updatedData.call_assignee = formData.call_assignee ? Number(formData.call_assignee) : null;
-      updatedData.assignment_reason = formData.assignment_reason.trim();
     }
 
     onSave(updatedData);

@@ -50,7 +50,6 @@ const LeadEditForm = ({
     "mt-1 block w-full p-2 border border-slate-200 rounded-md bg-slate-50 text-slate-500 sm:text-sm cursor-not-allowed";
   const labelClass = "block text-sm font-medium text-slate-700 mb-1";
   const canAssignAcademic = isAdmin || (user?.role || "").toLowerCase() === "b2b";
-  const assigneeChanged = String(formData.call_assignee ?? "") !== formData.original_call_assignee;
 
   return (
     <form
@@ -160,19 +159,6 @@ const LeadEditForm = ({
                 );
               })}
             </select>
-            {assigneeChanged && (
-              <input
-                type="text"
-                name="assignment_reason"
-                value={formData.assignment_reason || ""}
-                onChange={onChange}
-                maxLength={1000}
-                required
-                placeholder="Reason for reassignment"
-                className={inputClass}
-                aria-label="Reason for changing the academic assignee"
-              />
-            )}
           </>
         ) : (
           <input type="text" value={formData.call_assignee_username || ""} className={readOnlyClass} readOnly />

@@ -369,7 +369,7 @@ const Dashboard = () => {
         <PageHeader
           title={`Welcome back, ${firstName}.`}
           description="Here’s a quick look at what’s happening across your team."
-          className="rounded-xl border border-slate-200 px-5 py-4 shadow-sm sm:px-6"
+          className="border-l-4 border-l-primary px-5 py-4 sm:px-6"
           actions={(
             <>
               <label className="relative">

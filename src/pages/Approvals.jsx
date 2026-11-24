@@ -121,22 +121,20 @@ const Approvals = () => {
   if (loading && !rows.length) return <PageLoadingState />;
 
   return (
-    <PageShell className="crm-page-shell">
-      <div className="mx-auto max-w-6xl space-y-5 px-4 py-6 sm:px-6 lg:px-8">
-        <PageHeader
-          title="Lead approvals"
-          description="Review new school submissions before they enter the team pipeline."
-          backTo="/dashboard"
-          badge={<span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">{count} pending</span>}
-          actions={(
-            <Button variant="refresh" size="sm" onClick={loadQueue} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} aria-hidden="true" />
-              Refresh
-            </Button>
-          )}
-          className="rounded-xl border border-slate-200/80 shadow-sm"
-        />
+    <PageShell width="standard">
+      <PageHeader
+        title="Lead approvals"
+        description="Review new school submissions before they enter the team pipeline."
+        badge={<span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">{count} pending</span>}
+        actions={(
+          <Button variant="refresh" size="sm" onClick={loadQueue} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} aria-hidden="true" />
+            Refresh
+          </Button>
+        )}
+      />
 
+      <div className="space-y-5 px-4 py-5 sm:px-6 sm:py-6">
         {selected.size > 0 && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3">
           <span className="text-xs font-semibold text-blue-900">{selected.size} lead(s) selected</span>
           <div className="flex gap-2">

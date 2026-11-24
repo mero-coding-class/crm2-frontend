@@ -74,13 +74,9 @@ const AddLeadModal = ({ onClose, onSave, authToken, classes = [], classLoadError
 
   const classChoices = Array.isArray(classes) ? classes : [];
 
-  // Task 2.2: Render user display name without email in parentheses
-  const formatUserLabel = (u) => {
-    // Show only name/username, no email or role in parentheses
-    return u.first_name && u.last_name
-      ? `${u.first_name} ${u.last_name}`
-      : u.username || u.email || String(u.id);
-  };
+  // Match Settings > All Users, which lists accounts by username only —
+  // using the full name here instead made entries unrecognizable there.
+  const formatUserLabel = (u) => u.username || u.email || String(u.id);
 
   return (
     <div

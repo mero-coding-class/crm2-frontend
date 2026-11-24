@@ -234,7 +234,6 @@ const Reports = () => {
         title="Reports"
         description={`${summary?.scope === "all" ? "All team data" : "Your assigned data"} · Report overview and exports`}
         className="px-4 sm:px-6"
-        backTo="/dashboard"
         actions={(
           <Button
             type="button"
@@ -340,8 +339,9 @@ const Reports = () => {
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <section className={`${panelClass} p-4 sm:p-5`}>
                 <SectionTitle title="Demo stats" />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <StatTile label="Scheduled" value={fmt(summary.demos?.scheduled)} />
+                  <StatTile label="Overdue" value={fmt(summary.demos?.overdue)} tone="danger" />
                   <StatTile label="Completed" value={fmt(summary.demos?.completed)} tone="success" />
                 </div>
               </section>

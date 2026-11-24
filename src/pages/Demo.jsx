@@ -23,6 +23,7 @@ import { containsLetter, isValidAlphabeticName, isValidPhoneNumber } from "../ut
 import PageLoadingState from "../components/common/PageLoadingState.jsx";
 import DataTableShell from "../components/common/DataTableShell.jsx";
 import Pagination from "../components/common/Pagination.jsx";
+import RowActionButton from "../components/common/RowActionButton.jsx";
 import { Button } from "../components/ui/button.jsx";
 import { PageShell, PageHeader } from "../components/common/PageShell.jsx";
 import useRealtimeRefresh from "../hooks/useRealtimeRefresh.js";
@@ -137,7 +138,7 @@ const Demo = () => {
   };
   const [editForm, setEditForm] = useState(emptyEdit);
 
-  const emptyFeedback = { outcome: "", program: "", feedback_notes: "" };
+  const emptyFeedback = { outcome: "", program: "", feedback_notes: "", reschedule_at: "" };
   const [feedbackForm, setFeedbackForm] = useState(emptyFeedback);
 
   // ── Fetch demos ─────────────────────────────────────────────────────────────
@@ -373,7 +374,13 @@ const Demo = () => {
     setSaving(true);
     setSaveError(null);
     try {
-      await demoService.submitFeedback(feedbackDemo.id, feedbackForm, authToken);
+      const { reschedule_at, ...feedbackPayload } = feedbackForm;
+      await demoService.submitFeedback(feedbackDemo.id, feedbackPayload, authToken);
+      if (feedbackForm.outcome === "needs_follow_up" && reschedule_at) {
+        await demoService.updateDemo(
+          feedbackDemo.id, { demo_at: new Date(reschedule_at).toISOString() }, authToken
+        );
+      }
       setFeedbackOpen(false);
       setFeedbackDemo(null);
       fetchDemos();
@@ -414,7 +421,6 @@ const Demo = () => {
           </span>
         )}
         description="Schedule and track school demonstrations."
-        backTo="/dashboard"
         actions={(
           <>
             <Button
@@ -592,43 +598,23 @@ const Demo = () => {
                           {demo.phone && <div className="text-xs text-slate-400">{demo.phone}</div>}
                         </td>
                         <td className="px-3 py-3">
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              onClick={() => setViewingDemo(demo)}
-                              className="p-1.5 rounded-[6px] text-slate-500 hover:text-primary hover:bg-primary-light transition-colors"
-                              title="View"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
+                          <div className="flex items-center gap-1">
+                            <RowActionButton icon={Eye} label="View" onClick={() => setViewingDemo(demo)} />
                             {(isAdmin || isB2b || isAcademic) && (
-                              <button
-                                onClick={() => openEdit(demo)}
-                                className="p-1.5 rounded-[6px] text-slate-500 hover:text-primary hover:bg-primary-light transition-colors"
-                                title="Edit"
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </button>
+                              <RowActionButton icon={Pencil} label="Edit" onClick={() => openEdit(demo)} />
                             )}
                             {/* Sales users can submit feedback within their own pipeline. */}
                             {["scheduled", "rescheduled", "completed", "follow_up"].includes(demo.demo_status) && !demo.feedback_at && new Date(demo.demo_at).getTime() <= Date.now() &&
                               (isAdmin || isAcademic || isB2b) && (
-                                <button
-                                  onClick={() => openFeedback(demo)}
-                                  className="p-1.5 rounded-[6px] text-slate-500 hover:text-primary hover:bg-primary-light transition-colors"
-                                  title="Submit Feedback"
-                                >
-                                  <MessageSquare className="w-4 h-4" />
-                                </button>
+                                <RowActionButton icon={MessageSquare} label="Submit feedback" onClick={() => openFeedback(demo)} />
                               )}
                             {(isAdmin || isB2b) && (
-                              <button
+                              <RowActionButton
+                                icon={Trash2}
+                                label="Delete demo"
+                                tone="danger"
                                 onClick={() => { setDeletingDemo(demo); setSaveError(null); }}
-                                className="inline-flex items-center gap-1 rounded-[6px] px-2 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
-                                title="Delete demo"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                Delete
-                              </button>
+                              />
                             )}
                           </div>
                         </td>
@@ -826,6 +812,18 @@ const Demo = () => {
                 <option value="not_interested">Not interested</option>
               </select>
             </FormGroup>
+            {feedbackForm.outcome === "needs_follow_up" && (
+              <FormGroup label="Reschedule to *">
+                <input
+                  type="datetime-local"
+                  required
+                  min={toDateTimeLocal(new Date())}
+                  value={feedbackForm.reschedule_at}
+                  onChange={(e) => setFeedbackForm((f) => ({ ...f, reschedule_at: e.target.value }))}
+                  className={inputCls}
+                />
+              </FormGroup>
+            )}
             <FormGroup label="Class / Program *">
               <select
                 required

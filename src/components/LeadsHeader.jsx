@@ -21,7 +21,6 @@ const LeadsHeader = ({
       <PageHeader
         title="Leads Management"
         description="Manage, filter, import and track school leads across intake channels."
-        backTo="/dashboard"
         badge={(
           <span className="rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-slate-600">
             {totalCount} Total

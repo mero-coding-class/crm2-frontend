@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Building2, Eye, GripVertical, Pencil, Undo2 } from "lucide-react";
 import ColumnToggler from "./ColumnToggler";
 import DataTableShell from "./common/DataTableShell.jsx";
+import RowActionButton from "./common/RowActionButton.jsx";
 import { Button } from "./ui/button.jsx";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import {
@@ -217,25 +218,18 @@ const SortableClientRow = ({
       case "actions":
         return (
           <div className="flex items-center justify-end gap-1">
-            <button type="button" onClick={() => onViewDetails?.(client)} title="View client details" className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-primary-light hover:text-primary">
-              <Eye className="h-3.5 w-3.5" />
-            </button>
-            {canManage && <button
-              type="button"
-              onClick={() => handleEdit(client)}
-              title="Edit client details"
-              className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-primary-light hover:text-primary"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </button>}
-            {canManage && <button
-              type="button"
-              onClick={() => handleDelete(client.id)}
-              title="Return client to Leads"
-              className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
-            >
-              <Undo2 className="h-3.5 w-3.5" />
-            </button>}
+            <RowActionButton icon={Eye} label="View client details" onClick={() => onViewDetails?.(client)} />
+            {canManage && (
+              <RowActionButton icon={Pencil} label="Edit client details" onClick={() => handleEdit(client)} />
+            )}
+            {canManage && (
+              <RowActionButton
+                icon={Undo2}
+                label="Return client to Leads"
+                tone="danger"
+                onClick={() => handleDelete(client.id)}
+              />
+            )}
           </div>
         );
       default:

@@ -176,7 +176,6 @@ const TrashPage = () => {
       <PageHeader
         title="Archived Leads"
         description="Archived records are read-only. Admins and lead owners can restore them."
-        backTo="/dashboard"
         actions={(
           <>
           <Button type="button" variant="refresh" disabled={loading || busy} onClick={() => fetchLeads(currentPage, searchTerm)}>

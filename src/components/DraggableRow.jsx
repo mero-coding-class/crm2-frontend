@@ -3,10 +3,18 @@ import {
   GraduationCap as AcademicCapIcon,
   ClipboardList as ClipboardDocumentListIcon,
   Eye as EyeIcon,
+  MoreVertical as MoreVerticalIcon,
   Pencil as PencilIcon,
   Trash2 as TrashIcon,
 } from "lucide-react";
 import { getSubStatusClasses } from "./helpers";
+import RowActionButton from "./common/RowActionButton.jsx";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu.jsx";
 
 const formatValue = (value) => {
   if (value === null || value === undefined || String(value).trim() === "") return "—";
@@ -62,37 +70,57 @@ const DraggableRow = ({
               <span className={`inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-semibold ${getSubStatusClasses(lead.sub_status)}`}>
                 {formatValue(lead.sub_status || "New")}
               </span>
-              {canViewHistory && <button
-                type="button"
-                title="View Activity Log"
-                onClick={() => onOpenViewModal?.(lead)}
-                className="rounded p-1 text-slate-400 transition-colors hover:bg-primary-light hover:text-primary"
-              >
-                <EyeIcon className="h-3.5 w-3.5" />
-              </button>}
+              {canViewHistory && (
+                <RowActionButton
+                  icon={EyeIcon}
+                  label="View Activity Log"
+                  onClick={() => onOpenViewModal?.(lead)}
+                />
+              )}
             </div>
           </td>
         );
       case "actions": {
         const canLogActivity = isAdmin || lead.approval !== "pending";
-        const canConvert = lead.approval === "approved";
+        const canConvert = canManageLeads && lead.approval === "approved";
+        const hasMenu = canLogActivity || canConvert;
         return (
           <td key={key} className="whitespace-nowrap px-3 py-3 text-right text-sm font-medium">
             <div className="flex items-center justify-end gap-1">
-              {canLogActivity && <button type="button" onClick={() => onOpenActivityModal?.(lead)} className="inline-flex items-center gap-1 rounded-md border border-primary-border bg-primary-light px-2 py-1 text-xs font-semibold text-primary hover:bg-primary-light" title="Log activity">
-                <ClipboardDocumentListIcon className="h-3.5 w-3.5" /> Log
-              </button>}
+              {hasMenu && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      title="More actions"
+                      className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-primary-light hover:text-primary"
+                    >
+                      <MoreVerticalIcon className="h-3.5 w-3.5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {canLogActivity && (
+                      <DropdownMenuItem onSelect={() => onOpenActivityModal?.(lead)}>
+                        <ClipboardDocumentListIcon className="mr-2 h-3.5 w-3.5 text-primary" /> Log activity
+                      </DropdownMenuItem>
+                    )}
+                    {canConvert && (
+                      <DropdownMenuItem onSelect={() => onOpenEnrollModal?.(lead)}>
+                        <AcademicCapIcon className="mr-2 h-3.5 w-3.5 text-emerald-600" /> Convert to client
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
               {canManageLeads && (
                 <>
-                  {canConvert && <button type="button" onClick={() => onOpenEnrollModal?.(lead)} className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100" title="Convert lead to client">
-                    <AcademicCapIcon className="h-3.5 w-3.5" /> Convert
-                  </button>}
-                  <button type="button" onClick={() => handleEdit(lead)} className="rounded-md p-1 text-primary hover:bg-primary-light" title="Edit lead">
-                    <PencilIcon className="h-4 w-4" />
-                  </button>
-                  <button type="button" onClick={() => handleDelete(lead.id || lead._id)} className="rounded-md p-1 text-rose-600 hover:bg-rose-50" title="Move lead to Archive">
-                    <TrashIcon className="h-4 w-4" />
-                  </button>
+                  <RowActionButton icon={PencilIcon} label="Edit lead" onClick={() => handleEdit(lead)} />
+                  <RowActionButton
+                    icon={TrashIcon}
+                    label="Move lead to Archive"
+                    tone="danger"
+                    onClick={() => handleDelete(lead.id || lead._id)}
+                  />
                 </>
               )}
             </div>
