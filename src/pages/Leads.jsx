@@ -70,6 +70,35 @@ const Leads = () => {
   });
   const [showFilters, setShowFilters] = useState(false);
   const [searchTerm, setSearchTerm] = useState(searchParams.get("search") || "");
+  const [filterOwner, setFilterOwner] = useState("");
+  const [filterCallAssignee, setFilterCallAssignee] = useState("");
+  const [ownerOptions, setOwnerOptions] = useState([]);
+  const [academicOptions, setAcademicOptions] = useState([]);
+  const isAdmin = ["admin", "super admin", "superadmin", "super-admin"].includes(role);
+
+  useEffect(() => {
+    if (!authToken || !isAdmin) return undefined;
+    let cancelled = false;
+    leadService.getOwnerOptions(authToken).then((owners) => {
+      if (!cancelled) setOwnerOptions((Array.isArray(owners) ? owners : []).map((owner) => ({
+        id: owner.id,
+        name: [owner.first_name, owner.last_name].filter(Boolean).join(" ") || owner.username,
+      })));
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [authToken, isAdmin]);
+
+  useEffect(() => {
+    if (!authToken || !canManageLeads) return undefined;
+    let cancelled = false;
+    leadService.getAcademicAssignees(authToken).then((academics) => {
+      if (!cancelled) setAcademicOptions((Array.isArray(academics) ? academics : []).map((academic) => ({
+        id: academic.id,
+        name: [academic.first_name, academic.last_name].filter(Boolean).join(" ") || academic.username,
+      })));
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [authToken, canManageLeads]);
 
   const pageSize = 20;
   const {
@@ -116,6 +145,8 @@ const Leads = () => {
     const search = searchTerm.trim();
     if (search) filters.search = search;
     if (filterSubStatus !== "SubStatus") filters.sub_status = filterSubStatus;
+    if (filterOwner) filters.owner = filterOwner;
+    if (filterCallAssignee) filters.call_assignee = filterCallAssignee;
     if (filterFollowupDate && !filterFollowupFrom && !filterFollowupTo) {
       filters.followup = filterFollowupDate;
     } else {
@@ -123,7 +154,8 @@ const Leads = () => {
       if (filterFollowupTo) filters.followup_to = dateBound(filterFollowupTo, true);
     }
     return filters;
-  }, [routeFilters, searchTerm, filterSubStatus, filterFollowupDate, filterFollowupFrom, filterFollowupTo]);
+  }, [routeFilters, searchTerm, filterSubStatus, filterOwner, filterCallAssignee,
+    filterFollowupDate, filterFollowupFrom, filterFollowupTo]);
   useEffect(() => {
     const filters = buildFilters();
     if (!filterRequestMounted.current) {
@@ -244,6 +276,8 @@ const Leads = () => {
     setSearchParams(next, { replace: true });
     setFilterSubStatus("SubStatus");
     setSearchTerm("");
+    setFilterOwner("");
+    setFilterCallAssignee("");
     setFilterFollowupDate("");
     setFilterFollowupFrom("");
     setFilterFollowupTo("");
@@ -328,6 +362,12 @@ const Leads = () => {
         setFilterSubStatus={setFilterSubStatus}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
+        filterOwner={filterOwner}
+        setFilterOwner={setFilterOwner}
+        ownerOptions={ownerOptions}
+        filterCallAssignee={filterCallAssignee}
+        setFilterCallAssignee={setFilterCallAssignee}
+        academicOptions={academicOptions}
         // Followup date filters
         filterFollowupDate={filterFollowupDate}
         setFilterFollowupDate={setFilterFollowupDate}

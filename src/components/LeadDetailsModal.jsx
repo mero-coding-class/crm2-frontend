@@ -29,9 +29,8 @@ export default function LeadDetailsModal({ lead, authToken, onClose }) {
     { title: "Pipeline", fields: [
       ["Source", record.source], ["Class interest", record.course_interest],
       ["Sub-status", record.sub_status], ["Approval", record.approval],
-      ["Approval reason", record.approval_reason], ["Proposal sent", record.proposal_status],
+      ["Proposal sent", record.proposal_status],
       ["Demo scheduled", record.demo_scheduled], ["Lead status", record.status],
-      ["Next-year probability", record.next_year_probability],
     ] },
     { title: "Assignment and history", fields: [
       ["Lead owner", record.owner_username], ["Call assignee", record.call_assignee_username],

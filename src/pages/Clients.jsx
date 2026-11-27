@@ -14,6 +14,7 @@ import ClientsTable from "../components/ClientsTable";
 import {
   RefreshCw,
   FileDown,
+  ListFilter,
 } from "lucide-react";
 import { Button } from "../components/ui/button.jsx";
 import Pagination from "../components/common/Pagination.jsx";
@@ -48,7 +49,8 @@ const Clients = () => {
   const routeSearch = searchParams.get("search") || "";
   const routeFilters = useMemo(() => {
     const filters = {};
-    ["owner", "mou_start_from", "mou_start_to", "mou_end_from", "mou_end_to"].forEach((key) => {
+    ["owner", "mou_start_from", "mou_start_to", "mou_end_from", "mou_end_to",
+      "renewals", "enrolled_from", "enrolled_to"].forEach((key) => {
       const value = searchParams.get(key);
       if (value) filters[key] = value;
     });
@@ -182,7 +184,8 @@ const Clients = () => {
 
   const clearFilters = useCallback(() => {
     const next = new URLSearchParams(searchParams);
-    ["owner", "mou_start_from", "mou_start_to", "mou_end_from", "mou_end_to"].forEach((key) => next.delete(key));
+    ["owner", "mou_start_from", "mou_start_to", "mou_end_from", "mou_end_to",
+      "renewals", "enrolled_from", "enrolled_to"].forEach((key) => next.delete(key));
     setSearchParams(next, { replace: true });
     setCurrentPage(1);
   }, [searchParams, setSearchParams, setCurrentPage]);
@@ -267,6 +270,15 @@ const Clients = () => {
           <>
             <Button
               type="button"
+              variant={showFilters ? "outline" : "secondary"}
+              onClick={() => setShowFilters((visible) => !visible)}
+            >
+              <ListFilter className="h-4 w-4" />
+              {showFilters ? "Hide Filters" : "Show Filters"}
+            </Button>
+
+            <Button
+              type="button"
               variant="refresh"
               onClick={() => fetchEnrolledClients(currentPage)}
             >
@@ -289,7 +301,6 @@ const Clients = () => {
 
       <FiltersPanel
         showFilters={showFilters}
-        setShowFilters={setShowFilters}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         onClear={() => setSearchQuery("")}

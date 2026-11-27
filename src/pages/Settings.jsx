@@ -1407,7 +1407,12 @@ const Settings = () => {
               className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-slate-700"
             >
               <option value="">Do not reassign</option>
-              {users.filter((candidate) => candidate.is_active && candidate.id !== deleteUserConfirmId).map((candidate) => (
+              {users.filter((candidate) => {
+                const target = users.find((u) => u.id === deleteUserConfirmId);
+                return candidate.is_active
+                  && candidate.id !== deleteUserConfirmId
+                  && (!target || candidate.role === target.role);
+              }).map((candidate) => (
                 <option key={candidate.id} value={candidate.id}>{candidate.username} ({candidate.role})</option>
               ))}
             </select>

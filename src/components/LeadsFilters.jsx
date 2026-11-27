@@ -59,6 +59,12 @@ const LeadsFilters = ({
   showFilters,
   filterSubStatus,
   setFilterSubStatus,
+  filterOwner,
+  setFilterOwner,
+  ownerOptions = [],
+  filterCallAssignee,
+  setFilterCallAssignee,
+  academicOptions = [],
   filterFollowupDate,
   setFilterFollowupDate,
   filterFollowupFrom,
@@ -69,19 +75,19 @@ const LeadsFilters = ({
   subStatusOptions,
   searchTerm,
   setSearchTerm,
-}) => {
-  if (!showFilters) return null;
+}) => (
+  <div className="px-6 py-3 border-b border-slate-200 bg-slate-50">
+    <div className="flex flex-wrap items-center gap-2">
+      {setSearchTerm && (
+        <div className="relative min-w-[200px] max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+          <DebouncedSearchInput value={searchTerm} onChange={setSearchTerm} />
+        </div>
+      )}
+    </div>
 
-  return (
-    <div className="px-6 py-3 border-b border-slate-200 bg-slate-50">
-      <div className="flex flex-wrap items-center gap-2">
-        {setSearchTerm && (
-          <div className="relative min-w-[200px] max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
-            <DebouncedSearchInput value={searchTerm} onChange={setSearchTerm} />
-          </div>
-        )}
-
+    {showFilters && (
+      <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className="text-xs font-semibold text-slate-400 uppercase tracking-[0.04em] mr-1">
           Filter by:
         </span>
@@ -91,6 +97,28 @@ const LeadsFilters = ({
           onChange={setFilterSubStatus}
           options={subStatusOptions}
         />
+
+        {ownerOptions.length > 0 && (
+          <FilterPill
+            value={filterOwner || ""}
+            onChange={setFilterOwner}
+            options={[
+              { value: "", label: "All lead owners" },
+              ...ownerOptions.map((owner) => ({ value: String(owner.id), label: owner.name })),
+            ]}
+          />
+        )}
+
+        {academicOptions.length > 0 && (
+          <FilterPill
+            value={filterCallAssignee || ""}
+            onChange={setFilterCallAssignee}
+            options={[
+              { value: "", label: "All academic assignees" },
+              ...academicOptions.map((academic) => ({ value: String(academic.id), label: academic.name })),
+            ]}
+          />
+        )}
 
         {/* Follow-up activity date filters */}
         <div className="flex items-center gap-1.5">
@@ -140,8 +168,8 @@ const LeadsFilters = ({
           Clear all
         </button>
       </div>
-    </div>
-  );
-};
+    )}
+  </div>
+);
 
 export default React.memo(LeadsFilters);

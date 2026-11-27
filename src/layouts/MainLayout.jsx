@@ -572,7 +572,7 @@ const MainLayout = () => {
                           <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${notification.is_read ? "bg-slate-200" : "bg-primary"}`} />
                           <button type="button" onClick={() => openNotification(notification)} className="min-w-0 flex-1 text-left">
                             <span className="block text-xs font-semibold leading-5 text-slate-800">{notification.message || notification.kind?.replaceAll("_", " ")}</span>
-                            <span className="mt-0.5 block truncate text-xs text-slate-400">{notification.lead_system_id} · {new Date(notification.sent_at).toLocaleString("en-NP", { dateStyle: "medium", timeStyle: "short" })}</span>
+                            <span className="mt-0.5 block truncate text-xs text-slate-400">{(notification.lead_school_name || "").trim().split(/\s+/)[0] || notification.lead_system_id} · {new Date(notification.sent_at).toLocaleString("en-NP", { dateStyle: "medium", timeStyle: "short" })}</span>
                           </button>
                           {!notification.is_read && <button type="button" onClick={() => markNotificationRead(notification).catch(() => {})} className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-slate-500 hover:bg-white hover:text-primary">Mark read</button>}
                         </div>
